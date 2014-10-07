@@ -1,0 +1,6 @@
+Version history
+---------------
+
+Version 0.9, 06.10.2014:
+
+Initial release (beta status)
