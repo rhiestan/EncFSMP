@@ -1,0 +1,12 @@
+Version history
+---------------
+
+Version 0.9.1, 10.10.2014:
+- Fixed a problem where EncFS on Linux was not able to open EncFS folders created with EncFSMP
+- Added feature "Minimize to tray" (Windows)/"Minimize to menu icon" (Mac OS X)
+- Dialogs for creating new/opening existing EncFS folders slightly improved
+
+
+Version 0.9, 06.10.2014:
+
+Initial release (beta status)
