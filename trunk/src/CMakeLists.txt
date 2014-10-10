@@ -317,12 +317,14 @@ ENDIF(CMAKE_COMPILER_IS_GNUCC)
 SET(ALL_SRC ${ALL_SRC} EncFSMPApp.cpp fs_layer.cpp pfm_layer.cpp EncFSMPMainFrameBase.cpp
 	EncFSMPMainFrame.cpp PFMProxy.cpp PFMHandlerThread.cpp OpenSSLProxy.cpp
 	PFMMonitorThread.cpp OpenExistingFSDialog.cpp EncFSUtilities.cpp MountList.cpp
-	CreateNewEncFSDialog.cpp ChangePasswordDialog.cpp EncFSMPStrings.cpp )
+	CreateNewEncFSDialog.cpp ChangePasswordDialog.cpp EncFSMPStrings.cpp
+	EncFSMPTaskBarIcon.cpp )
 
 SET(ALL_HEADERS ${ALL_HEADERS} EncFSMPApp.h fs_layer.h pfm_layer.h EncFSMPMainFrameBase.h
 	EncFSMPMainFrame.h CommonIncludes.h version.h PFMProxy.h PFMHandlerThread.h OpenSSLProxy.h
 	PFMMonitorThread.h OpenExistingFSDialog.h EncFSUtilities.h MountList.h
-	CreateNewEncFSDialog.h ChangePasswordDialog.h EncFSMPStrings.h )
+	CreateNewEncFSDialog.h ChangePasswordDialog.h EncFSMPStrings.h
+	EncFSMPTaskBarIcon.h )
 
 IF(WIN32)
 	# Add resource definitions and Win32Utils for Windows
@@ -400,8 +402,17 @@ ENDIF(UNIX)
 
 INSTALL(TARGETS EncFSMP DESTINATION ".")
 IF(APPLE)
+	ADD_CUSTOM_COMMAND(
+		OUTPUT "${CMAKE_BINARY_DIR}/Install PFM.app"
+		COMMAND osacompile -o "${CMAKE_BINARY_DIR}/Install PFM.app" "${CMAKE_SOURCE_DIR}/install/Install PFM.scpt")
+	ADD_CUSTOM_TARGET(Install_PFM ALL DEPENDS "${CMAKE_BINARY_DIR}/Install PFM.app")
+	ADD_CUSTOM_COMMAND(
+		OUTPUT "${CMAKE_BINARY_DIR}/Uninstall PFM.app"
+		COMMAND osacompile -o "${CMAKE_BINARY_DIR}/Uninstall PFM.app" "${CMAKE_SOURCE_DIR}/install/Uninstall PFM.scpt")
+	ADD_CUSTOM_TARGET(Uninstall_PFM ALL DEPENDS "${CMAKE_BINARY_DIR}/Uninstall PFM.app")
+
 	INSTALL(PROGRAMS ${CMAKE_SOURCE_DIR}/install/res/pfm-171-encfsmp-mac.run DESTINATION pfm)
-	INSTALL(DIRECTORY "${CMAKE_SOURCE_DIR}/install/Install PFM.app" DESTINATION "." USE_SOURCE_PERMISSIONS)
-	INSTALL(DIRECTORY "${CMAKE_SOURCE_DIR}/install/Uninstall PFM.app" DESTINATION "." USE_SOURCE_PERMISSIONS)
+	INSTALL(DIRECTORY "${CMAKE_BINARY_DIR}/Install PFM.app" DESTINATION "." USE_SOURCE_PERMISSIONS)
+	INSTALL(DIRECTORY "${CMAKE_BINARY_DIR}/Uninstall PFM.app" DESTINATION "." USE_SOURCE_PERMISSIONS)
 ENDIF(APPLE)
 INCLUDE(CPack)

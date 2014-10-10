@@ -34,3 +34,6 @@ wxString EncFSMPStrings::configDriveLetterKey_(wxT("DriveLetter"));
 wxString EncFSMPStrings::configPasswordKey_(wxT("Password"));
 wxString EncFSMPStrings::configIsWorldWritableKey_(wxT("IsWorldWritable"));
 wxString EncFSMPStrings::configIsSystemVisibleKey_(wxT("IsSystemVisible"));
+wxString EncFSMPStrings::configWindowDimensions_(wxT("WindowDimensions"));
+wxString EncFSMPStrings::configColumnWidths_(wxT("ColumnWidths"));
+wxString EncFSMPStrings::configMinimizeToTray_(wxT("MinimizeToTray"));

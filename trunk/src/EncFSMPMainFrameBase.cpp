@@ -13,6 +13,7 @@
 
 BEGIN_EVENT_TABLE( EncFSMPMainFrameBase, wxFrame )
 	EVT_CLOSE( EncFSMPMainFrameBase::_wxFB_OnMainFrameClose )
+	EVT_ICONIZE( EncFSMPMainFrameBase::_wxFB_OnMainFrameIconize )
 	EVT_MENU( wxID_EXIT, EncFSMPMainFrameBase::_wxFB_OnExitMenuItem )
 	EVT_MENU( ID_EXPORTMENUITEM, EncFSMPMainFrameBase::_wxFB_OnExportMenuItem )
 	EVT_MENU( wxID_ABOUT, EncFSMPMainFrameBase::_wxFB_OnAboutMenuItem )
@@ -141,7 +142,7 @@ OpenExistingFSDialogBase::OpenExistingFSDialogBase( wxWindow* parent, wxWindowID
 	
 	pFlexGridSizer_ = new wxFlexGridSizer( 8, 2, 0, 0 );
 	pFlexGridSizer_->AddGrowableCol( 1 );
-	pFlexGridSizer_->SetFlexibleDirection( wxHORIZONTAL );
+	pFlexGridSizer_->SetFlexibleDirection( wxBOTH );
 	pFlexGridSizer_->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
 	
 	m_staticText1 = new wxStaticText( this, wxID_ANY, wxT("Mount name:"), wxDefaultPosition, wxDefaultSize, 0 );
@@ -218,10 +219,10 @@ OpenExistingFSDialogBase::OpenExistingFSDialogBase( wxWindow* parent, wxWindowID
 	
 	pFlexGridSizer_->Add( pSystemVisibleCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
-	bSizer4->Add( pFlexGridSizer_, 1, wxALL|wxEXPAND, 3 );
+	bSizer4->Add( pFlexGridSizer_, 0, wxALL|wxEXPAND, 3 );
 	
 	
-	bSizer4->Add( 0, 20, 0, wxEXPAND, 5 );
+	bSizer4->Add( 0, 20, 1, wxEXPAND, 5 );
 	
 	m_sdbSizer1 = new wxStdDialogButtonSizer();
 	m_sdbSizer1OK = new wxButton( this, wxID_OK );
@@ -257,7 +258,7 @@ CreateNewEncFSDialogBase::CreateNewEncFSDialogBase( wxWindow* parent, wxWindowID
 	
 	pFlexGridSizer_ = new wxFlexGridSizer( 8, 2, 0, 0 );
 	pFlexGridSizer_->AddGrowableCol( 1 );
-	pFlexGridSizer_->SetFlexibleDirection( wxHORIZONTAL );
+	pFlexGridSizer_->SetFlexibleDirection( wxBOTH );
 	pFlexGridSizer_->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
 	
 	m_staticText1 = new wxStaticText( this, wxID_ANY, wxT("Mount name:"), wxDefaultPosition, wxDefaultSize, 0 );
@@ -471,7 +472,7 @@ CreateNewEncFSDialogBase::~CreateNewEncFSDialogBase()
 
 ShowEncFSInfoDialog::ShowEncFSInfoDialog( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxDialog( parent, id, title, pos, size, style )
 {
-	this->SetSizeHints( wxSize( 200,200 ), wxDefaultSize );
+	this->SetSizeHints( wxSize( 300,300 ), wxDefaultSize );
 	
 	wxBoxSizer* bSizer7;
 	bSizer7 = new wxBoxSizer( wxVERTICAL );

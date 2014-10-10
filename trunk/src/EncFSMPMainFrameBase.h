@@ -98,6 +98,7 @@ class EncFSMPMainFrameBase : public wxFrame
 		
 		// Private event handlers
 		void _wxFB_OnMainFrameClose( wxCloseEvent& event ){ OnMainFrameClose( event ); }
+		void _wxFB_OnMainFrameIconize( wxIconizeEvent& event ){ OnMainFrameIconize( event ); }
 		void _wxFB_OnExitMenuItem( wxCommandEvent& event ){ OnExitMenuItem( event ); }
 		void _wxFB_OnExportMenuItem( wxCommandEvent& event ){ OnExportMenuItem( event ); }
 		void _wxFB_OnAboutMenuItem( wxCommandEvent& event ){ OnAboutMenuItem( event ); }
@@ -137,6 +138,7 @@ class EncFSMPMainFrameBase : public wxFrame
 		
 		// Virtual event handlers, overide them in your derived class
 		virtual void OnMainFrameClose( wxCloseEvent& event ) = 0;
+		virtual void OnMainFrameIconize( wxIconizeEvent& event ) = 0;
 		virtual void OnExitMenuItem( wxCommandEvent& event ) = 0;
 		virtual void OnExportMenuItem( wxCommandEvent& event ) = 0;
 		virtual void OnAboutMenuItem( wxCommandEvent& event ) = 0;
