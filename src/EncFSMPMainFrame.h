@@ -20,6 +20,8 @@
 #ifndef ENCFSMPMAINFRAME_H
 #define ENCFSMPMAINFRAME_H
 
+class EncFSMPTaskBarIcon;
+
 #include <list>
 #include "EncFSMPMainFrameBase.h"
 #include "MountList.h"
@@ -33,6 +35,10 @@ public:
 	void addNewMountEvent(bool isMountEvent,
 		const std::wstring &mountName, wchar_t driveLetter, const std::wstring &uncName);
 	void reportEncFSError(const wxString &error, const wxString &mountName);
+
+	void unmountAllAndQuit();
+
+	virtual void OnMainFrameIconize( wxIconizeEvent& event );
 
 protected:
 	virtual void OnMainFrameClose( wxCloseEvent& event );
@@ -57,6 +63,7 @@ protected:
 	virtual void OnMountEvent( wxCommandEvent &event );
 	virtual void OnEncFSMountErrorEvent( wxCommandEvent &event );
 	virtual void OnUAC( wxCommandEvent& event );
+	virtual void OnMinimizeToTrayMenuItem( wxCommandEvent& event );
 	
 	wxIcon getIcon();
 	void updateMountListCtrl();
@@ -67,6 +74,9 @@ protected:
 
 private:
 	wxTimer aTimer_;
+	wxMenuItem *pMinimizeToTrayMenuItem_;
+	bool minimizeToTray_;
+	EncFSMPTaskBarIcon *pTaskBarIcon_;
 
 	bool firstTimeOnTimer_;
 	bool isRunningAsAdmin_;

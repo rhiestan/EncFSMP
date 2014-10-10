@@ -57,7 +57,7 @@
             <event name="OnEnterWindow"></event>
             <event name="OnEraseBackground"></event>
             <event name="OnHibernate"></event>
-            <event name="OnIconize"></event>
+            <event name="OnIconize">OnMainFrameIconize</event>
             <event name="OnIdle"></event>
             <event name="OnKeyDown"></event>
             <event name="OnKeyUp"></event>
@@ -954,10 +954,10 @@
                 <object class="sizeritem" expanded="1">
                     <property name="border">3</property>
                     <property name="flag">wxALL|wxEXPAND</property>
-                    <property name="proportion">1</property>
+                    <property name="proportion">0</property>
                     <object class="wxFlexGridSizer" expanded="1">
                         <property name="cols">2</property>
-                        <property name="flexible_direction">wxHORIZONTAL</property>
+                        <property name="flexible_direction">wxBOTH</property>
                         <property name="growablecols">1</property>
                         <property name="growablerows"></property>
                         <property name="hgap">0</property>
@@ -1884,7 +1884,7 @@
                 <object class="sizeritem" expanded="0">
                     <property name="border">5</property>
                     <property name="flag">wxEXPAND</property>
-                    <property name="proportion">0</property>
+                    <property name="proportion">1</property>
                     <object class="spacer" expanded="0">
                         <property name="height">20</property>
                         <property name="permission">protected</property>
@@ -1988,7 +1988,7 @@
                     <property name="proportion">0</property>
                     <object class="wxFlexGridSizer" expanded="1">
                         <property name="cols">2</property>
-                        <property name="flexible_direction">wxHORIZONTAL</property>
+                        <property name="flexible_direction">wxBOTH</property>
                         <property name="growablecols">1</property>
                         <property name="growablerows"></property>
                         <property name="hgap">0</property>
@@ -4087,7 +4087,7 @@
             <property name="hidden">0</property>
             <property name="id">ID_SHOWENCFSINFODIALOG</property>
             <property name="maximum_size"></property>
-            <property name="minimum_size">200,200</property>
+            <property name="minimum_size">300,300</property>
             <property name="name">ShowEncFSInfoDialog</property>
             <property name="pos"></property>
             <property name="size">516,453</property>

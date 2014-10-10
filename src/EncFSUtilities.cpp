@@ -25,7 +25,6 @@
 
 #include "EncFSUtilities.h"
 
-
 // libencfs
 #include "encfs.h"
 
@@ -41,11 +40,14 @@
 #include "NullNameIO.h"
 #include "Context.h"
 
-
 // boost
 #include <boost/locale.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
+
+// Unfortunately, my version of libencfs is a tiny bit newer than 1.7.4 on Linux.
+// This define restores full compatibility
+#define EFS_COMPATIBILITY_WORKAROUND 1
 
 EncFSUtilities::EncFSUtilities()
 {
@@ -76,6 +78,11 @@ bool EncFSUtilities::createEncFS(const wxString &encFSPath, const wxString &pass
 		if(it->name == nameEncoding.ToStdString())
 			nameIOIface = it->iface;
 	}
+
+#if defined(EFS_COMPATIBILITY_WORKAROUND)
+	if(nameIOIface.current() == 4)
+		nameIOIface.current() = 3;
+#endif
 
 	int blockMACBytes = 0;
 	int blockMACRandBytes = 0;

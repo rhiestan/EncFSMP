@@ -19,6 +19,10 @@
 
 #include "CommonIncludes.h"
 
+// Unfortunately, my version of libencfs is a tiny bit newer than 1.7.4 on Linux.
+// This define restores full compatibility
+#define EFS_COMPATIBILITY_WORKAROUND 1
+
 #include "CreateNewEncFSDialog.h"
 #include "MountList.h"
 
@@ -93,8 +97,6 @@ CreateNewEncFSDialog::CreateNewEncFSDialog(wxWindow* parent)
 		pCipherAlgorithmChoice_->Append(wxString(it->name.c_str(), *wxConvCurrent));
 	}
 	pCipherAlgorithmChoice_->Select(0);
-	wxCommandEvent dummyEvent;
-//	OnCipherAlgorithmChoice(dummyEvent);
 
 	pNameEncodingChoice_->Clear();
 	wxString toolTipStr;
@@ -102,6 +104,10 @@ CreateNewEncFSDialog::CreateNewEncFSDialog(wxWindow* parent)
 	NameIO::AlgorithmList::const_iterator nmit;
 	for(nmit = nmalgorithms.begin(); nmit != nmalgorithms.end(); ++nmit)
 	{
+#if defined(EFS_COMPATIBILITY_WORKAROUND)
+		if(nmit->name == std::string("Block32"))
+			continue;
+#endif
 		if(toolTipStr.Length() > 0)
 			toolTipStr.Append(wxT("\n"));
 		pNameEncodingChoice_->Append(wxString(nmit->name.c_str(), *wxConvCurrent));
@@ -122,6 +128,7 @@ CreateNewEncFSDialog::CreateNewEncFSDialog(wxWindow* parent)
 	pKeyDerivationDurationChoice_->Select(0);
 
 	pEncFSConfigurationRadioButton_->Select(0);
+	wxCommandEvent dummyEvent;
 	OnEncFSConfigurationRadioBox(dummyEvent);
 
 	Layout();

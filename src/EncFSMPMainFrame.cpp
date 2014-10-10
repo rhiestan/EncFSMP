@@ -27,6 +27,8 @@
 #include "CreateNewEncFSDialog.h"
 #include "ChangePasswordDialog.h"
 #include "EncFSUtilities.h"
+#include "EncFSMPStrings.h"
+#include "EncFSMPTaskBarIcon.h"
 
 #include <wx/dirdlg.h>
 #include <wx/busyinfo.h>
@@ -61,14 +63,16 @@ enum
 	ID_TIMER = 2000,
 	ID_NEW_MOUNT_EVENT,
 	ID_ENCFS_MOUNT_ERROR_EVENT,
-	ID_UAC
+	ID_UAC,
+	ID_MINIMIZETOTRAYMENUITEM
 };
 
 const wxEventType myCustomEventType = wxNewEventType();
 
 EncFSMPMainFrame::EncFSMPMainFrame(wxWindow* parent)
 	: EncFSMPMainFrameBase(parent),
-	aTimer_(this, ID_TIMER),
+	aTimer_(this, ID_TIMER), minimizeToTray_(false),
+	pTaskBarIcon_(NULL),
 	firstTimeOnTimer_(false), isRunningAsAdmin_(false)
 {
 	pMountsListCtrl_->ClearAll();
@@ -87,7 +91,8 @@ EncFSMPMainFrame::EncFSMPMainFrame(wxWindow* parent)
 		if(!Win32Utils::isRunAsAdmin())
 		{
 			wxBitmap uacShieldBM;
-			wxMenuItem *pUACMenuItem = new wxMenuItem( pToolsMenu_, ID_UAC, wxString( wxT("Restart with admin rights") ) , wxEmptyString, wxITEM_NORMAL );
+			wxMenuItem *pUACMenuItem = new wxMenuItem( pToolsMenu_, ID_UAC,
+				wxString( wxT("Restart with admin rights") ) , wxEmptyString, wxITEM_NORMAL );
 			if(Win32Utils::getShieldIcon(uacShieldBM))
 				pUACMenuItem->SetBitmap(uacShieldBM);
 			pToolsMenu_->Insert( 0, pUACMenuItem );
@@ -100,6 +105,17 @@ EncFSMPMainFrame::EncFSMPMainFrame(wxWindow* parent)
 		}
 	}
 #endif
+
+	if(wxTaskBarIcon::IsAvailable())
+	{
+#if defined(EFS_MACOSX)
+		pMinimizeToTrayMenuItem_ = pToolsMenu_->Append(ID_MINIMIZETOTRAYMENUITEM,
+			wxT("Minimize to menu icon"), wxEmptyString, wxITEM_NORMAL);
+#else
+		pMinimizeToTrayMenuItem_ = pToolsMenu_->Append(ID_MINIMIZETOTRAYMENUITEM,
+			wxT("Minimize to tray"), wxEmptyString, wxITEM_CHECK);
+#endif
+	}
 
 	// Workaround for OS X: Hide empty menus
 #if defined(__WXMAC__) || defined(__WXOSX__) || defined(__WXOSX_COCOA__)
@@ -119,6 +135,11 @@ EncFSMPMainFrame::EncFSMPMainFrame(wxWindow* parent)
 EncFSMPMainFrame::~EncFSMPMainFrame()
 {
 	aTimer_.Stop();
+	if(pTaskBarIcon_ != NULL)
+	{
+		delete pTaskBarIcon_;
+		pTaskBarIcon_ = NULL;
+	}
 }
 
 /**
@@ -166,6 +187,26 @@ void EncFSMPMainFrame::reportEncFSError(const wxString &error, const wxString &m
 	wxCommandEvent newEvent(myCustomEventType, ID_ENCFS_MOUNT_ERROR_EVENT);
 	AddPendingEvent(newEvent);
 #endif
+}
+
+void EncFSMPMainFrame::unmountAllAndQuit()
+{
+	// Unmount
+	std::list<MountEntry> &mountList = mountList_.getList();
+	std::list<MountEntry>::iterator iter = mountList.begin();
+	while(iter != mountList.end())
+	{
+		MountEntry &cur = (*iter);
+		if(cur.mountState_ == MountEntry::MSMounted)
+		{
+			PFMProxy::getInstance().unmount(cur.name_);
+			cur.mountState_ = MountEntry::MSNotMounted;	// Make sure OnMainFrameClose does not ask again...
+		}
+
+		iter++;
+	}
+
+	Close();
 }
 
 void EncFSMPMainFrame::OnMainFrameClose( wxCloseEvent& evt )
@@ -233,6 +274,42 @@ void EncFSMPMainFrame::OnMainFrameClose( wxCloseEvent& evt )
 
 	aTimer_.Stop();
 	Destroy();
+}
+
+void EncFSMPMainFrame::OnMainFrameIconize( wxIconizeEvent& event )
+{
+	if(wxTaskBarIcon::IsAvailable()
+		&& minimizeToTray_)
+	{
+		if(event.IsIconized())
+		{
+			// Hide window, remove from task bar
+			this->Hide();
+			// Add tray icon
+			if(pTaskBarIcon_ == NULL)
+			{
+				pTaskBarIcon_ = new EncFSMPTaskBarIcon();
+				wxIcon icon = getIcon();
+#if defined(EFS_MACOSX)
+				// On OS X, menu icons (NSStatusMenus) should be black and white
+				wxBitmap iconBM;
+				iconBM.CopyFromIcon(icon);
+				wxImage img = iconBM.ConvertToImage();
+				wxImage imgGrey = img.ConvertToGreyscale();
+				wxBitmap iconBMGrey(imgGrey);
+				icon.CopyFromBitmap(iconBMGrey);
+#endif
+				pTaskBarIcon_->SetIcon(icon, EncFSMPStrings::configAppName_);
+				pTaskBarIcon_->setMainFrame(this);
+			}
+		}
+		else
+		{
+			// Show window, add to task bar
+			pTaskBarIcon_->Destroy();
+			pTaskBarIcon_ = NULL;
+		}
+	}
 }
 
 void EncFSMPMainFrame::OnExitMenuItem( wxCommandEvent& WXUNUSED(event) )
@@ -408,7 +485,8 @@ void EncFSMPMainFrame::OnMountsListKeyDown( wxListEvent& event )
 			while(iter != mountList.end())
 			{
 				MountEntry &cur = (*iter);
-				if(pMountEntry->name_ == cur.name_)
+				if(pMountEntry->name_ == cur.name_
+					&& pMountEntry->mountState_ == MountEntry::MSNotMounted)
 				{
 					mountList.erase(iter);
 					mountList_.storeToConfig();
@@ -463,8 +541,6 @@ void EncFSMPMainFrame::OnMountButton( wxCommandEvent& event )
 				isSystemVisible = true;
 			}
 #endif
-			if(pMountEntry->isSystemVisible_)
-				isWorldWritable = true;
 			PFMHandlerThread *pPFMHandlerThread = new PFMHandlerThread();
 			pPFMHandlerThread->setParameters(pMountEntry->name_,
 				pMountEntry->encFSPath_, pMountEntry->driveLetter_,
@@ -711,6 +787,19 @@ void EncFSMPMainFrame::OnUAC( wxCommandEvent& event )
 #endif
 }
 
+void EncFSMPMainFrame::OnMinimizeToTrayMenuItem( wxCommandEvent& event )
+{
+#if defined(EFS_MACOSX)
+	wxIconizeEvent dummyEvent(0, true);
+	dummyEvent.SetEventObject(this);
+	OnMainFrameIconize(dummyEvent);
+#else
+	minimizeToTray_ = (event.GetInt() != 0);
+	saveWindowLayoutToConfig();
+#endif
+}
+
+
 // Icon: From resource on Win32, from PNG otherwise
 #if !defined(EFS_WIN32)
 #include "res/png/encfsmp_png.h"
@@ -855,7 +944,8 @@ void EncFSMPMainFrame::updateButtonStates()
 
 void EncFSMPMainFrame::saveWindowLayoutToConfig()
 {
-	std::auto_ptr<wxConfig> config(new wxConfig(wxT("EncFSMP"), wxT("hiesti.ch")));
+	std::auto_ptr<wxConfig> config(new wxConfig(EncFSMPStrings::configAppName_,
+		EncFSMPStrings::configOrganizationName_));
 
 	{
 		wxPoint pt = GetPosition();
@@ -865,7 +955,7 @@ void EncFSMPMainFrame::saveWindowLayoutToConfig()
 		ostr << pt.x << L" " << pt.y << L" " << sz.x << L" " << sz.y;
 		wxString dimensions(ostr.str().c_str());
 
-		config->Write(wxT("WindowDimensions"), dimensions);
+		config->Write(EncFSMPStrings::configWindowDimensions_, dimensions);
 	}
 
 	{
@@ -878,8 +968,10 @@ void EncFSMPMainFrame::saveWindowLayoutToConfig()
 		}
 		wxString columnWidths(ostr.str().c_str());
 
-		config->Write(wxT("ColumnWidths"), columnWidths);
+		config->Write(EncFSMPStrings::configColumnWidths_, columnWidths);
 	}
+
+	config->Write(EncFSMPStrings::configMinimizeToTray_, minimizeToTray_);
 }
 
 void EncFSMPMainFrame::loadWindowLayoutFromConfig()
@@ -887,11 +979,12 @@ void EncFSMPMainFrame::loadWindowLayoutFromConfig()
 	long index = 0;
 	wxString str;
 
-	std::auto_ptr<wxConfig> config(new wxConfig(wxT("EncFSMP"), wxT("hiesti.ch")));
+	std::auto_ptr<wxConfig> config(new wxConfig(EncFSMPStrings::configAppName_,
+		EncFSMPStrings::configOrganizationName_));
 	config->SetPath(wxT("/"));
 
 	wxString dimensions, columnWidths;
-	if(config->Read(wxT("WindowDimensions"), &dimensions))
+	if(config->Read(EncFSMPStrings::configWindowDimensions_, &dimensions))
 	{
 		wxPoint pt;
 		wxSize sz;
@@ -900,7 +993,7 @@ void EncFSMPMainFrame::loadWindowLayoutFromConfig()
 		SetSize(sz);
 		SetPosition(pt);
 	}
-	if(config->Read(wxT("ColumnWidths"), &columnWidths))
+	if(config->Read(EncFSMPStrings::configColumnWidths_, &columnWidths))
 	{
 		std::wistringstream istr(std::wstring(columnWidths.c_str()));
 		int columnCount = pMountsListCtrl_->GetColumnCount();
@@ -910,8 +1003,13 @@ void EncFSMPMainFrame::loadWindowLayoutFromConfig()
 			istr >> width;
 			pMountsListCtrl_->SetColumnWidth(i, width);
 		}
-
 	}
+
+	if(!config->Read(EncFSMPStrings::configMinimizeToTray_, &minimizeToTray_))
+		minimizeToTray_ = false;		// Default is false
+#if !defined(EFS_MACOSX)
+	pMinimizeToTrayMenuItem_->Check(minimizeToTray_);
+#endif
 }
 
 BEGIN_EVENT_TABLE( EncFSMPMainFrame, EncFSMPMainFrameBase )
@@ -919,4 +1017,5 @@ BEGIN_EVENT_TABLE( EncFSMPMainFrame, EncFSMPMainFrameBase )
 	EVT_COMMAND(ID_ENCFS_MOUNT_ERROR_EVENT, myCustomEventType, EncFSMPMainFrame::OnEncFSMountErrorEvent)
 	EVT_MENU( ID_UAC, EncFSMPMainFrame::OnUAC )
 	EVT_TIMER(ID_TIMER, EncFSMPMainFrame::OnTimer)
+	EVT_MENU( ID_MINIMIZETOTRAYMENUITEM, EncFSMPMainFrame::OnMinimizeToTrayMenuItem )
 END_EVENT_TABLE()
