@@ -1,6 +1,12 @@
 Version history
 ---------------
 
+Version 0.9.2, 20.10.2014:
+- Added context menu in mounts list
+- Updated wxWidgets to 3.0.2 and OpenSSL to 1.0.1j
+- Minor code changes, EncFSMP can now be compiled against wxWidgets < 2.9.0
+
+
 Version 0.9.1, 10.10.2014:
 - Fixed a problem where EncFS on Linux was not able to open EncFS folders created with EncFSMP
 - Added feature "Minimize to tray" (Windows)/"Minimize to menu icon" (Mac OS X)

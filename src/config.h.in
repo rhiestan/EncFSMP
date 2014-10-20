@@ -71,13 +71,19 @@
 #undef HAVE_ICONV
 
 /* Define to 1 if you have the <inttypes.h> header file. */
+#ifndef HAVE_INTTYPES_H
 #cmakedefine HAVE_INTTYPES_H 1
+#endif
 
 /* Define to 1 if you have the <memory.h> header file. */
+#ifndef HAVE_MEMORY_H
 #cmakedefine HAVE_MEMORY_H 1
+#endif
 
 /* Define if you have POSIX threads libraries and header files. */
+#ifndef HAVE_PTHREAD
 #cmakedefine HAVE_PTHREAD 1
+#endif
 
 /* Linking with OpenSSL */
 #define HAVE_SSL 1
@@ -162,7 +168,9 @@
 /* xattr functions have additional options */
 #undef XATTR_ADD_OPT
 
+#ifndef HAVE_SSIZE_T
 #cmakedefine HAVE_SSIZE_T 1
+#endif
 
 #ifndef HAVE_SSIZE_T
 typedef signed long long ssize_t;
@@ -217,7 +225,10 @@ typedef signed   __int64  int64_t;
 #endif
 
 
+#ifndef HAVE_MODE_T
 #cmakedefine HAVE_MODE_T 1
+#endif
+
 #cmakedefine HAVE_PID_T 1
 #cmakedefine HAVE_GID_T 1
 #cmakedefine HAVE_UID_T 1

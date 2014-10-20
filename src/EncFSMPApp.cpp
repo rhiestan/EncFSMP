@@ -32,12 +32,20 @@
 bool EncFSMPApp::OnInit()
 {
 	wxString appName(wxT(ENCFSMP_NAME));
+#if wxCHECK_VERSION(2, 9, 0)
 	SetAppDisplayName(appName);
+#endif
 	appName.Replace(wxT(" "), wxEmptyString, true);
 	SetAppName(appName);
 
 	// Make sure only one instance is running
+#if wxCHECK_VERSION(2, 9, 0)
 	pSingleInstanceChecker_ = new wxSingleInstanceChecker();
+#else
+	const wxString appname = wxString::Format(wxT(ENCFSMP_NAME) wxT("-%s"), wxGetUserId().c_str());
+    pSingleInstanceChecker_ = new wxSingleInstanceChecker(appname);
+#endif
+
 	if(pSingleInstanceChecker_->IsAnotherRunning())
 	{
 		wxMessageBox(wxT("Another instance of " ) wxT(ENCFSMP_NAME) wxT(" is already running."),

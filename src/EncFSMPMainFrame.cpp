@@ -44,7 +44,7 @@
 #endif
 
 // EncFS
-#if defined(_WIN32)
+#if wxCHECK_VERSION(2, 9, 0) && defined(_WIN32)
 #define HAVE_MODE_T		// Workaround for double defined mode_t on Windows
 #endif
 #include "config.h"
@@ -64,7 +64,14 @@ enum
 	ID_NEW_MOUNT_EVENT,
 	ID_ENCFS_MOUNT_ERROR_EVENT,
 	ID_UAC,
-	ID_MINIMIZETOTRAYMENUITEM
+	ID_MINIMIZETOTRAYMENUITEM,
+	ID_CTXMOUNT,
+	ID_CTXREMOVE,
+	ID_CTXEDIT,
+	ID_CTXBROWSE,
+	ID_CTXSHOWINFO,
+	ID_CTXCHANGEPASSWD,
+	ID_CTXEXPORT
 };
 
 const wxEventType myCustomEventType = wxNewEventType();
@@ -72,7 +79,7 @@ const wxEventType myCustomEventType = wxNewEventType();
 EncFSMPMainFrame::EncFSMPMainFrame(wxWindow* parent)
 	: EncFSMPMainFrameBase(parent),
 	aTimer_(this, ID_TIMER), minimizeToTray_(false),
-	pTaskBarIcon_(NULL),
+	pTaskBarIcon_(NULL), pMountsListPopupMenu_(NULL),
 	firstTimeOnTimer_(false), isRunningAsAdmin_(false)
 {
 	pMountsListCtrl_->ClearAll();
@@ -106,7 +113,9 @@ EncFSMPMainFrame::EncFSMPMainFrame(wxWindow* parent)
 	}
 #endif
 
+#if wxCHECK_VERSION(2, 9, 0)
 	if(wxTaskBarIcon::IsAvailable())
+#endif
 	{
 #if defined(EFS_MACOSX)
 		pMinimizeToTrayMenuItem_ = pToolsMenu_->Append(ID_MINIMIZETOTRAYMENUITEM,
@@ -139,6 +148,11 @@ EncFSMPMainFrame::~EncFSMPMainFrame()
 	{
 		delete pTaskBarIcon_;
 		pTaskBarIcon_ = NULL;
+	}
+	if(pMountsListPopupMenu_ != NULL)
+	{
+		delete pMountsListPopupMenu_;
+		pMountsListPopupMenu_ = NULL;
 	}
 }
 
@@ -278,8 +292,11 @@ void EncFSMPMainFrame::OnMainFrameClose( wxCloseEvent& evt )
 
 void EncFSMPMainFrame::OnMainFrameIconize( wxIconizeEvent& event )
 {
-	if(wxTaskBarIcon::IsAvailable()
-		&& minimizeToTray_)
+	if(
+#if wxCHECK_VERSION(2, 9, 0)
+		wxTaskBarIcon::IsAvailable() &&
+#endif
+		minimizeToTray_)
 	{
 		if(event.IsIconized())
 		{
@@ -306,7 +323,9 @@ void EncFSMPMainFrame::OnMainFrameIconize( wxIconizeEvent& event )
 		else
 		{
 			// Show window, add to task bar
+#if wxCHECK_VERSION(2, 9, 0)
 			pTaskBarIcon_->Destroy();
+#endif
 			pTaskBarIcon_ = NULL;
 		}
 	}
@@ -345,7 +364,7 @@ void EncFSMPMainFrame::OnExportMenuItem( wxCommandEvent& event )
 		bool isOK = true;
 		{
 			wxWindowDisabler disableAll;
-			wxBusyInfo wait("Exporting EncFS files...");
+			wxBusyInfo wait(wxT("Exporting EncFS files..."));
 			isOK = EncFSUtilities::exportEncFS(pMountEntry->encFSPath_,
 				password, exportPath, errorMsg);
 		}
@@ -378,7 +397,7 @@ void EncFSMPMainFrame::OnAboutMenuItem( wxCommandEvent& WXUNUSED(event) )
 	descrString.Append(wxString(wxT(OPENSSL_VERSION_TEXT)));
 
 	wxString boostVersion;
-	boostVersion.Printf("%d.%d.%d", BOOST_VERSION / 100000, BOOST_VERSION / 100 % 1000, BOOST_VERSION % 100);
+	boostVersion.Printf(wxT("%d.%d.%d"), BOOST_VERSION / 100000, BOOST_VERSION / 100 % 1000, BOOST_VERSION % 100);
 	descrString.Append(wxT("\n - boost "));
 	descrString.Append(boostVersion);
 	descrString.Append(wxT("\n\n"));
@@ -464,6 +483,52 @@ void EncFSMPMainFrame::OnMountsListColClick( wxListEvent& event )
 void EncFSMPMainFrame::OnMountsListItemDeselected( wxListEvent& event )
 {
 	updateButtonStates();
+}
+
+void EncFSMPMainFrame::OnMountsListItemRightClick( wxListEvent& event )
+{
+	if(pMountsListPopupMenu_ != NULL)
+	{
+		delete pMountsListPopupMenu_;
+		pMountsListPopupMenu_ = NULL;
+	}
+
+	bool isPFMPresent = PFMProxy::getInstance().isPFMPresent();
+	MountEntry *pMountEntry = getSelectedMount();
+/*
+	ID_CTXMOUNT,
+	ID_CTXREMOVE,
+	ID_CTXEDIT,
+	ID_CTXBROWSE,
+	ID_CTXSHOWINFO,
+	ID_CTXCHANGEPASSWD,
+	ID_CTXEXPORT
+*/
+
+	// Don't show popup menu if no selected entry was found or mount is pending
+	if(pMountEntry == NULL
+		|| pMountEntry->mountState_ == MountEntry::MSPending)
+		return;
+
+	pMountsListPopupMenu_ = new wxMenu();
+	if(pMountEntry->mountState_ == MountEntry::MSMounted)
+	{
+		if(isPFMPresent)
+			pMountsListPopupMenu_->Append(ID_CTXMOUNT, wxT("Unmount"));
+		pMountsListPopupMenu_->Append(ID_CTXBROWSE, wxT("Browse"));
+	}
+	else
+	{
+		if(isPFMPresent)
+			pMountsListPopupMenu_->Append(ID_CTXMOUNT, wxT("Mount"));
+		pMountsListPopupMenu_->Append(ID_CTXREMOVE, wxT("Remove"));
+		pMountsListPopupMenu_->Append(ID_CTXEDIT, wxT("Edit"));
+		pMountsListPopupMenu_->Append(ID_CTXSHOWINFO, wxT("Show Info"));
+		pMountsListPopupMenu_->Append(ID_CTXCHANGEPASSWD, wxT("Change password"));
+		pMountsListPopupMenu_->Append(ID_CTXEXPORT, wxT("Export"));
+	}
+
+	PopupMenu(pMountsListPopupMenu_);
 }
 
 void EncFSMPMainFrame::OnMountsListItemSelected( wxListEvent& event )
@@ -782,7 +847,7 @@ void EncFSMPMainFrame::OnEncFSMountErrorEvent( wxCommandEvent &event )
 void EncFSMPMainFrame::OnUAC( wxCommandEvent& event )
 {
 #if defined(EFS_WIN32)
-	if(Win32Utils::restartAsAdmin(this->GetHWND()))
+	if(Win32Utils::restartAsAdmin((HWND)this->GetHWND()))
 		Close();
 #endif
 }
@@ -797,6 +862,41 @@ void EncFSMPMainFrame::OnMinimizeToTrayMenuItem( wxCommandEvent& event )
 	minimizeToTray_ = (event.GetInt() != 0);
 	saveWindowLayoutToConfig();
 #endif
+}
+
+void EncFSMPMainFrame::OnContextMenuMount( wxCommandEvent& event )
+{
+	OnMountButton(event);
+}
+
+void EncFSMPMainFrame::OnContextMenuRemove( wxCommandEvent& event )
+{
+	OnRemoveButton(event);
+}
+
+void EncFSMPMainFrame::OnContextMenuEdit( wxCommandEvent& event )
+{
+	OnEditButton(event);
+}
+
+void EncFSMPMainFrame::OnContextMenuBrowse( wxCommandEvent& event )
+{
+	OnBrowseButton(event);
+}
+
+void EncFSMPMainFrame::OnContextMenuShowInfo( wxCommandEvent& event )
+{
+	OnInfoButton(event);
+}
+
+void EncFSMPMainFrame::OnContextMenuChangePassword( wxCommandEvent& event )
+{
+	OnChangePasswordButton(event);
+}
+
+void EncFSMPMainFrame::OnContextMenuExport( wxCommandEvent& event )
+{
+	OnExportMenuItem(event);
 }
 
 
@@ -882,7 +982,18 @@ MountEntry *EncFSMPMainFrame::getSelectedMount()
 
 	if(selectedItem >= 0)
 	{
+#if wxCHECK_VERSION(2, 9, 0)
 		wxString selectedMountName = pMountsListCtrl_->GetItemText(selectedItem, 1);
+#else
+		wxListItem info;
+		info.SetMask(wxLIST_MASK_TEXT);
+		info.SetId(selectedItem);
+		info.SetColumn(1);
+		wxString selectedMountName;
+
+		if(pMountsListCtrl_->GetItem(info))
+			selectedMountName = info.GetText();
+#endif
 		MountEntry *pMountEntry = mountList_.findEntryByName(selectedMountName);
 		return pMountEntry;
 	}
@@ -1018,4 +1129,11 @@ BEGIN_EVENT_TABLE( EncFSMPMainFrame, EncFSMPMainFrameBase )
 	EVT_MENU( ID_UAC, EncFSMPMainFrame::OnUAC )
 	EVT_TIMER(ID_TIMER, EncFSMPMainFrame::OnTimer)
 	EVT_MENU( ID_MINIMIZETOTRAYMENUITEM, EncFSMPMainFrame::OnMinimizeToTrayMenuItem )
+	EVT_MENU( ID_CTXMOUNT, EncFSMPMainFrame::OnContextMenuMount )
+	EVT_MENU( ID_CTXREMOVE, EncFSMPMainFrame::OnContextMenuRemove )
+	EVT_MENU( ID_CTXEDIT, EncFSMPMainFrame::OnContextMenuEdit )
+	EVT_MENU( ID_CTXBROWSE, EncFSMPMainFrame::OnContextMenuBrowse )
+	EVT_MENU( ID_CTXSHOWINFO, EncFSMPMainFrame::OnContextMenuShowInfo )
+	EVT_MENU( ID_CTXCHANGEPASSWD, EncFSMPMainFrame::OnContextMenuChangePassword )
+	EVT_MENU( ID_CTXEXPORT, EncFSMPMainFrame::OnContextMenuExport )
 END_EVENT_TABLE()

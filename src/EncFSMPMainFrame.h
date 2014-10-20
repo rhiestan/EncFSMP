@@ -21,6 +21,7 @@
 #define ENCFSMPMAINFRAME_H
 
 class EncFSMPTaskBarIcon;
+class wxMenu;
 
 #include <list>
 #include "EncFSMPMainFrameBase.h"
@@ -49,6 +50,7 @@ protected:
 	virtual void OnOpenExistingEncFSButton( wxCommandEvent& event );
 	virtual void OnMountsListColClick( wxListEvent& event );
 	virtual void OnMountsListItemDeselected( wxListEvent& event );
+	virtual void OnMountsListItemRightClick( wxListEvent& event );
 	virtual void OnMountsListItemSelected( wxListEvent& event );
 	virtual void OnMountsListKeyDown( wxListEvent& event );
 	virtual void OnMountButton( wxCommandEvent& event );
@@ -64,7 +66,14 @@ protected:
 	virtual void OnEncFSMountErrorEvent( wxCommandEvent &event );
 	virtual void OnUAC( wxCommandEvent& event );
 	virtual void OnMinimizeToTrayMenuItem( wxCommandEvent& event );
-	
+	virtual void OnContextMenuMount( wxCommandEvent& event );
+	virtual void OnContextMenuRemove( wxCommandEvent& event );
+	virtual void OnContextMenuEdit( wxCommandEvent& event );
+	virtual void OnContextMenuBrowse( wxCommandEvent& event );
+	virtual void OnContextMenuShowInfo( wxCommandEvent& event );
+	virtual void OnContextMenuChangePassword( wxCommandEvent& event );
+	virtual void OnContextMenuExport( wxCommandEvent& event );
+
 	wxIcon getIcon();
 	void updateMountListCtrl();
 	MountEntry *getSelectedMount();
@@ -77,6 +86,7 @@ private:
 	wxMenuItem *pMinimizeToTrayMenuItem_;
 	bool minimizeToTray_;
 	EncFSMPTaskBarIcon *pTaskBarIcon_;
+	wxMenu *pMountsListPopupMenu_;
 
 	bool firstTimeOnTimer_;
 	bool isRunningAsAdmin_;
