@@ -26,7 +26,7 @@
 #include "CreateNewEncFSDialog.h"
 #include "MountList.h"
 
-#if defined(_WIN32)
+#if wxCHECK_VERSION(2, 9, 0) && defined(_WIN32)
 #define HAVE_MODE_T		// Workaround for double defined mode_t on Windows
 #endif
 
@@ -301,10 +301,10 @@ void CreateNewEncFSDialog::OnOK( wxCommandEvent& event )
 		}
 
 		cipherAlgorithm_ = pCipherAlgorithmChoice_->GetStringSelection();
-		pCipherKeysizeChoice_->GetStringSelection().ToCLong(&cipherKeySize_);
-		pCipherBlocksizeChoice_->GetStringSelection().ToCLong(&cipherBlockSize_);
+		pCipherKeysizeChoice_->GetStringSelection().ToLong(&cipherKeySize_);
+		pCipherBlocksizeChoice_->GetStringSelection().ToLong(&cipherBlockSize_);
 		nameEncoding_ = pNameEncodingChoice_->GetStringSelection();
-		pKeyDerivationDurationChoice_->GetStringSelection().ToCLong(&keyDerivationDuration_);
+		pKeyDerivationDurationChoice_->GetStringSelection().ToLong(&keyDerivationDuration_);
 
 		EndModal(wxID_OK);
 	}

@@ -17,11 +17,21 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#if defined(_WIN32)
+#include <wx/version.h>
+
+#if wxCHECK_VERSION(2, 9, 0) && defined(_WIN32)
 #define HAVE_MODE_T		// Workaround for double defined mode_t on Windows
 #endif
+
+// Unfortunately, libencfs and wxWidgets have incompatible ssize_t definitions in 32 bits
+// Workaround:
 #include "config.h"
+#define HAVE_SSIZE_T
+
 #include "CommonIncludes.h"
+
+
+#include "config.h"
 
 #include "EncFSUtilities.h"
 
@@ -64,18 +74,27 @@ bool EncFSUtilities::createEncFS(const wxString &encFSPath, const wxString &pass
 	const wxString &nameEncoding, long keyDerivationDuration,
 	bool perBlockHMAC, bool uniqueIV, bool chainedIV, bool externalIV)
 {
+#if wxCHECK_VERSION(2, 9, 0)
 	std::string cipherAlgo = cipherAlgorithm.ToStdString();
+#else
+	std::string cipherAlgo(cipherAlgorithm.mb_str());
+#endif
 
 	boost::shared_ptr<Cipher> cipher = Cipher::New( cipherAlgo, cipherKeySize );
 	if(!cipher)
 		return false;
 
+#if wxCHECK_VERSION(2, 9, 0)
+	std::string nameEncodingStdStr = nameEncoding.ToStdString();
+#else
+	std::string nameEncodingStdStr(nameEncoding.mb_str());
+#endif
 	rel::Interface nameIOIface = BlockNameIO::CurrentInterface();
 	NameIO::AlgorithmList algorithms = NameIO::GetAlgorithmList();
 	NameIO::AlgorithmList::const_iterator it;
 	for(it = algorithms.begin(); it != algorithms.end(); ++it)
 	{
-		if(it->name == nameEncoding.ToStdString())
+		if(it->name == nameEncodingStdStr)
 			nameIOIface = it->iface;
 	}
 

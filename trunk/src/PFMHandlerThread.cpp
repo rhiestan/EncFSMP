@@ -24,7 +24,7 @@
 #include "EncFSMPMainFrame.h"
 #include "EncFSUtilities.h"
 
-#if defined(_WIN32)
+#if wxCHECK_VERSION(2, 9, 0) && defined(_WIN32)
 #define HAVE_MODE_T		// Workaround for double defined mode_t on Windows
 #endif
 

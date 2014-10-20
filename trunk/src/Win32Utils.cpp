@@ -172,7 +172,9 @@ bool Win32Utils::getShieldIcon(wxBitmap &shieldBM)
 		if(hr == S_OK)
 		{
 			wxIcon uacShieldIcon;
+#if wxCHECK_VERSION(2, 9, 0)
 			uacShieldIcon.CreateFromHICON(stockInfo.hIcon);
+#endif
 			shieldBM.CopyFromIcon(uacShieldIcon);
 			::DestroyIcon(stockInfo.hIcon);
 		}

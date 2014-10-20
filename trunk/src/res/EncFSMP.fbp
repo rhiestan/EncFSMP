@@ -457,7 +457,7 @@
                                             <event name="OnListItemDeselected">OnMountsListItemDeselected</event>
                                             <event name="OnListItemFocused"></event>
                                             <event name="OnListItemMiddleClick"></event>
-                                            <event name="OnListItemRightClick"></event>
+                                            <event name="OnListItemRightClick">OnMountsListItemRightClick</event>
                                             <event name="OnListItemSelected">OnMountsListItemSelected</event>
                                             <event name="OnListKeyDown">OnMountsListKeyDown</event>
                                             <event name="OnMiddleDClick"></event>

@@ -106,6 +106,7 @@ class EncFSMPMainFrameBase : public wxFrame
 		void _wxFB_OnOpenExistingEncFSButton( wxCommandEvent& event ){ OnOpenExistingEncFSButton( event ); }
 		void _wxFB_OnMountsListColClick( wxListEvent& event ){ OnMountsListColClick( event ); }
 		void _wxFB_OnMountsListItemDeselected( wxListEvent& event ){ OnMountsListItemDeselected( event ); }
+		void _wxFB_OnMountsListItemRightClick( wxListEvent& event ){ OnMountsListItemRightClick( event ); }
 		void _wxFB_OnMountsListItemSelected( wxListEvent& event ){ OnMountsListItemSelected( event ); }
 		void _wxFB_OnMountsListKeyDown( wxListEvent& event ){ OnMountsListKeyDown( event ); }
 		void _wxFB_OnMountButton( wxCommandEvent& event ){ OnMountButton( event ); }
@@ -146,6 +147,7 @@ class EncFSMPMainFrameBase : public wxFrame
 		virtual void OnOpenExistingEncFSButton( wxCommandEvent& event ) = 0;
 		virtual void OnMountsListColClick( wxListEvent& event ) = 0;
 		virtual void OnMountsListItemDeselected( wxListEvent& event ) = 0;
+		virtual void OnMountsListItemRightClick( wxListEvent& event ) = 0;
 		virtual void OnMountsListItemSelected( wxListEvent& event ) = 0;
 		virtual void OnMountsListKeyDown( wxListEvent& event ) = 0;
 		virtual void OnMountButton( wxCommandEvent& event ) = 0;
