@@ -43,6 +43,8 @@
 #include <sys/dir.h>
 #endif
 
+#include <boost/filesystem.hpp>
+
 class fs_layer
 {
 
@@ -58,6 +60,10 @@ public:
 
 	static int gettimeofday(struct fs_layer::timeval_fs *, void *);
 
+
+	static boost::filesystem::path stringToFSPath(const std::string &str);
+	static std::string readFileToString(const char *fn);
+	static bool writeFileFromString(const char *fn, const std::string &str);
 
 	static int fsync(int fd);
 	static int fdatasync(int fd);
@@ -82,7 +88,7 @@ public:
 	static int rmdir(const char *path);
 	static int stat(const char *path, struct stat *buffer);
 	static inline int lstat(const char *path, struct stat *buffer) {
-		return fs_layer::stat(path, buffer);
+		return stat(path, buffer);
 	}
 	static int chmod (const char*, int);
 

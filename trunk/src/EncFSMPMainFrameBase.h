@@ -39,54 +39,60 @@
 #define ID_ENCFSMPMAINFRAMEBASE 1000
 #define ID_MAINMENUBAR 1001
 #define ID_EXPORTMENUITEM 1002
-#define ID_MAINPANEL 1003
-#define ID_CREATEMOUNTBUTTON 1004
-#define ID_OPENEXISTINGENCFS 1005
-#define ID_MOUNTSLISTCTRL 1006
-#define ID_MOUNTBUTTON 1007
-#define ID_REMOVEBUTTON 1008
-#define ID_EDITBUTTON 1009
-#define ID_BROWSEBUTTON 1010
-#define ID_INFOBUTTON 1011
-#define ID_CHANGEPASSWORDBUTTON 1012
-#define ID_STATUSBAR 1013
-#define ID_OPENEXISTINGFSDIALOG 1014
-#define ID_MOUNTNAMETEXTCTRL 1015
-#define ID_ENCFSPATHDIRPICKER 1016
-#define ID_DRIVELETTERSTATICTEXT 1017
-#define ID_DRIVELETTERCHOICE 1018
-#define ID_STOREPASSWORDCHECKBOX 1019
-#define ID_PASSWORDTEXTCTRL 1020
-#define ID_PASSWORDRETYPETEXTCTRL 1021
-#define ID_WORLDWRITABLESTATICTEXT 1022
-#define ID_WORLDWRITABLECHECKBOX 1023
-#define ID_SYSTEMVISIBLESTATICTEXT 1024
-#define ID_SYSTEMVISIBLECHECKBOX 1025
-#define ID_CREATENEWENCFSDIALOG 1026
-#define ID_ENCFSCONFIGURATIONRADIOBUTTON 1027
-#define ID_CIPHERALGORITHMCHOICE 1028
-#define ID_CIPHERKEYSIZECHOICE 1029
-#define ID_CIPHERBLOCKSIZECHOICE 1030
-#define ID_NAMEENCODINGCHOICE 1031
-#define ID_PERBLOCKHMACCHECKBOX 1032
-#define ID_UNIQUEIVCHECKBOX 1033
-#define ID_CHAINEDIVCHECKBOX 1034
-#define ID_EXTERNALIVCHECKBOX 1035
-#define ID_KEYDERIVATIONDURATIONCHOICE 1036
-#define ID_SHOWENCFSINFODIALOG 1037
-#define ID_ENCFSPATHTEXTCTRL 1038
-#define ID_ENCFSCONFIGVERSIONTEXTCTRL 1039
-#define ID_CIPHERALGORITHMTEXTCTRL 1040
-#define ID_CIPHERKEYSIZETEXTCTRL 1041
-#define ID_CIPHERBLOCKSIZETEXTCTRL 1042
-#define ID_NAMEENCODINGTEXTCTRL 1043
-#define ID_KEYDERIVITERATIONSTEXTCTRL 1044
-#define ID_SALTSIZETEXTCTRL 1045
-#define ID_CHANGEPASSWORDDIALOGBASE 1046
-#define ID_OLDPASSWORDTEXTCTRL 1047
-#define ID_NEWPASSWORDTEXTCTRL 1048
-#define ID_RETYPENEWPASSWORD 1049
-#define ID_PSTORENEWPASSWORDCHECKBOX_ 1050
+#define ID_SHOWERRORLOGMENUITEM 1003
+#define ID_SHOWERRORLOGONERRMENUITEM 1004
+#define ID_DISABLEUNMOUNTDIALOGONEXITMENUITEM 1005
+#define ID_MAINPANEL 1006
+#define ID_CREATEMOUNTBUTTON 1007
+#define ID_OPENEXISTINGENCFS 1008
+#define ID_MOUNTSLISTCTRL 1009
+#define ID_MOUNTBUTTON 1010
+#define ID_REMOVEBUTTON 1011
+#define ID_EDITBUTTON 1012
+#define ID_BROWSEBUTTON 1013
+#define ID_INFOBUTTON 1014
+#define ID_CHANGEPASSWORDBUTTON 1015
+#define ID_STATUSBAR 1016
+#define ID_OPENEXISTINGFSDIALOG 1017
+#define ID_MOUNTNAMETEXTCTRL 1018
+#define ID_ENCFSPATHDIRPICKER 1019
+#define ID_DRIVELETTERSTATICTEXT 1020
+#define ID_DRIVELETTERCHOICE 1021
+#define ID_STOREPASSWORDCHECKBOX 1022
+#define ID_PASSWORDTEXTCTRL 1023
+#define ID_PASSWORDRETYPETEXTCTRL 1024
+#define ID_WORLDWRITABLESTATICTEXT 1025
+#define ID_WORLDWRITABLECHECKBOX 1026
+#define ID_SYSTEMVISIBLESTATICTEXT 1027
+#define ID_SYSTEMVISIBLECHECKBOX 1028
+#define ID_CREATENEWENCFSDIALOG 1029
+#define ID_ENCFSCONFIGURATIONRADIOBUTTON 1030
+#define ID_CIPHERALGORITHMCHOICE 1031
+#define ID_CIPHERKEYSIZECHOICE 1032
+#define ID_CIPHERBLOCKSIZECHOICE 1033
+#define ID_NAMEENCODINGCHOICE 1034
+#define ID_PERBLOCKHMACCHECKBOX 1035
+#define ID_UNIQUEIVCHECKBOX 1036
+#define ID_CHAINEDIVCHECKBOX 1037
+#define ID_EXTERNALIVCHECKBOX 1038
+#define ID_KEYDERIVATIONDURATIONCHOICE 1039
+#define ID_SHOWENCFSINFODIALOG 1040
+#define ID_ENCFSPATHTEXTCTRL 1041
+#define ID_ENCFSCONFIGVERSIONTEXTCTRL 1042
+#define ID_CIPHERALGORITHMTEXTCTRL 1043
+#define ID_CIPHERKEYSIZETEXTCTRL 1044
+#define ID_CIPHERBLOCKSIZETEXTCTRL 1045
+#define ID_NAMEENCODINGTEXTCTRL 1046
+#define ID_KEYDERIVITERATIONSTEXTCTRL 1047
+#define ID_SALTSIZETEXTCTRL 1048
+#define ID_CHANGEPASSWORDDIALOGBASE 1049
+#define ID_OLDPASSWORDTEXTCTRL 1050
+#define ID_NEWPASSWORDTEXTCTRL 1051
+#define ID_RETYPENEWPASSWORD 1052
+#define ID_PSTORENEWPASSWORDCHECKBOX_ 1053
+#define ID_ENCFSMPERRORLOGBASE 1054
+#define ID_CLEARERRORLISTBUTTON 1055
+#define ID_ERRORLISTTEXTCTRL 1056
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class EncFSMPMainFrameBase
@@ -101,6 +107,10 @@ class EncFSMPMainFrameBase : public wxFrame
 		void _wxFB_OnMainFrameIconize( wxIconizeEvent& event ){ OnMainFrameIconize( event ); }
 		void _wxFB_OnExitMenuItem( wxCommandEvent& event ){ OnExitMenuItem( event ); }
 		void _wxFB_OnExportMenuItem( wxCommandEvent& event ){ OnExportMenuItem( event ); }
+		void _wxFB_OnShowErrorLogMenuItem( wxCommandEvent& event ){ OnShowErrorLogMenuItem( event ); }
+		void _wxFB_OnShowErrorLogMenuItemUpdate( wxUpdateUIEvent& event ){ OnShowErrorLogMenuItemUpdate( event ); }
+		void _wxFB_OnShowErrorLogOnErrMenuItem( wxCommandEvent& event ){ OnShowErrorLogOnErrMenuItem( event ); }
+		void _wxFB_OnDisableUnmountDialogOnExitMenuItem( wxCommandEvent& event ){ OnDisableUnmountDialogOnExitMenuItem( event ); }
 		void _wxFB_OnAboutMenuItem( wxCommandEvent& event ){ OnAboutMenuItem( event ); }
 		void _wxFB_OnCreateMountButton( wxCommandEvent& event ){ OnCreateMountButton( event ); }
 		void _wxFB_OnOpenExistingEncFSButton( wxCommandEvent& event ){ OnOpenExistingEncFSButton( event ); }
@@ -123,6 +133,10 @@ class EncFSMPMainFrameBase : public wxFrame
 		wxMenuItem* pExitMenuItem_;
 		wxMenu* pToolsMenu_;
 		wxMenuItem* pExportMenuItem_;
+		wxMenu* pOptionsMenu_;
+		wxMenuItem* pShowErrorLogMenuItem_;
+		wxMenuItem* pShowErrorLogOnErrMenuItem_;
+		wxMenuItem* pDisableUnmountDialogOnExitMenuItem_;
 		wxMenu* pHelpMenu_;
 		wxMenuItem* pHelpAboutMenuItem_;
 		wxPanel* pMainPanel_;
@@ -142,6 +156,10 @@ class EncFSMPMainFrameBase : public wxFrame
 		virtual void OnMainFrameIconize( wxIconizeEvent& event ) = 0;
 		virtual void OnExitMenuItem( wxCommandEvent& event ) = 0;
 		virtual void OnExportMenuItem( wxCommandEvent& event ) = 0;
+		virtual void OnShowErrorLogMenuItem( wxCommandEvent& event ) = 0;
+		virtual void OnShowErrorLogMenuItemUpdate( wxUpdateUIEvent& event ) = 0;
+		virtual void OnShowErrorLogOnErrMenuItem( wxCommandEvent& event ) = 0;
+		virtual void OnDisableUnmountDialogOnExitMenuItem( wxCommandEvent& event ) = 0;
 		virtual void OnAboutMenuItem( wxCommandEvent& event ) = 0;
 		virtual void OnCreateMountButton( wxCommandEvent& event ) = 0;
 		virtual void OnOpenExistingEncFSButton( wxCommandEvent& event ) = 0;
@@ -399,6 +417,36 @@ class ChangePasswordDialogBase : public wxDialog
 		
 		ChangePasswordDialogBase( wxWindow* parent, wxWindowID id = ID_CHANGEPASSWORDDIALOGBASE, const wxString& title = wxT("Change password"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 360,204 ), long style = wxDEFAULT_DIALOG_STYLE );
 		~ChangePasswordDialogBase();
+	
+};
+
+///////////////////////////////////////////////////////////////////////////////
+/// Class EncFSMPErrorLogBase
+///////////////////////////////////////////////////////////////////////////////
+class EncFSMPErrorLogBase : public wxFrame 
+{
+	DECLARE_EVENT_TABLE()
+	private:
+		
+		// Private event handlers
+		void _wxFB_OnClose( wxCloseEvent& event ){ OnClose( event ); }
+		void _wxFB_OnClearErrorListButton( wxCommandEvent& event ){ OnClearErrorListButton( event ); }
+		
+	
+	protected:
+		wxPanel* m_panel2;
+		wxButton* pClearErrorListButton_;
+		wxTextCtrl* pErrorListTextCtrl_;
+		
+		// Virtual event handlers, overide them in your derived class
+		virtual void OnClose( wxCloseEvent& event ) = 0;
+		virtual void OnClearErrorListButton( wxCommandEvent& event ) = 0;
+		
+	
+	public:
+		
+		EncFSMPErrorLogBase( wxWindow* parent, wxWindowID id = ID_ENCFSMPERRORLOGBASE, const wxString& title = wxT("Error log"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 762,279 ), long style = wxCAPTION|wxCLOSE_BOX|wxFRAME_FLOAT_ON_PARENT|wxFRAME_TOOL_WINDOW|wxRESIZE_BORDER|wxTAB_TRAVERSAL );
+		~EncFSMPErrorLogBase();
 	
 };
 

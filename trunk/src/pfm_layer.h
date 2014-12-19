@@ -205,6 +205,8 @@ public:
 	int makeOpenFileFlags(bool isReadOnly);
 
 	void reportRLogErr(rlog::Error &err);
+	void reportEncFSMPErr(const std::wstring &errStr, const std::string &fn, rlog::Error &err);
+	void reportEncFSMPErr(const std::wstring &errStr, const std::string &fn);
 
 	bool isHiddenFile(const std::string &fileName);
 	bool isSkippedFile(const std::string &fileName);

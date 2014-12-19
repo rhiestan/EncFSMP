@@ -108,7 +108,6 @@ bool EncFSUtilities::createEncFS(const wxString &encFSPath, const wxString &pass
 	if(perBlockHMAC)
 		blockMACBytes = 8;
 	bool allowHoles = true;
-	bool reverseEncryption = false;
 
 	boost::shared_ptr<EncFSConfig> config( new EncFSConfig );
 
@@ -369,8 +368,7 @@ static bool exportDir(const boost::shared_ptr<EncFS_Root> &rootInfo,
 					}
 					else if( S_ISREG( stBuf.st_mode ) )
 					{
-						retVal = exportFile(rootInfo, plainPath.c_str(), 
-							destName.c_str());
+						retVal = exportFile(rootInfo, plainPath, destName);
 					}
 				}
 				else

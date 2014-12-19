@@ -28,6 +28,7 @@
 #include "efs_config.h"
 #include "pfm_layer.h"
 #include "EncFSMPStrings.h"
+#include "EncFSMPLogger.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/locale.hpp>
@@ -306,7 +307,7 @@ int/*error*/ CCALL PFMLayer::Open(const PfmNamePart* nameParts, size_t namePartC
 		}
 		catch( rlog::Error &err )
 		{
-			reportRLogErr(err);
+			// Not an error, path is just not a directory
 		}
 	}
 
@@ -349,7 +350,7 @@ int/*error*/ CCALL PFMLayer::Open(const PfmNamePart* nameParts, size_t namePartC
 		}
 		catch( rlog::Error &err )
 		{
-			reportRLogErr(err);
+			reportEncFSMPErr(L"Open failed", path, err);
 		}
 	}
 	else
@@ -450,7 +451,7 @@ int/*error*/ CCALL PFMLayer::Move(int64_t sourceOpenId, int64_t sourceParentFile
 		}
 		catch( rlog::Error &err )
 		{
-			reportRLogErr(err);
+			// Not an error
 			return pfmErrorParentNotFound;
 		}
 
@@ -513,7 +514,7 @@ int/*error*/ CCALL PFMLayer::Move(int64_t sourceOpenId, int64_t sourceParentFile
 		}
 		catch( rlog::Error &err )
 		{
-			reportRLogErr(err);
+			// Not an error
 		}
 	}
 
@@ -552,7 +553,7 @@ int/*error*/ CCALL PFMLayer::Move(int64_t sourceOpenId, int64_t sourceParentFile
 		}
 		catch( rlog::Error &err )
 		{
-			reportRLogErr(err);
+			reportEncFSMPErr(L"File not found in move operation", path, err);
 			retVal = pfmErrorFailed;
 		}
 	}
@@ -673,7 +674,7 @@ int/*error*/ CCALL PFMLayer::Close(int64_t openId,int64_t openSequence)
 					}
 					catch( rlog::Error &err )
 					{
-						reportRLogErr(err);
+						reportEncFSMPErr(L"File deletion failed", pathName, err);
 					}
 				}
 
@@ -785,7 +786,7 @@ int/*error*/ CCALL PFMLayer::List(int64_t openId,int64_t listId,PfmMarshallerLis
 		}
 		catch( rlog::Error &err )
 		{
-			reportRLogErr(err);
+			reportEncFSMPErr(L"Could not open directory", pOpenFile->pathName_, err);
 			return pfmErrorFailed;
 		}
 	}
@@ -815,11 +816,6 @@ int/*error*/ CCALL PFMLayer::List(int64_t openId,int64_t listId,PfmMarshallerLis
 					if(pOpenFile != NULL && pOpenFile->isDeleted_)
 						isDeleted = true;
 
-std::cout << "List: " << plainPath.c_str() << " "
-	<< (pOpenFile != NULL ? "Found" : "Not found")
-	<< (isDeleted ? " (del) " : " (nd)")
-	<< std::endl;
-
 					if(!isDeleted		// Skip deleted, but not yet closed files
 						&& !isSkippedFile(plainPath))
 					{
@@ -827,8 +823,9 @@ std::cout << "List: " << plainPath.c_str() << " "
 
 						if( !fs_layer::lstat( cpath.c_str(), &buf ))
 						{
-							uint8_t needMore = 0;
+							uint8_t needMore = 1;
 							PfmAttribs attribs;
+							bool skipThisFile = false;
 
 							if(S_ISREG(buf.st_mode))
 								attribs.fileType = pfmFileTypeFile;
@@ -856,31 +853,39 @@ std::cout << "List: " << plainPath.c_str() << " "
 								struct stat buf_ue;
 								bool getAttrSuccess = false;
 
-								// If file is open, use this fileNode, as physical file might be locked
-								OpenFile *pOpenFile = findOpenFileByName(plainPath);
-								if(pOpenFile != NULL)
+								try
 								{
-									int err = pOpenFile->fileNode_->getAttr(&buf_ue);
-									if(err == 0)
-										getAttrSuccess = true;
-								}
-
-								if(!getAttrSuccess)
-								{
-									int res = 0;
-									const int flags = makeOpenFileFlags(true);
-									boost::shared_ptr<FileNode> fileNode = 
-										rootFS_->root->openNode( plainPath.c_str(), "open", flags, &res );
-									if(fileNode)
+									// If file is open, use this fileNode, as physical file might be locked
+									OpenFile *pOpenFile = findOpenFileByName(plainPath);
+									if(pOpenFile != NULL)
 									{
-										int err = fileNode->getAttr(&buf_ue);
+										int err = pOpenFile->fileNode_->getAttr(&buf_ue);
 										if(err == 0)
 											getAttrSuccess = true;
 									}
+
+									if(!getAttrSuccess)
+									{
+										int res = 0;
+										const int flags = makeOpenFileFlags(true);
+										boost::shared_ptr<FileNode> fileNode = 
+											rootFS_->root->openNode( plainPath.c_str(), "open", flags, &res );
+										if(fileNode)
+										{
+											int err = fileNode->getAttr(&buf_ue);
+											if(err == 0)
+												getAttrSuccess = true;
+										}
+									}
+								}
+								catch( rlog::Error &err )
+								{
+									reportEncFSMPErr(L"Error during directory listing", cpath, err);
+									skipThisFile = true;
 								}
 
 								if(!getAttrSuccess)
-									return pfmErrorFailed;
+									skipThisFile = true;
 								attribs.fileSize = buf_ue.st_size;
 							}
 
@@ -889,14 +894,16 @@ std::cout << "List: " << plainPath.c_str() << " "
 							attribs.writeTime = UnixTimeToFileTime(buf.st_mtime);
 							attribs.changeTime = UnixTimeToFileTime(buf.st_mtime);
 
-							listResult->Add8(&attribs, name.c_str(), &needMore);
+							if(!skipThisFile)
+								listResult->Add8(&attribs, name.c_str(), &needMore);
 
 							if(!needMore)
 								doCont = false;
 						}
 						else
 						{
-							return pfmErrorFailed;
+							reportEncFSMPErr(L"Couldn't get status on file", cpath);
+//							return pfmErrorFailed;
 						}
 					}
 
@@ -905,7 +912,7 @@ std::cout << "List: " << plainPath.c_str() << " "
 		}
 		catch( rlog::Error &err )
 		{
-			reportRLogErr(err);
+			reportEncFSMPErr(L"Error in directory listing", "", err);
 			return pfmErrorFailed;
 		}
 	}
@@ -961,7 +968,7 @@ int/*error*/ CCALL PFMLayer::Read(int64_t openId,uint64_t fileOffset,void* data,
 	}
 	catch( rlog::Error &err )
 	{
-		reportRLogErr(err);
+		reportEncFSMPErr(L"Error during read operation", pOpenFile->pathName_, err);
 		return pfmErrorFailed;
 	}
 
@@ -998,7 +1005,7 @@ int/*error*/ CCALL PFMLayer::Write(int64_t openId,uint64_t fileOffset,const void
 	}
 	catch( rlog::Error &err )
 	{
-		reportRLogErr(err);
+		reportEncFSMPErr(L"Error during write operation", pOpenFile->pathName_, err);
 		return pfmErrorFailed;
 	}
 
@@ -1027,7 +1034,7 @@ int/*error*/ CCALL PFMLayer::SetSize(int64_t openId,uint64_t fileSize)
 	}
 	catch( rlog::Error &err )
 	{
-		reportRLogErr(err);
+		reportEncFSMPErr(L"Error during SetSize operation", pOpenFile->pathName_, err);
 		return pfmErrorFailed;
 	}
 
@@ -1409,7 +1416,7 @@ int PFMLayer::createOp(const std::string &path, int8_t createFileType, uint8_t c
 	}
 	catch( rlog::Error &err )
 	{
-		reportRLogErr(err);
+		reportEncFSMPErr(L"Error during create", path, err);
 		return pfmErrorFailed;
 	}
 
@@ -1456,7 +1463,7 @@ int PFMLayer::renameOp(PFMLayer::OpenFile *pOpenFile, const std::string &newPath
 	}
 	catch( rlog::Error &err )
 	{
-		reportRLogErr(err);
+		reportEncFSMPErr(L"Error during rename operation", pOpenFile->pathName_, err);
 		return pfmErrorFailed;
 	}
 
@@ -1471,7 +1478,7 @@ int PFMLayer::renameOp(PFMLayer::OpenFile *pOpenFile, const std::string &newPath
  * - File data must remain accessible until the file is closed
  *
  * This is implemented here as follows:
- * - When delete is called, the file is renamed on disk to allow for new files
+ * - When delete is called, the file is renamed on disk (and moved to root dir) to allow for new files
  *   to be created under the old name
  * - The OpenFile.isDeleted_ flag is set
  * - Undelete is possible with PFMLayer::Move until file is closed
@@ -1501,7 +1508,7 @@ int PFMLayer::deleteOp(PFMLayer::OpenFile *pOpenFile)
 		}
 		catch( rlog::Error &err )
 		{
-			reportRLogErr(err);
+			reportEncFSMPErr(L"Error during delete operation", pOpenFile->pathName_, err);
 			return pfmErrorFailed;
 		}
 	}
@@ -1511,15 +1518,12 @@ int PFMLayer::deleteOp(PFMLayer::OpenFile *pOpenFile)
 	boost::random::uniform_int_distribution<> random_int(0, 255);
 
 	std::stringstream ostr;
-	ostr << "encfsmp_deleted_" << std::hex;
+	ostr << "/encfsmp_deleted_" << std::hex;
 	ostr << random_int(rng) << "-";
 	ostr << random_int(rng) << "-";
 	ostr << random_int(rng) << "-";
 	ostr << random_int(rng);
 	std::string newname = ostr.str();
-
-	std::string ppath = fs_layer::extract_path(pOpenFile->pathName_);
-	newname = fs_layer::concat_path(ppath, newname, true);
 
 	// Rename old file
 	int retVal = renameOp(pOpenFile, newname);
@@ -1572,7 +1576,7 @@ int PFMLayer::openFileOp(boost::shared_ptr<FileNode> fileNode, PfmOpenAttribs *o
 	}
 	catch( rlog::Error &err )
 	{
-		reportRLogErr(err);
+		reportEncFSMPErr(L"Error during open", path, err);
 		return pfmErrorFailed;
 	}
 
@@ -1634,7 +1638,7 @@ int PFMLayer::openDirOp(PfmOpenAttribs *openAttribs, int64_t newExistingOpenId,
 	}
 	catch( rlog::Error &err )
 	{
-		reportRLogErr(err);
+		reportEncFSMPErr(L"Error during open dir operation", path, err);
 		return pfmErrorFailed;
 	}
 
@@ -1731,6 +1735,16 @@ void PFMLayer::reportRLogErr(rlog::Error &err)
 #endif
 }
 
+void PFMLayer::reportEncFSMPErr(const std::wstring &errStr, const std::string &fn, rlog::Error &err)
+{
+	EncFSMPLogger::log(errStr, fn, &err);
+}
+
+void PFMLayer::reportEncFSMPErr(const std::wstring &errStr, const std::string &fn)
+{
+	EncFSMPLogger::log(errStr, fn, NULL);
+}
+
 bool PFMLayer::isHiddenFile(const std::string &fullpath)
 {
 /*	std::string fn = fs_layer::extract_filename(fullpath);
@@ -1745,6 +1759,12 @@ bool PFMLayer::isHiddenFile(const std::string &fullpath)
 
 bool PFMLayer::isSkippedFile(const std::string &fullpath)
 {
+	// Only skip files in the root directory
+	std::string path = fs_layer::extract_path(fullpath);
+	if(path != std::string("/")
+		|| path.empty())
+		return false;
+
 	std::string fn = fs_layer::extract_filename(fullpath);
 	if(fn.length() > 1)
 	{

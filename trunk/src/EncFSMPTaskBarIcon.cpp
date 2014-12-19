@@ -27,7 +27,8 @@ enum
 	ID_TASK_BAR_UNMOUNT_ALL_QUIT
 };
 
-EncFSMPTaskBarIcon::EncFSMPTaskBarIcon() : wxTaskBarIcon()
+EncFSMPTaskBarIcon::EncFSMPTaskBarIcon() : wxTaskBarIcon(),
+	pMainFrame_(NULL)
 {
 }
 

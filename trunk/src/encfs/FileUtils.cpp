@@ -422,10 +422,10 @@ bool readV6Config( const char *configFile,
 	ConfigInfo *info)
 {
     (void)info;
-
-    fs::ifstream st( configFile );
-    if(st.is_open())
+	std::string configFileStr = fs_layer::readFileToString(configFile);
+	if(!configFileStr.empty())
     {
+		std::istringstream st(configFileStr);
         try
         {
             boost::archive::xml_iarchive ia( st );
@@ -581,12 +581,10 @@ bool saveConfig( ConfigType type, const string &rootDir,
 bool writeV6Config( const char *configFile, 
         const boost::shared_ptr<EncFSConfig> &config )
 {
-    fs::ofstream st( configFile );
-    if(!st.is_open())
-        return false;
-
+	std::ostringstream st;
     st << *config;
-    return true;
+
+    return fs_layer::writeFileFromString(configFile, st.str());
 }
 
 std::ostream &operator << (std::ostream &st, const EncFSConfig &cfg)

@@ -17,35 +17,31 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef EncFSMPStrings_H
-#define EncFSMPStrings_H
+#ifndef ENCFSMPLOGGER_H
+#define ENCFSMPLOGGER_H
 
-#include <wx/string.h>
+// Forward declarations
+class EncFSMPErrorLog;
+namespace rlog
+{
+	class Error;
+};
 
-class EncFSMPStrings
+class EncFSMPLogger
 {
 public:
-	static std::wstring formatterName_;
-	static std::string formatterName8_;
 
-	static wxString configAppName_;
-	static wxString configOrganizationName_;
-	static wxString configMountListPath_;
-	static wxString configNameKey_;
-	static wxString configEncFSPathKey_;
-	static wxString configDriveLetterKey_;
-	static wxString configPasswordKey_;
-	static wxString configIsWorldWritableKey_;
-	static wxString configIsSystemVisibleKey_;
-	static wxString configWindowDimensions_;
-	static wxString configColumnWidths_;
-	static wxString configMinimizeToTray_;
-	static wxString configDisableUnmountDialogOnExit_;
-	static wxString configShowErrorLogOnErr_;
+	static void setErrorLog(EncFSMPErrorLog *pEncFSMPErrorLog);
+
+	static void log(const std::wstring &errStr, const std::string &fn, rlog::Error *pErr);
 
 private:
-	EncFSMPStrings() { }
-	virtual ~EncFSMPStrings() { }
+	EncFSMPLogger();
+	virtual ~EncFSMPLogger();
+
+	static EncFSMPLogger instance_;
+
+	EncFSMPErrorLog *pEncFSMPErrorLog_; 
 };
 
 #endif

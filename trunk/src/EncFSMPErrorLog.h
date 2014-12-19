@@ -17,35 +17,40 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef EncFSMPStrings_H
-#define EncFSMPStrings_H
+#ifndef ENCFSMPERRORLOG_H
+#define ENCFSMPERRORLOG_H
 
-#include <wx/string.h>
+#include "EncFSMPMainFrameBase.h"
 
-class EncFSMPStrings
+class EncFSMPErrorLog: public EncFSMPErrorLogBase
 {
 public:
-	static std::wstring formatterName_;
-	static std::string formatterName8_;
+	EncFSMPErrorLog(wxWindow* parent);
+	virtual ~EncFSMPErrorLog();
 
-	static wxString configAppName_;
-	static wxString configOrganizationName_;
-	static wxString configMountListPath_;
-	static wxString configNameKey_;
-	static wxString configEncFSPathKey_;
-	static wxString configDriveLetterKey_;
-	static wxString configPasswordKey_;
-	static wxString configIsWorldWritableKey_;
-	static wxString configIsSystemVisibleKey_;
-	static wxString configWindowDimensions_;
-	static wxString configColumnWidths_;
-	static wxString configMinimizeToTray_;
-	static wxString configDisableUnmountDialogOnExit_;
-	static wxString configShowErrorLogOnErr_;
+	bool getShowErrorLogOnErr() const;
+	void setShowErrorLogOnErr(bool showErrorLogOnErr);
+
+	void toggleVisibleState();
+	bool isWindowShown();
+
+	void addText(const wxString &text);
+	void ping();
+
+protected:
+	virtual void OnClose( wxCloseEvent& event );
+	virtual void OnClearErrorListButton( wxCommandEvent& event );
+
+	virtual void OnNewErrorLogEntry( wxCommandEvent& event );
 
 private:
-	EncFSMPStrings() { }
-	virtual ~EncFSMPStrings() { }
+	bool isWindowShown_;
+	bool showErrorLogOnErr_;
+	
+	wxMutex mutex_;
+	wxString errorText_;
+
+	DECLARE_EVENT_TABLE()
 };
 
 #endif
