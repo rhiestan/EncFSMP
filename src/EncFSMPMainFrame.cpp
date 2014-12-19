@@ -29,6 +29,8 @@
 #include "EncFSUtilities.h"
 #include "EncFSMPStrings.h"
 #include "EncFSMPTaskBarIcon.h"
+#include "EncFSMPErrorLog.h"
+#include "EncFSMPLogger.h"
 
 #include <wx/dirdlg.h>
 #include <wx/busyinfo.h>
@@ -79,8 +81,10 @@ const wxEventType myCustomEventType = wxNewEventType();
 EncFSMPMainFrame::EncFSMPMainFrame(wxWindow* parent)
 	: EncFSMPMainFrameBase(parent),
 	aTimer_(this, ID_TIMER), minimizeToTray_(false),
+	disableUnmountDialogOnExit_(false),
 	pTaskBarIcon_(NULL), pMountsListPopupMenu_(NULL),
-	firstTimeOnTimer_(false), isRunningAsAdmin_(false)
+	firstTimeOnTimer_(false), isRunningAsAdmin_(false),
+	pEncFSMPErrorLog_(NULL)
 {
 	pMountsListCtrl_->ClearAll();
 	pMountsListCtrl_->InsertColumn(0, wxT("Mounted"));
@@ -121,7 +125,7 @@ EncFSMPMainFrame::EncFSMPMainFrame(wxWindow* parent)
 		pMinimizeToTrayMenuItem_ = pToolsMenu_->Append(ID_MINIMIZETOTRAYMENUITEM,
 			wxT("Minimize to menu icon"), wxEmptyString, wxITEM_NORMAL);
 #else
-		pMinimizeToTrayMenuItem_ = pToolsMenu_->Append(ID_MINIMIZETOTRAYMENUITEM,
+		pMinimizeToTrayMenuItem_ = pOptionsMenu_->Append(ID_MINIMIZETOTRAYMENUITEM,
 			wxT("Minimize to tray"), wxEmptyString, wxITEM_CHECK);
 #endif
 	}
@@ -132,6 +136,10 @@ EncFSMPMainFrame::EncFSMPMainFrame(wxWindow* parent)
 	CocoaBridge::hideEmptyMenus();
 	pToolsMenu_->Remove(tempItem);
 #endif
+
+	pEncFSMPErrorLog_ = new EncFSMPErrorLog(this);
+	pEncFSMPErrorLog_->Hide();
+	EncFSMPLogger::setErrorLog(pEncFSMPErrorLog_);
 
 	loadWindowLayoutFromConfig();
 	mountList_.loadFromConfig();
@@ -153,6 +161,12 @@ EncFSMPMainFrame::~EncFSMPMainFrame()
 	{
 		delete pMountsListPopupMenu_;
 		pMountsListPopupMenu_ = NULL;
+	}
+	EncFSMPLogger::setErrorLog(NULL);
+	if(pEncFSMPErrorLog_ != NULL)
+	{
+		delete pEncFSMPErrorLog_;
+		pEncFSMPErrorLog_ = NULL;
 	}
 }
 
@@ -253,7 +267,8 @@ void EncFSMPMainFrame::OnMainFrameClose( wxCloseEvent& evt )
 			return;
 		}
 	}
-	if(mountCount > 0)
+	if(mountCount > 0
+		&& !disableUnmountDialogOnExit_)
 	{
 		wxString msgText = wxString::Format(wxT("There are still %d active mounts.\n")
 			wxT("Are you sure you want to exit the program?"),
@@ -380,6 +395,36 @@ void EncFSMPMainFrame::OnExportMenuItem( wxCommandEvent& event )
 		}
 
 	}
+}
+
+void EncFSMPMainFrame::OnShowErrorLogMenuItem( wxCommandEvent& event )
+{
+	if(pEncFSMPErrorLog_ != NULL)
+	{
+		pEncFSMPErrorLog_->toggleVisibleState();
+	}
+}
+
+void EncFSMPMainFrame::OnShowErrorLogMenuItemUpdate( wxUpdateUIEvent& event )
+{
+	event.Enable(true);
+	if(pEncFSMPErrorLog_ != NULL)
+	{
+		event.Check(pEncFSMPErrorLog_->isWindowShown());
+	}
+}
+
+void EncFSMPMainFrame::OnShowErrorLogOnErrMenuItem( wxCommandEvent& event )
+{
+	if(pEncFSMPErrorLog_ != NULL)
+		pEncFSMPErrorLog_->setShowErrorLogOnErr(event.IsChecked());
+	saveWindowLayoutToConfig();
+}
+
+void EncFSMPMainFrame::OnDisableUnmountDialogOnExitMenuItem( wxCommandEvent& event )
+{
+	disableUnmountDialogOnExit_ = event.IsChecked();
+	saveWindowLayoutToConfig();
 }
 
 void EncFSMPMainFrame::OnAboutMenuItem( wxCommandEvent& WXUNUSED(event) )
@@ -1083,6 +1128,10 @@ void EncFSMPMainFrame::saveWindowLayoutToConfig()
 	}
 
 	config->Write(EncFSMPStrings::configMinimizeToTray_, minimizeToTray_);
+	config->Write(EncFSMPStrings::configDisableUnmountDialogOnExit_, disableUnmountDialogOnExit_);
+
+	if(pEncFSMPErrorLog_ != NULL)
+		config->Write(EncFSMPStrings::configShowErrorLogOnErr_, pEncFSMPErrorLog_->getShowErrorLogOnErr());
 }
 
 void EncFSMPMainFrame::loadWindowLayoutFromConfig()
@@ -1121,6 +1170,18 @@ void EncFSMPMainFrame::loadWindowLayoutFromConfig()
 #if !defined(EFS_MACOSX)
 	pMinimizeToTrayMenuItem_->Check(minimizeToTray_);
 #endif
+
+	if(!config->Read(EncFSMPStrings::configDisableUnmountDialogOnExit_, &disableUnmountDialogOnExit_))
+		disableUnmountDialogOnExit_ = false;		// Default is false
+	pDisableUnmountDialogOnExitMenuItem_->Check(disableUnmountDialogOnExit_);
+
+	bool showErrorLogOnErr = false;
+	if(pEncFSMPErrorLog_ != NULL)
+	{
+		if(config->Read(EncFSMPStrings::configShowErrorLogOnErr_, &showErrorLogOnErr))
+			pEncFSMPErrorLog_->setShowErrorLogOnErr(showErrorLogOnErr);
+		pShowErrorLogOnErrMenuItem_->Check(pEncFSMPErrorLog_->getShowErrorLogOnErr());
+	}
 }
 
 BEGIN_EVENT_TABLE( EncFSMPMainFrame, EncFSMPMainFrameBase )

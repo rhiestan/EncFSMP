@@ -318,13 +318,13 @@ SET(ALL_SRC ${ALL_SRC} EncFSMPApp.cpp fs_layer.cpp pfm_layer.cpp EncFSMPMainFram
 	EncFSMPMainFrame.cpp PFMProxy.cpp PFMHandlerThread.cpp OpenSSLProxy.cpp
 	PFMMonitorThread.cpp OpenExistingFSDialog.cpp EncFSUtilities.cpp MountList.cpp
 	CreateNewEncFSDialog.cpp ChangePasswordDialog.cpp EncFSMPStrings.cpp
-	EncFSMPTaskBarIcon.cpp )
+	EncFSMPTaskBarIcon.cpp EncFSMPErrorLog.cpp EncFSMPLogger.cpp )
 
 SET(ALL_HEADERS ${ALL_HEADERS} EncFSMPApp.h fs_layer.h pfm_layer.h EncFSMPMainFrameBase.h
 	EncFSMPMainFrame.h CommonIncludes.h version.h PFMProxy.h PFMHandlerThread.h OpenSSLProxy.h
 	PFMMonitorThread.h OpenExistingFSDialog.h EncFSUtilities.h MountList.h
 	CreateNewEncFSDialog.h ChangePasswordDialog.h EncFSMPStrings.h
-	EncFSMPTaskBarIcon.h )
+	EncFSMPTaskBarIcon.h EncFSMPErrorLog.h EncFSMPLogger.h )
 
 IF(WIN32)
 	# Add resource definitions and Win32Utils for Windows

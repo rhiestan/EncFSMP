@@ -22,6 +22,7 @@
 
 class EncFSMPTaskBarIcon;
 class wxMenu;
+class EncFSMPErrorLog;
 
 #include <list>
 #include "EncFSMPMainFrameBase.h"
@@ -45,6 +46,10 @@ protected:
 	virtual void OnMainFrameClose( wxCloseEvent& event );
 	virtual void OnExitMenuItem( wxCommandEvent& event );
 	virtual void OnExportMenuItem( wxCommandEvent& event );
+	virtual void OnShowErrorLogMenuItem( wxCommandEvent& event );
+	virtual void OnShowErrorLogMenuItemUpdate( wxUpdateUIEvent& event );
+	virtual void OnShowErrorLogOnErrMenuItem( wxCommandEvent& event );
+	virtual void OnDisableUnmountDialogOnExitMenuItem( wxCommandEvent& event );
 	virtual void OnAboutMenuItem( wxCommandEvent& event );
 	virtual void OnCreateMountButton( wxCommandEvent& event );
 	virtual void OnOpenExistingEncFSButton( wxCommandEvent& event );
@@ -84,7 +89,7 @@ protected:
 private:
 	wxTimer aTimer_;
 	wxMenuItem *pMinimizeToTrayMenuItem_;
-	bool minimizeToTray_;
+	bool minimizeToTray_, disableUnmountDialogOnExit_;
 	EncFSMPTaskBarIcon *pTaskBarIcon_;
 	wxMenu *pMountsListPopupMenu_;
 
@@ -123,6 +128,8 @@ private:
 	std::list<wxString> encFSErrorList_;
 
 	MountList mountList_;
+
+	EncFSMPErrorLog *pEncFSMPErrorLog_;
 
 	DECLARE_EVENT_TABLE()
 };

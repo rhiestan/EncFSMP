@@ -47,7 +47,6 @@
 
 #include <boost/scoped_array.hpp>
 #include <boost/date_time/posix_time/posix_time_types.hpp>
-#include <boost/filesystem.hpp>
 #include <boost/locale.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
@@ -130,7 +129,7 @@ std::wstring utf8_to_wfn(const std::string& src)
  * extended-length path (prefix "\\?\").
  * On Unix, the file name is in the current codepage (usually UTF-8).
  */
-static boost::filesystem::path stringToFSPath(const std::string &str)
+boost::filesystem::path fs_layer::stringToFSPath(const std::string &str)
 {
 #if defined(_WIN32)
 	boost::filesystem::path p(utf8_to_wfn(str));
@@ -139,6 +138,44 @@ static boost::filesystem::path stringToFSPath(const std::string &str)
 #endif
 
 	return p;
+}
+
+std::string fs_layer::readFileToString(const char *fn)
+{
+	struct stat stbuf;
+	memset( &stbuf, 0, sizeof(struct stat));
+	if( fs_layer::lstat( fn, &stbuf ) != 0)
+		return std::string();
+
+	int fd = open(fn, O_RDONLY);
+	if(fd < 0)
+		return std::string();
+
+	std::string buf;
+	if(stbuf.st_size > 0)
+	{
+		buf.resize(stbuf.st_size);
+		read(fd, &(buf[0]), static_cast<unsigned int>(stbuf.st_size));
+	}
+	close(fd);
+
+	return buf;
+}
+
+bool fs_layer::writeFileFromString(const char *fn, const std::string &str)
+{
+	int fd = open(fn, O_RDWR | O_CREAT, 0640);
+	if(fd < 0)
+		return false;
+
+	if(!str.empty())
+	{
+		write(fd, &(str[0]), static_cast<unsigned int>(str.size()));
+	}
+
+	close(fd);
+
+	return true;
 }
 
 int fs_layer::gettimeofday (struct fs_layer::timeval_fs *tv, void *tz)

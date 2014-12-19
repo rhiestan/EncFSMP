@@ -16,6 +16,10 @@ BEGIN_EVENT_TABLE( EncFSMPMainFrameBase, wxFrame )
 	EVT_ICONIZE( EncFSMPMainFrameBase::_wxFB_OnMainFrameIconize )
 	EVT_MENU( wxID_EXIT, EncFSMPMainFrameBase::_wxFB_OnExitMenuItem )
 	EVT_MENU( ID_EXPORTMENUITEM, EncFSMPMainFrameBase::_wxFB_OnExportMenuItem )
+	EVT_MENU( ID_SHOWERRORLOGMENUITEM, EncFSMPMainFrameBase::_wxFB_OnShowErrorLogMenuItem )
+	EVT_UPDATE_UI( ID_SHOWERRORLOGMENUITEM, EncFSMPMainFrameBase::_wxFB_OnShowErrorLogMenuItemUpdate )
+	EVT_MENU( ID_SHOWERRORLOGONERRMENUITEM, EncFSMPMainFrameBase::_wxFB_OnShowErrorLogOnErrMenuItem )
+	EVT_MENU( ID_DISABLEUNMOUNTDIALOGONEXITMENUITEM, EncFSMPMainFrameBase::_wxFB_OnDisableUnmountDialogOnExitMenuItem )
 	EVT_MENU( wxID_ABOUT, EncFSMPMainFrameBase::_wxFB_OnAboutMenuItem )
 	EVT_BUTTON( ID_CREATEMOUNTBUTTON, EncFSMPMainFrameBase::_wxFB_OnCreateMountButton )
 	EVT_BUTTON( ID_OPENEXISTINGENCFS, EncFSMPMainFrameBase::_wxFB_OnOpenExistingEncFSButton )
@@ -48,6 +52,18 @@ EncFSMPMainFrameBase::EncFSMPMainFrameBase( wxWindow* parent, wxWindowID id, con
 	pToolsMenu_->Append( pExportMenuItem_ );
 	
 	pMainMenuBar_->Append( pToolsMenu_, wxT("Tools") ); 
+	
+	pOptionsMenu_ = new wxMenu();
+	pShowErrorLogMenuItem_ = new wxMenuItem( pOptionsMenu_, ID_SHOWERRORLOGMENUITEM, wxString( wxT("Show error log") ) , wxEmptyString, wxITEM_CHECK );
+	pOptionsMenu_->Append( pShowErrorLogMenuItem_ );
+	
+	pShowErrorLogOnErrMenuItem_ = new wxMenuItem( pOptionsMenu_, ID_SHOWERRORLOGONERRMENUITEM, wxString( wxT("Show log window in case of error") ) , wxT("Show error log window automatically when an error occurs."), wxITEM_CHECK );
+	pOptionsMenu_->Append( pShowErrorLogOnErrMenuItem_ );
+	
+	pDisableUnmountDialogOnExitMenuItem_ = new wxMenuItem( pOptionsMenu_, ID_DISABLEUNMOUNTDIALOGONEXITMENUITEM, wxString( wxT("Disable unmount confirmation dialog on exit") ) , wxT("If checked, EncFSMP will not ask to unmount the mounted encfs folders during exit."), wxITEM_CHECK );
+	pOptionsMenu_->Append( pDisableUnmountDialogOnExitMenuItem_ );
+	
+	pMainMenuBar_->Append( pOptionsMenu_, wxT("Options") ); 
 	
 	pHelpMenu_ = new wxMenu();
 	pHelpAboutMenuItem_ = new wxMenuItem( pHelpMenu_, wxID_ABOUT, wxString( wxT("About") ) , wxEmptyString, wxITEM_NORMAL );
@@ -695,5 +711,54 @@ ChangePasswordDialogBase::ChangePasswordDialogBase( wxWindow* parent, wxWindowID
 }
 
 ChangePasswordDialogBase::~ChangePasswordDialogBase()
+{
+}
+
+BEGIN_EVENT_TABLE( EncFSMPErrorLogBase, wxFrame )
+	EVT_CLOSE( EncFSMPErrorLogBase::_wxFB_OnClose )
+	EVT_BUTTON( ID_CLEARERRORLISTBUTTON, EncFSMPErrorLogBase::_wxFB_OnClearErrorListButton )
+END_EVENT_TABLE()
+
+EncFSMPErrorLogBase::EncFSMPErrorLogBase( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxFrame( parent, id, title, pos, size, style )
+{
+	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
+	
+	wxBoxSizer* bSizer9;
+	bSizer9 = new wxBoxSizer( wxVERTICAL );
+	
+	m_panel2 = new wxPanel( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	wxBoxSizer* bSizer13;
+	bSizer13 = new wxBoxSizer( wxVERTICAL );
+	
+	wxBoxSizer* bSizer10;
+	bSizer10 = new wxBoxSizer( wxHORIZONTAL );
+	
+	pClearErrorListButton_ = new wxButton( m_panel2, ID_CLEARERRORLISTBUTTON, wxT("Clear"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer10->Add( pClearErrorListButton_, 0, wxALL, 3 );
+	
+	bSizer13->Add( bSizer10, 0, wxEXPAND, 5 );
+	
+	wxBoxSizer* bSizer11;
+	bSizer11 = new wxBoxSizer( wxVERTICAL );
+	
+	pErrorListTextCtrl_ = new wxTextCtrl( m_panel2, ID_ERRORLISTTEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_DONTWRAP|wxTE_MULTILINE|wxTE_READONLY );
+	pErrorListTextCtrl_->SetFont( wxFont( wxNORMAL_FONT->GetPointSize(), 76, 90, 90, false, wxEmptyString ) );
+	
+	bSizer11->Add( pErrorListTextCtrl_, 1, wxALL|wxEXPAND, 3 );
+	
+	bSizer13->Add( bSizer11, 1, wxEXPAND, 5 );
+	
+	m_panel2->SetSizer( bSizer13 );
+	m_panel2->Layout();
+	bSizer13->Fit( m_panel2 );
+	bSizer9->Add( m_panel2, 1, wxEXPAND, 5 );
+	
+	this->SetSizer( bSizer9 );
+	this->Layout();
+	
+	this->Centre( wxBOTH );
+}
+
+EncFSMPErrorLogBase::~EncFSMPErrorLogBase()
 {
 }

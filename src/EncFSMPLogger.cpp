@@ -18,24 +18,54 @@
  */
 
 #include "CommonIncludes.h"
-#include "EncFSMPStrings.h"
+#include "EncFSMPLogger.h"
+#include "EncFSMPErrorLog.h"
 
+#if wxCHECK_VERSION(2, 9, 0) && defined(_WIN32)
+#define HAVE_MODE_T		// Workaround for double defined mode_t on Windows
+#endif
+#include "fs_layer.h"
 
-std::wstring EncFSMPStrings::formatterName_(L"encFSMP");
-std::string EncFSMPStrings::formatterName8_("encFSMP");
+// rlog
+#include "rlog/Error.h"
 
-wxString EncFSMPStrings::configAppName_(wxT("EncFSMP"));
-wxString EncFSMPStrings::configOrganizationName_(wxT("hiesti.ch"));
-wxString EncFSMPStrings::configMountListPath_(wxT("/MountList"));
+// Static member
+EncFSMPLogger EncFSMPLogger::instance_;
 
-wxString EncFSMPStrings::configNameKey_(wxT("Name"));
-wxString EncFSMPStrings::configEncFSPathKey_(wxT("EncFSPath"));
-wxString EncFSMPStrings::configDriveLetterKey_(wxT("DriveLetter"));
-wxString EncFSMPStrings::configPasswordKey_(wxT("Password"));
-wxString EncFSMPStrings::configIsWorldWritableKey_(wxT("IsWorldWritable"));
-wxString EncFSMPStrings::configIsSystemVisibleKey_(wxT("IsSystemVisible"));
-wxString EncFSMPStrings::configWindowDimensions_(wxT("WindowDimensions"));
-wxString EncFSMPStrings::configColumnWidths_(wxT("ColumnWidths"));
-wxString EncFSMPStrings::configMinimizeToTray_(wxT("MinimizeToTray"));
-wxString EncFSMPStrings::configDisableUnmountDialogOnExit_(wxT("DisableUnmountDialogOnExit"));
-wxString EncFSMPStrings::configShowErrorLogOnErr_(wxT("ShowErrorLogOnErr"));
+EncFSMPLogger::EncFSMPLogger()
+	: pEncFSMPErrorLog_(NULL)
+{
+}
+
+EncFSMPLogger::~EncFSMPLogger()
+{
+}
+
+void EncFSMPLogger::setErrorLog(EncFSMPErrorLog *pEncFSMPErrorLog)
+{
+	instance_.pEncFSMPErrorLog_ = pEncFSMPErrorLog;
+}
+
+void EncFSMPLogger::log(const std::wstring &errStr, const std::string &fn, rlog::Error *pErr)
+{
+	if(instance_.pEncFSMPErrorLog_ != NULL)
+	{
+		wxString text(errStr);
+		if(!fn.empty())
+		{
+			boost::filesystem::path path(fs_layer::stringToFSPath(fn));
+			wxString pathWx(path.wstring());
+			if(!text.empty())
+				text.Append(wxT(", "));
+			text.Append(wxT("file: "));
+			text.Append(pathWx);
+		}
+		if(pErr != NULL)
+		{
+			text.Append(wxT(", details: "));
+			text.Append(wxString(pErr->what(), *wxConvCurrent));
+		}
+		text.Append(wxT("\n"));
+		instance_.pEncFSMPErrorLog_->addText(text);
+	}
+}
