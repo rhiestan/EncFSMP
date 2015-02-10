@@ -17,40 +17,37 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef ENCFSMPERRORLOG_H
-#define ENCFSMPERRORLOG_H
+#ifndef ENCFSMPIPCPOSIX_H
+#define ENCFSMPIPCPOSIX_H
 
-#include "EncFSMPMainFrameBase.h"
+class EncFSMPIPC_Server;
 
-class EncFSMPErrorLog: public EncFSMPErrorLogBase
+class EncFSMPIPC
 {
 public:
-	EncFSMPErrorLog(wxWindow* parent);
-	virtual ~EncFSMPErrorLog();
 
-	bool getShowErrorLogOnErr() const;
-	void setShowErrorLogOnErr(bool showErrorLogOnErr);
+	static void initialize();
+	static void cleanup();
+	static void sendCommand(const wxString &command,
+		const wxString &mountName,
+		const wxString &password);
 
-	void toggleVisibleState();
-	bool isWindowShown();
+	static wxString marshalArguments(const wxString &command,
+		const wxString &mountName,
+		const wxString &password);
+	static bool unmarshalArguments(const wxString &args,
+		wxString &command,
+		wxString &mountName,
+		wxString &password);
 
-	void addText(const wxString &text);
-	void ping();
-
-protected:
-	virtual void OnClose( wxCloseEvent& event );
-	virtual void OnClearErrorListButton( wxCommandEvent& event );
-
-	virtual void OnNewErrorLogEntry( wxCommandEvent& event );
+	static wxString getFIFOFilename();
 
 private:
-	bool isWindowShown_;
-	bool showErrorLogOnErr_;
-	
-	wxMutex mutex_;
-	wxString errorText_;
+	EncFSMPIPC() { }
+	virtual ~EncFSMPIPC() { }
 
-	DECLARE_EVENT_TABLE()
+	static EncFSMPIPC_Server *pServer_;
+	static wxString fifoFilename_;
 };
 
 #endif

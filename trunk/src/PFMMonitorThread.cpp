@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014 Roman Hiestand
+ * Copyright (C) 2015 Roman Hiestand
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -131,7 +131,7 @@ wxThread::ExitCode PFMMonitorThread::Entry()
 							if((statusFlags & (pfmStatusFlagReady | pfmStatusFlagDisconnected | pfmStatusFlagClosed)) != 0)
 							{
 								bool isMountEvent = ((statusFlags & pfmStatusFlagReady) != 0);
-								pMainFrame->addNewMountEvent(isMountEvent, fileName, driveLetter, uncName);
+								pMainFrame->addNewMountEvent(isMountEvent, false, fileName, driveLetter, uncName);
 							}
 						}
 

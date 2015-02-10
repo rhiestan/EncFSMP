@@ -20,6 +20,7 @@ BEGIN_EVENT_TABLE( EncFSMPMainFrameBase, wxFrame )
 	EVT_UPDATE_UI( ID_SHOWERRORLOGMENUITEM, EncFSMPMainFrameBase::_wxFB_OnShowErrorLogMenuItemUpdate )
 	EVT_MENU( ID_SHOWERRORLOGONERRMENUITEM, EncFSMPMainFrameBase::_wxFB_OnShowErrorLogOnErrMenuItem )
 	EVT_MENU( ID_DISABLEUNMOUNTDIALOGONEXITMENUITEM, EncFSMPMainFrameBase::_wxFB_OnDisableUnmountDialogOnExitMenuItem )
+	EVT_MENU( ID_SAVEPASSWORDSINRAMMENUITEM, EncFSMPMainFrameBase::_wxFB_OnSavePasswordsInRAMMenuItem )
 	EVT_MENU( wxID_ABOUT, EncFSMPMainFrameBase::_wxFB_OnAboutMenuItem )
 	EVT_BUTTON( ID_CREATEMOUNTBUTTON, EncFSMPMainFrameBase::_wxFB_OnCreateMountButton )
 	EVT_BUTTON( ID_OPENEXISTINGENCFS, EncFSMPMainFrameBase::_wxFB_OnOpenExistingEncFSButton )
@@ -62,6 +63,9 @@ EncFSMPMainFrameBase::EncFSMPMainFrameBase( wxWindow* parent, wxWindowID id, con
 	
 	pDisableUnmountDialogOnExitMenuItem_ = new wxMenuItem( pOptionsMenu_, ID_DISABLEUNMOUNTDIALOGONEXITMENUITEM, wxString( wxT("Disable unmount confirmation dialog on exit") ) , wxT("If checked, EncFSMP will not ask to unmount the mounted encfs folders during exit."), wxITEM_CHECK );
 	pOptionsMenu_->Append( pDisableUnmountDialogOnExitMenuItem_ );
+	
+	pSavePasswordsInRAMMenuItem_ = new wxMenuItem( pOptionsMenu_, ID_SAVEPASSWORDSINRAMMENUITEM, wxString( wxT("Save passwords in RAM") ) , wxT("Store passwords in RAM while EncFSMP is running"), wxITEM_CHECK );
+	pOptionsMenu_->Append( pSavePasswordsInRAMMenuItem_ );
 	
 	pMainMenuBar_->Append( pOptionsMenu_, wxT("Options") ); 
 	

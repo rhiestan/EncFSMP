@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014 Roman Hiestand
+ * Copyright (C) 2015 Roman Hiestand
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -25,23 +25,29 @@
 class EncFSMPStrings
 {
 public:
-	static std::wstring formatterName_;
-	static std::string formatterName8_;
+	const static std::wstring formatterName_;
+	const static std::string formatterName8_;
 
-	static wxString configAppName_;
-	static wxString configOrganizationName_;
-	static wxString configMountListPath_;
-	static wxString configNameKey_;
-	static wxString configEncFSPathKey_;
-	static wxString configDriveLetterKey_;
-	static wxString configPasswordKey_;
-	static wxString configIsWorldWritableKey_;
-	static wxString configIsSystemVisibleKey_;
-	static wxString configWindowDimensions_;
-	static wxString configColumnWidths_;
-	static wxString configMinimizeToTray_;
-	static wxString configDisableUnmountDialogOnExit_;
-	static wxString configShowErrorLogOnErr_;
+	const static wxString configAppName_;
+	const static wxString configOrganizationName_;
+	const static wxString configMountListPath_;
+	const static wxString configNameKey_;
+	const static wxString configEncFSPathKey_;
+	const static wxString configDriveLetterKey_;
+	const static wxString configPasswordKey_;
+	const static wxString configIsWorldWritableKey_;
+	const static wxString configIsSystemVisibleKey_;
+	const static wxString configWindowDimensions_;
+	const static wxString configColumnWidths_;
+	const static wxString configMinimizeToTray_;
+	const static wxString configDisableUnmountDialogOnExit_;
+	const static wxString configShowErrorLogOnErr_;
+	const static wxString configSavePasswordsInRAM_;
+
+	const static wxString commandMount_;
+	const static wxString commandUnmount_;
+	const static wxString commandDDETopic_;
+	const static wxString commandDDEServerName_;
 
 private:
 	EncFSMPStrings() { }

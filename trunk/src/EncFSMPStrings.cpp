@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014 Roman Hiestand
+ * Copyright (C) 2015 Roman Hiestand
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -21,21 +21,27 @@
 #include "EncFSMPStrings.h"
 
 
-std::wstring EncFSMPStrings::formatterName_(L"encFSMP");
-std::string EncFSMPStrings::formatterName8_("encFSMP");
+const std::wstring EncFSMPStrings::formatterName_(L"encFSMP");
+const std::string EncFSMPStrings::formatterName8_("encFSMP");
+ 
+const wxString EncFSMPStrings::configAppName_(wxT("EncFSMP"));
+const wxString EncFSMPStrings::configOrganizationName_(wxT("hiesti.ch"));
+const wxString EncFSMPStrings::configMountListPath_(wxT("/MountList"));
+ 
+const wxString EncFSMPStrings::configNameKey_(wxT("Name"));
+const wxString EncFSMPStrings::configEncFSPathKey_(wxT("EncFSPath"));
+const wxString EncFSMPStrings::configDriveLetterKey_(wxT("DriveLetter"));
+const wxString EncFSMPStrings::configPasswordKey_(wxT("Password"));
+const wxString EncFSMPStrings::configIsWorldWritableKey_(wxT("IsWorldWritable"));
+const wxString EncFSMPStrings::configIsSystemVisibleKey_(wxT("IsSystemVisible"));
+const wxString EncFSMPStrings::configWindowDimensions_(wxT("WindowDimensions"));
+const wxString EncFSMPStrings::configColumnWidths_(wxT("ColumnWidths"));
+const wxString EncFSMPStrings::configMinimizeToTray_(wxT("MinimizeToTray"));
+const wxString EncFSMPStrings::configDisableUnmountDialogOnExit_(wxT("DisableUnmountDialogOnExit"));
+const wxString EncFSMPStrings::configShowErrorLogOnErr_(wxT("ShowErrorLogOnErr"));
+const wxString EncFSMPStrings::configSavePasswordsInRAM_(wxT("SavePasswordsInRAM"));
 
-wxString EncFSMPStrings::configAppName_(wxT("EncFSMP"));
-wxString EncFSMPStrings::configOrganizationName_(wxT("hiesti.ch"));
-wxString EncFSMPStrings::configMountListPath_(wxT("/MountList"));
-
-wxString EncFSMPStrings::configNameKey_(wxT("Name"));
-wxString EncFSMPStrings::configEncFSPathKey_(wxT("EncFSPath"));
-wxString EncFSMPStrings::configDriveLetterKey_(wxT("DriveLetter"));
-wxString EncFSMPStrings::configPasswordKey_(wxT("Password"));
-wxString EncFSMPStrings::configIsWorldWritableKey_(wxT("IsWorldWritable"));
-wxString EncFSMPStrings::configIsSystemVisibleKey_(wxT("IsSystemVisible"));
-wxString EncFSMPStrings::configWindowDimensions_(wxT("WindowDimensions"));
-wxString EncFSMPStrings::configColumnWidths_(wxT("ColumnWidths"));
-wxString EncFSMPStrings::configMinimizeToTray_(wxT("MinimizeToTray"));
-wxString EncFSMPStrings::configDisableUnmountDialogOnExit_(wxT("DisableUnmountDialogOnExit"));
-wxString EncFSMPStrings::configShowErrorLogOnErr_(wxT("ShowErrorLogOnErr"));
+const wxString EncFSMPStrings::commandMount_(wxT("mount"));
+const wxString EncFSMPStrings::commandUnmount_(wxT("unmount"));
+const wxString EncFSMPStrings::commandDDETopic_(wxT("EncFSMP_Command"));
+const wxString EncFSMPStrings::commandDDEServerName_(wxT("EncFSMP_DDEServer"));

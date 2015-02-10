@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014 Roman Hiestand
+ * Copyright (C) 2015 Roman Hiestand
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -869,7 +869,7 @@ int/*error*/ CCALL PFMLayer::List(int64_t openId,int64_t listId,PfmMarshallerLis
 										int res = 0;
 										const int flags = makeOpenFileFlags(true);
 										boost::shared_ptr<FileNode> fileNode = 
-											rootFS_->root->openNode( plainPath.c_str(), "open", flags, &res );
+											rootFS_->root->lookupNode( plainPath.c_str(), "open" );
 										if(fileNode)
 										{
 											int err = fileNode->getAttr(&buf_ue);

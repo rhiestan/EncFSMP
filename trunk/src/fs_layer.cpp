@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014 Roman Hiestand
+ * Copyright (C) 2015 Roman Hiestand
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -23,6 +23,7 @@
 #endif
 
 #include "fs_layer.h"
+#include "efs_config.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -594,13 +595,36 @@ int fs_layer::stat(const char *fn, struct stat *buf)
 		errno = ec.value();
 		return -1;
 	}
-	std::time_t lwt = boost::filesystem::last_write_time(fn_path, ec);
+	std::time_t lwt = 0;
+	uintmax_t fsize = 0;
+	uintmax_t hlc = 0;
+#if defined(EFS_WIN32)
+	// The boost variant is a bit slow, this is faster:
+	if(boost::filesystem::is_regular_file(status))
+	{
+		WIN32_FIND_DATA findFileData;
+		HANDLE hFind;
+		hFind = FindFirstFileW(fn_path.native().c_str(), &findFileData);
+		if(hFind != INVALID_HANDLE_VALUE)
+		{
+			fsize = (static_cast<uintmax_t>(findFileData.nFileSizeHigh) << 16) + findFileData.nFileSizeLow;
+			FILETIME &ft = findFileData.ftLastWriteTime;
+			__int64 t = (static_cast<__int64>(ft.dwHighDateTime)<< 32) + ft.dwLowDateTime;
+			t -= 116444736000000000LL;
+			t /= 10000000;
+			lwt = static_cast<std::time_t>(t);
+			FindClose(hFind);
+		}
+	}
+	else
+	{
+#endif
+	lwt = boost::filesystem::last_write_time(fn_path, ec);
 	if(ec)
 	{
 		errno = ec.value();
 		return -1;
 	}
-	uintmax_t fsize = 0;
 	if(boost::filesystem::is_regular_file(status))
 		fsize = boost::filesystem::file_size(fn_path, ec);
 	if(ec)
@@ -608,12 +632,15 @@ int fs_layer::stat(const char *fn, struct stat *buf)
 		errno = ec.value();
 		return -1;
 	}
-	uintmax_t hlc = boost::filesystem::hard_link_count(fn_path, ec);
+	hlc = boost::filesystem::hard_link_count(fn_path, ec);
 	if(ec)
 	{
 		errno = ec.value();
 		return -1;
 	}
+#if defined(EFS_WIN32)
+	}
+#endif
 
 	unsigned short mode = 0;
 	// File type
@@ -646,7 +673,7 @@ int fs_layer::stat(const char *fn, struct stat *buf)
 	if(status.permissions() & boost::filesystem::others_exe)
 		mode |= S_IXOTH;
 
-#if defined(_WIN32)
+#if defined(EFS_WIN32)
 	// Ignore the read-only flag for folders on Windows
 	// See for example http://support.microsoft.com/kb/326549
 	if(boost::filesystem::is_directory(status))
@@ -768,7 +795,7 @@ fs_layer::fs_dirent* fs_layer::readdir(fs_layer::DIR* dir)
 	strncpy(dir->ent.d_name, path.c_str(), sizeof(dir->ent.d_name));
 	dir->ent.d_name[sizeof(dir->ent.d_name)-1] = 0;
 #if defined(_WIN32)
-	dir->ent.d_namlen = strlen(dir->ent.d_name);
+	dir->ent.d_namlen = static_cast<unsigned short>(strlen(dir->ent.d_name));
 #endif
 	(*(dir->iter))++;
 
