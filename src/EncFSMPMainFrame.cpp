@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014 Roman Hiestand
+ * Copyright (C) 2015 Roman Hiestand
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -31,6 +31,11 @@
 #include "EncFSMPTaskBarIcon.h"
 #include "EncFSMPErrorLog.h"
 #include "EncFSMPLogger.h"
+#if defined(EFS_WIN32)
+#	include "EncFSMPIPCWin.h"
+#else
+#	include "EncFSMPIPCPosix.h"
+#endif
 
 #include <wx/dirdlg.h>
 #include <wx/busyinfo.h>
@@ -73,7 +78,8 @@ enum
 	ID_CTXBROWSE,
 	ID_CTXSHOWINFO,
 	ID_CTXCHANGEPASSWD,
-	ID_CTXEXPORT
+	ID_CTXEXPORT,
+	ID_ENCFS_COMMAND
 };
 
 const wxEventType myCustomEventType = wxNewEventType();
@@ -81,7 +87,7 @@ const wxEventType myCustomEventType = wxNewEventType();
 EncFSMPMainFrame::EncFSMPMainFrame(wxWindow* parent)
 	: EncFSMPMainFrameBase(parent),
 	aTimer_(this, ID_TIMER), minimizeToTray_(false),
-	disableUnmountDialogOnExit_(false),
+	disableUnmountDialogOnExit_(false), savePasswordsInRAM_(false),
 	pTaskBarIcon_(NULL), pMountsListPopupMenu_(NULL),
 	firstTimeOnTimer_(false), isRunningAsAdmin_(false),
 	pEncFSMPErrorLog_(NULL)
@@ -173,13 +179,14 @@ EncFSMPMainFrame::~EncFSMPMainFrame()
 /**
  * This method gets called by the PFMMonitorThread in case of an mount/unmount event.
  */
-void EncFSMPMainFrame::addNewMountEvent(bool isMountEvent,
+void EncFSMPMainFrame::addNewMountEvent(bool isMountEvent, bool isError,
 	const std::wstring &mountName, wchar_t driveLetter, const std::wstring &uncName)
 {
 	{
 		wxMutexLocker lock(mountEventsMutex_);
 		MountEvent evt;
 		evt.isMountEvent_ = isMountEvent;
+		evt.isError_ = isError;
 		evt.mountName_ = mountName;
 		evt.driveLetter_ = driveLetter;
 		evt.uncName_ = uncName;
@@ -206,13 +213,34 @@ void EncFSMPMainFrame::reportEncFSError(const wxString &error, const wxString &m
 	}
 
 	std::wstring mountNameStdStr(mountName.c_str());
-	addNewMountEvent(false, mountNameStdStr, L' ', L"");
+	addNewMountEvent(false, true, mountNameStdStr, L' ', L"");
 
 #if wxCHECK_VERSION(2, 9, 0)
 	wxCommandEvent* newEvent = new wxCommandEvent(myCustomEventType, ID_ENCFS_MOUNT_ERROR_EVENT);
 	wxQueueEvent(this, newEvent);
 #else
 	wxCommandEvent newEvent(myCustomEventType, ID_ENCFS_MOUNT_ERROR_EVENT);
+	AddPendingEvent(newEvent);
+#endif
+}
+
+void EncFSMPMainFrame::sendCommand(const wxString &command,
+	const wxString &mountName,
+	const wxString &password)
+{
+	wxString args = EncFSMPIPC::marshalArguments(command, mountName, password);
+	sendCommand(args);
+}
+
+void EncFSMPMainFrame::sendCommand(const wxString &arg)
+{
+#if wxCHECK_VERSION(2, 9, 0)
+	wxCommandEvent* newEvent = new wxCommandEvent(myCustomEventType, ID_ENCFS_COMMAND);
+	newEvent->SetString(arg);
+	wxQueueEvent(this, newEvent);
+#else
+	wxCommandEvent newEvent(myCustomEventType, ID_ENCFS_COMMAND);
+	newEvent.SetString(arg);
 	AddPendingEvent(newEvent);
 #endif
 }
@@ -365,13 +393,17 @@ void EncFSMPMainFrame::OnExportMenuItem( wxCommandEvent& event )
 
 		// Enter password, if necessary
 		wxString password = pMountEntry->password_;
-		if(password.Length() == 0)
+		if(password.IsEmpty())
+			password = pMountEntry->volatilePassword_;
+		if(password.IsEmpty())
 		{
 			wxPasswordEntryDialog dlg(this, wxT("Please enter the password:"));
 			int retVal = dlg.ShowModal();
 			if(retVal == wxID_CANCEL)
 				return;
 			password = dlg.GetValue();
+			if(savePasswordsInRAM_)
+				pMountEntry->volatilePassword_ = password;
 		}
 
 		// TODO: Show progress bar, start separate thread?
@@ -427,6 +459,12 @@ void EncFSMPMainFrame::OnDisableUnmountDialogOnExitMenuItem( wxCommandEvent& eve
 	saveWindowLayoutToConfig();
 }
 
+void EncFSMPMainFrame::OnSavePasswordsInRAMMenuItem( wxCommandEvent& event )
+{
+	savePasswordsInRAM_ = event.IsChecked();
+	saveWindowLayoutToConfig();
+}
+
 void EncFSMPMainFrame::OnAboutMenuItem( wxCommandEvent& WXUNUSED(event) )
 {
 	wxAboutDialogInfo info;
@@ -453,10 +491,10 @@ void EncFSMPMainFrame::OnAboutMenuItem( wxCommandEvent& WXUNUSED(event) )
 	else
 		descrString.Append(wxT("No Pismo File Mount installation found"));
 	
-	descrString.Append(wxT("\nIcon (C) by Oxygen\n"));
+	descrString.Append(wxT("\nIcon \u00A9 by Oxygen\n"));
 
 	info.SetDescription(descrString);
-	info.SetCopyright(wxT("(C) ") wxT(ENCFSMP_COPYRIGHT_YEAR) wxT(" ") wxT(ENCFSMP_COPYRIGHT_NAME));
+	info.SetCopyright(wxT("\u00A9 ") wxT(ENCFSMP_COPYRIGHT_YEAR) wxT(" ") wxT(ENCFSMP_COPYRIGHT_NAME));
 
 	wxAboutBox(info);
 }
@@ -633,18 +671,22 @@ void EncFSMPMainFrame::OnMountButton( wxCommandEvent& event )
 			}
 #endif
 			wxString password = pMountEntry->password_;
-			if(password.length() == 0)
+			if(password.IsEmpty())
+				password = pMountEntry->volatilePassword_;
+			if(password.IsEmpty())
 			{
 				wxPasswordEntryDialog dlg(this, wxT("Please enter the password:"));
 				int retVal = dlg.ShowModal();
 				if(retVal == wxID_CANCEL)
 					return;
 				password = dlg.GetValue();
+				if(savePasswordsInRAM_)
+					pMountEntry->volatilePassword_ = password;
 			}
 			bool isWorldWritable = pMountEntry->isWorldWritable_;
 			bool isSystemVisible = pMountEntry->isSystemVisible_;
 #if defined(EFS_WIN32)
-			// We need to world writable flag so that all users (not only the admin user) can see the mount and change the files in it
+			// We need to set the world writable flag so that all users (not only the admin user) can see the mount and change the files in it
 			if(Win32Utils::hasUAC() && isRunningAsAdmin_)
 			{
 				isWorldWritable = true;
@@ -808,6 +850,13 @@ void EncFSMPMainFrame::OnChangePasswordButton( wxCommandEvent& event )
 				dlg.newPassword_, errorMsg);
 			if(isOK)
 			{
+				if(dlg.storeNewPassword_)
+					pMountEntry->password_ = dlg.newPassword_;
+				else
+					pMountEntry->password_ = wxEmptyString;
+				pMountEntry->volatilePassword_.Empty();
+				mountList_.storeToConfig();
+
 				wxMessageBox(errorMsg,
 					wxT("Change password successful"), wxICON_INFORMATION | wxOK, this);
 			}
@@ -817,12 +866,6 @@ void EncFSMPMainFrame::OnChangePasswordButton( wxCommandEvent& event )
 					wxT("Change password error"), wxICON_ERROR | wxOK, this);
 			}
 
-			if(dlg.storeNewPassword_)
-				pMountEntry->password_ = dlg.newPassword_;
-			else
-				pMountEntry->password_ = wxEmptyString;
-
-			mountList_.storeToConfig();
 		}
 	}
 }
@@ -856,6 +899,8 @@ void EncFSMPMainFrame::OnMountEvent( wxCommandEvent &event )
 				pMountEntry->mountState_ = MountEntry::MSMounted;
 			else
 				pMountEntry->mountState_ = MountEntry::MSNotMounted;
+			if(evt.isError_)
+				pMountEntry->volatilePassword_.Empty();	// Clear volatile password
 			updateListCtrl = true;
 		}
 
@@ -944,6 +989,103 @@ void EncFSMPMainFrame::OnContextMenuExport( wxCommandEvent& event )
 	OnExportMenuItem(event);
 }
 
+void EncFSMPMainFrame::OnEncFSCommand( wxCommandEvent &event )
+{
+	wxString command, mountName, passwordCmd;
+	if(EncFSMPIPC::unmarshalArguments(event.GetString(), command,
+		mountName, passwordCmd))
+	{
+		bool isMountCommand = (command.IsSameAs(EncFSMPStrings::commandMount_, false));
+		bool isUnmountCommand = (command.IsSameAs(EncFSMPStrings::commandUnmount_, false));
+		if(!isMountCommand && !isUnmountCommand)
+		{
+			wxMessageBox(wxString(wxT("Unknown command \"")) + command
+				+ wxString(wxT("\" received")),
+				wxT("Unknown command"), wxOK | wxICON_ERROR);
+			return;
+		}
+		MountEntry *pMountEntry = mountList_.findEntryByName(mountName);
+		if(pMountEntry != NULL)
+		{
+			if(pMountEntry->mountState_ == MountEntry::MSMounted)
+			{
+				if(isUnmountCommand)
+				{
+					PFMProxy::getInstance().unmount(pMountEntry->name_);
+					pMountEntry->mountState_ = MountEntry::MSPending;
+				}
+				else
+				{
+					wxMessageBox(wxT("EncFS folder is already mounted"),
+						wxT("Mount command"), wxOK | wxICON_ERROR);
+					return;
+				}
+			}
+			else if(pMountEntry->mountState_ == MountEntry::MSNotMounted)
+			{
+				if(!isMountCommand)
+				{
+					wxMessageBox(wxT("EncFS folder is not mounted"),
+						wxT("Unmount command"), wxOK | wxICON_ERROR);
+					return;
+				}
+				// Mount: Start a PFMHandlerThread
+#if defined(EFS_WIN32)
+				if(Win32Utils::hasUAC()
+					&& pMountEntry->isSystemVisible_
+					&& !isRunningAsAdmin_)
+				{
+					wxMessageBox(wxT("Mounts with the System Visible Flag set require admin rights."),
+						wxT("Admin rights required"), wxOK | wxICON_ERROR);
+					return;
+				}
+#endif
+				wxString password = pMountEntry->password_;
+				if(password.IsEmpty())
+					password = passwordCmd;
+				if(password.IsEmpty())
+					password = pMountEntry->volatilePassword_;
+				if(password.IsEmpty())
+				{
+					wxPasswordEntryDialog dlg(this, wxT("Please enter the password:"));
+					int retVal = dlg.ShowModal();
+					if(retVal == wxID_CANCEL)
+						return;
+					password = dlg.GetValue();
+				}
+				if(savePasswordsInRAM_)
+					pMountEntry->volatilePassword_ = password;
+				bool isWorldWritable = pMountEntry->isWorldWritable_;
+				bool isSystemVisible = pMountEntry->isSystemVisible_;
+#if defined(EFS_WIN32)
+				// We need to set the world writable flag so that all users (not only the admin user) can see the mount and change the files in it
+				if(Win32Utils::hasUAC() && isRunningAsAdmin_)
+				{
+					isWorldWritable = true;
+					isSystemVisible = true;
+				}
+#endif
+				PFMHandlerThread *pPFMHandlerThread = new PFMHandlerThread();
+				pPFMHandlerThread->setParameters(pMountEntry->name_,
+					pMountEntry->encFSPath_, pMountEntry->driveLetter_,
+					password, isWorldWritable,
+					false, isSystemVisible);
+
+				pPFMHandlerThread->Create();
+				pPFMHandlerThread->Run();
+				pMountEntry->mountState_ = MountEntry::MSPending;
+			}
+
+			updateMountListCtrl();
+		}
+		else
+		{
+			wxMessageBox(wxString(wxT("Mount \"")) + mountName + wxString(wxT("\" not found")),
+				wxT("Mount not found"), wxOK | wxICON_ERROR);
+		}
+
+	}
+}
 
 // Icon: From resource on Win32, from PNG otherwise
 #if !defined(EFS_WIN32)
@@ -1129,6 +1271,7 @@ void EncFSMPMainFrame::saveWindowLayoutToConfig()
 
 	config->Write(EncFSMPStrings::configMinimizeToTray_, minimizeToTray_);
 	config->Write(EncFSMPStrings::configDisableUnmountDialogOnExit_, disableUnmountDialogOnExit_);
+	config->Write(EncFSMPStrings::configSavePasswordsInRAM_, savePasswordsInRAM_);
 
 	if(pEncFSMPErrorLog_ != NULL)
 		config->Write(EncFSMPStrings::configShowErrorLogOnErr_, pEncFSMPErrorLog_->getShowErrorLogOnErr());
@@ -1175,6 +1318,10 @@ void EncFSMPMainFrame::loadWindowLayoutFromConfig()
 		disableUnmountDialogOnExit_ = false;		// Default is false
 	pDisableUnmountDialogOnExitMenuItem_->Check(disableUnmountDialogOnExit_);
 
+	if(!config->Read(EncFSMPStrings::configSavePasswordsInRAM_, &savePasswordsInRAM_))
+		savePasswordsInRAM_ = false;		// Default is false
+	pSavePasswordsInRAMMenuItem_->Check(savePasswordsInRAM_);
+
 	bool showErrorLogOnErr = false;
 	if(pEncFSMPErrorLog_ != NULL)
 	{
@@ -1197,4 +1344,5 @@ BEGIN_EVENT_TABLE( EncFSMPMainFrame, EncFSMPMainFrameBase )
 	EVT_MENU( ID_CTXSHOWINFO, EncFSMPMainFrame::OnContextMenuShowInfo )
 	EVT_MENU( ID_CTXCHANGEPASSWD, EncFSMPMainFrame::OnContextMenuChangePassword )
 	EVT_MENU( ID_CTXEXPORT, EncFSMPMainFrame::OnContextMenuExport )
+	EVT_COMMAND(ID_ENCFS_COMMAND, myCustomEventType, EncFSMPMainFrame::OnEncFSCommand)
 END_EVENT_TABLE()

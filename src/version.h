@@ -6,7 +6,7 @@
 
 #define ENCFSMP_VERSION_MAJOR 0
 #define ENCFSMP_VERSION_MINOR 9
-#define ENCFSMP_VERSION_BUILD 3
+#define ENCFSMP_VERSION_BUILD 4
 
 #define ENCFSMP_VERSION_STRING EFS_STRINGIFY(ENCFSMP_VERSION_MAJOR) \
 	"." EFS_STRINGIFY(ENCFSMP_VERSION_MINOR) \
@@ -14,7 +14,7 @@
 
 #define ENCFSMP_NAME "EncFS MP"
 #define ENCFSMP_COPYRIGHT_NAME "Roman Hiestand"
-#define ENCFSMP_COPYRIGHT_YEAR "2014"
+#define ENCFSMP_COPYRIGHT_YEAR "2015"
 
 // The check for __INTEL_COMPILER needs to be before _MSC_VER and __GNUG__, as
 // the Intel compiler defines _MSC_VER and __GNUG__ as well

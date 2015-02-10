@@ -327,9 +327,12 @@ SET(ALL_HEADERS ${ALL_HEADERS} EncFSMPApp.h fs_layer.h pfm_layer.h EncFSMPMainFr
 	EncFSMPTaskBarIcon.h EncFSMPErrorLog.h EncFSMPLogger.h )
 
 IF(WIN32)
-	# Add resource definitions and Win32Utils for Windows
-	SET(ALL_SRC ${ALL_SRC} Win32Utils.cpp res/win/encfsmp.rc)
-	SET(ALL_HEADERS ${ALL_HEADERS} Win32Utils.h)
+	# Add resource definitions, Win32Utils and IPC for Windows
+	SET(ALL_SRC ${ALL_SRC} Win32Utils.cpp res/win/encfsmp.rc EncFSMPIPCWin.cpp)
+	SET(ALL_HEADERS ${ALL_HEADERS} Win32Utils.h EncFSMPIPCWin.h)
+ELSE(WIN32)
+	SET(ALL_SRC ${ALL_SRC} EncFSMPIPCPosix.cpp)
+	SET(ALL_HEADERS ${ALL_HEADERS} EncFSMPIPCPosix.h)
 ENDIF(WIN32)
 
 # Add OS X workaround for empty menus
@@ -340,7 +343,7 @@ IF(APPLE)
 ENDIF(APPLE)
 
 # For Apple set the icns file containing icons
-if(APPLE)
+IF(APPLE)
 	# icon files to copy in the bundle
 	SET( OSX_ICON_FILES ${CMAKE_CURRENT_SOURCE_DIR}/res/osx/encfsmp.icns )
 	# set where in the bundle to put the icns files
@@ -411,7 +414,7 @@ IF(APPLE)
 		COMMAND osacompile -o "${CMAKE_BINARY_DIR}/Uninstall PFM.app" "${CMAKE_SOURCE_DIR}/install/Uninstall PFM.scpt")
 	ADD_CUSTOM_TARGET(Uninstall_PFM ALL DEPENDS "${CMAKE_BINARY_DIR}/Uninstall PFM.app")
 
-	INSTALL(PROGRAMS ${CMAKE_SOURCE_DIR}/install/res/pfm-171-encfsmp-mac.run DESTINATION pfm)
+	INSTALL(PROGRAMS ${CMAKE_SOURCE_DIR}/install/res/pfm-173-encfsmp-mac.run DESTINATION pfm)
 	INSTALL(DIRECTORY "${CMAKE_BINARY_DIR}/Install PFM.app" DESTINATION "." USE_SOURCE_PERMISSIONS)
 	INSTALL(DIRECTORY "${CMAKE_BINARY_DIR}/Uninstall PFM.app" DESTINATION "." USE_SOURCE_PERMISSIONS)
 ENDIF(APPLE)

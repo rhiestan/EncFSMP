@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014 Roman Hiestand
+ * Copyright (C) 2015 Roman Hiestand
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -78,7 +78,7 @@ void EncFSMPErrorLog::addText(const wxString &text)
 	wxCommandEvent* newEvent = new wxCommandEvent(errorLogEventType, ID_NEW_ERROR_LOG_ENTRY);
 	wxQueueEvent(this, newEvent);
 #else
-	wxCommandEvent newEvent(errorLogEventType, ID_NEW_MOUNT_EVENT);
+	wxCommandEvent newEvent(errorLogEventType, ID_NEW_ERROR_LOG_ENTRY);
 	AddPendingEvent(newEvent);
 #endif
 }

@@ -217,6 +217,21 @@
                         <event name="OnMenuSelection">OnDisableUnmountDialogOnExitMenuItem</event>
                         <event name="OnUpdateUI"></event>
                     </object>
+                    <object class="wxMenuItem" expanded="1">
+                        <property name="bitmap"></property>
+                        <property name="checked">0</property>
+                        <property name="enabled">1</property>
+                        <property name="help">Store passwords in RAM while EncFSMP is running</property>
+                        <property name="id">ID_SAVEPASSWORDSINRAMMENUITEM</property>
+                        <property name="kind">wxITEM_CHECK</property>
+                        <property name="label">Save passwords in RAM</property>
+                        <property name="name">pSavePasswordsInRAMMenuItem_</property>
+                        <property name="permission">protected</property>
+                        <property name="shortcut"></property>
+                        <property name="unchecked_bitmap"></property>
+                        <event name="OnMenuSelection">OnSavePasswordsInRAMMenuItem</event>
+                        <event name="OnUpdateUI"></event>
+                    </object>
                 </object>
                 <object class="wxMenu" expanded="1">
                     <property name="label">Help</property>

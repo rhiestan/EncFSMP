@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014 Roman Hiestand
+ * Copyright (C) 2015 Roman Hiestand
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -48,6 +48,7 @@ public:
 		assignedDriveLetter_ = o.assignedDriveLetter_;
 		password_ = o.password_;
 		assignedUncName_ = o.assignedUncName_;
+		volatilePassword_ = o.volatilePassword_;
 		isWorldWritable_ = o.isWorldWritable_;
 		isSystemVisible_ = o.isSystemVisible_;
 		mountState_ = o.mountState_;
@@ -58,7 +59,8 @@ public:
 		return copy(o);
 	}
 
-	wxString name_, encFSPath_, driveLetter_, assignedDriveLetter_, password_, assignedUncName_;
+	wxString name_, encFSPath_, driveLetter_, assignedDriveLetter_, password_;
+	wxString assignedUncName_, volatilePassword_;	// Not persistent attributes
 	bool isWorldWritable_, isSystemVisible_;
 	MountState mountState_;
 };

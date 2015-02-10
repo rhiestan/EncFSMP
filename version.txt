@@ -1,6 +1,14 @@
 ﻿Version history
 ---------------
 
+Version 0.9.4, 10.02.2015:
+- Updated Pismo File Mount to 1.0.0.173
+- Updated OpenSSL to 1.0.2
+- Passwords can now be saved in RAM (while EncFSMP is running)
+- Mount/unmount via command line
+- Improved speed of listing a directory
+
+
 Version 0.9.3, 19.12.2014:
 - Added possibility to disable unmount confirmation dialog on exit
 - Improved error handling, added error log window

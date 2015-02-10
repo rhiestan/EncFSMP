@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014 Roman Hiestand
+ * Copyright (C) 2015 Roman Hiestand
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -34,9 +34,13 @@ public:
 	EncFSMPMainFrame(wxWindow* parent);
 	virtual ~EncFSMPMainFrame();
 
-	void addNewMountEvent(bool isMountEvent,
+	void addNewMountEvent(bool isMountEvent, bool isError,
 		const std::wstring &mountName, wchar_t driveLetter, const std::wstring &uncName);
 	void reportEncFSError(const wxString &error, const wxString &mountName);
+	void sendCommand(const wxString &command,
+		const wxString &mountName,
+		const wxString &password);
+	void sendCommand(const wxString &arg);
 
 	void unmountAllAndQuit();
 
@@ -50,6 +54,7 @@ protected:
 	virtual void OnShowErrorLogMenuItemUpdate( wxUpdateUIEvent& event );
 	virtual void OnShowErrorLogOnErrMenuItem( wxCommandEvent& event );
 	virtual void OnDisableUnmountDialogOnExitMenuItem( wxCommandEvent& event );
+	virtual void OnSavePasswordsInRAMMenuItem( wxCommandEvent& event );
 	virtual void OnAboutMenuItem( wxCommandEvent& event );
 	virtual void OnCreateMountButton( wxCommandEvent& event );
 	virtual void OnOpenExistingEncFSButton( wxCommandEvent& event );
@@ -78,6 +83,7 @@ protected:
 	virtual void OnContextMenuShowInfo( wxCommandEvent& event );
 	virtual void OnContextMenuChangePassword( wxCommandEvent& event );
 	virtual void OnContextMenuExport( wxCommandEvent& event );
+	virtual void OnEncFSCommand( wxCommandEvent &event );
 
 	wxIcon getIcon();
 	void updateMountListCtrl();
@@ -90,6 +96,7 @@ private:
 	wxTimer aTimer_;
 	wxMenuItem *pMinimizeToTrayMenuItem_;
 	bool minimizeToTray_, disableUnmountDialogOnExit_;
+	bool savePasswordsInRAM_;
 	EncFSMPTaskBarIcon *pTaskBarIcon_;
 	wxMenu *pMountsListPopupMenu_;
 
@@ -99,12 +106,13 @@ private:
 	class MountEvent
 	{
 	public:
-		MountEvent() : isMountEvent_(true), driveLetter_(L'A') { }
+		MountEvent() : isMountEvent_(true), isError_(false), driveLetter_(L'A') { }
 		MountEvent(const MountEvent &o) { copy(o); }
 		virtual ~MountEvent() { }
 		MountEvent &copy(const MountEvent &o)
 		{
 			isMountEvent_ = o.isMountEvent_;
+			isError_ = o.isError_;
 			mountName_ = o.mountName_;
 			driveLetter_ = o.driveLetter_;
 			uncName_ = o.uncName_;
@@ -115,7 +123,8 @@ private:
 			return copy(o);
 		}
 
-		bool isMountEvent_;
+		bool isMountEvent_;		// true: mount, false: unmount
+		bool isError_;			// Some error occurred during mount
 		std::wstring mountName_, uncName_;
 		wchar_t driveLetter_;
 	};
