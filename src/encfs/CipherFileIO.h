@@ -55,10 +55,10 @@ public:
 
     virtual int open( int flags );
 
-    virtual int getAttr( struct stat *stbuf ) const;
-    virtual off_t getSize() const;
+    virtual int getAttr( efs_stat *stbuf ) const;
+    virtual efs_off_t getSize() const;
 
-    virtual int truncate( off_t size );
+    virtual int truncate( efs_off_t size );
 
     virtual bool isWritable() const;
 

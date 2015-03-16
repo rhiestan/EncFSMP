@@ -107,7 +107,7 @@ bool MACFileIO::setIV( uint64_t iv )
     return base->setIV( iv );
 }
 
-inline static off_t roundUpDivide( off_t numerator, int denominator )
+inline static efs_off_t roundUpDivide( efs_off_t numerator, int denominator )
 {
     // integer arithmetic always rounds down, so we can round up by adding
     // enough so that any value other then a multiple of denominator gets
@@ -125,9 +125,9 @@ inline static off_t roundUpDivide( off_t numerator, int denominator )
 //   ... blockNum = 1
 //   ... partialBlock = 0
 //   ... adjLoc = 1 * blockSize
-static off_t locWithHeader( off_t offset, int blockSize, int headerSize )
+static efs_off_t locWithHeader( efs_off_t offset, int blockSize, int headerSize )
 {
-    off_t blockNum = roundUpDivide( offset , blockSize - headerSize );
+    efs_off_t blockNum = roundUpDivide( offset , blockSize - headerSize );
     return offset + blockNum * headerSize;
 }
 
@@ -136,13 +136,13 @@ static off_t locWithHeader( off_t offset, int blockSize, int headerSize )
 // The output value will always be less then the input value, because the
 // headers are stored at the beginning of the block, so even the first data is
 // offset by the size of the header.
-static off_t locWithoutHeader( off_t offset, int blockSize, int headerSize )
+static efs_off_t locWithoutHeader( efs_off_t offset, int blockSize, int headerSize )
 {
-    off_t blockNum = roundUpDivide( offset , blockSize );
+    efs_off_t blockNum = roundUpDivide( offset , blockSize );
     return offset - blockNum * headerSize;
 }
 
-int MACFileIO::getAttr( struct stat *stbuf ) const
+int MACFileIO::getAttr( efs_stat *stbuf ) const
 {
     int res = base->getAttr( stbuf );
 
@@ -157,13 +157,13 @@ int MACFileIO::getAttr( struct stat *stbuf ) const
     return res;
 }
 
-off_t MACFileIO::getSize() const
+efs_off_t MACFileIO::getSize() const
 {
     // adjust the size to hide the header overhead we tack on..
     int headerSize = macBytes + randBytes;
     int bs = blockSize() + headerSize;
 
-    off_t size = base->getSize();
+    efs_off_t size = base->getSize();
     if(size > 0)
 	size = locWithoutHeader( size, bs, headerSize );
 
@@ -287,7 +287,7 @@ bool MACFileIO::writeOneBlock( const IORequest &req )
     return ok;
 }
 
-int MACFileIO::truncate( off_t size )
+int MACFileIO::truncate( efs_off_t size )
 {
     int headerSize = macBytes + randBytes;
     int bs = blockSize() + headerSize;

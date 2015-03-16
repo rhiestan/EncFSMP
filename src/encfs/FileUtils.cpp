@@ -272,7 +272,7 @@ EncFS_Root::~EncFS_Root()
 
 bool fileExists( const char * fileName )
 {
-    struct stat buf;
+    efs_stat buf;
     if(!fs_layer::lstat( fileName, &buf ))
     {
 	return true;
@@ -285,7 +285,7 @@ bool fileExists( const char * fileName )
 
 bool isDirectory( const char *fileName )
 {
-    struct stat buf;
+    efs_stat buf;
     if( !fs_layer::lstat( fileName, &buf ))
     {
 	return S_ISDIR( buf.st_mode );

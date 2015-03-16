@@ -49,8 +49,8 @@ ConfigReader::~ConfigReader()
 bool 
 ConfigReader::load(const char *fileName)
 {
-    struct stat stbuf;
-    memset( &stbuf, 0, sizeof(struct stat));
+    efs_stat stbuf;
+    memset( &stbuf, 0, sizeof(efs_stat));
     if( fs_layer::lstat( fileName, &stbuf ) != 0)
 	return false;
 

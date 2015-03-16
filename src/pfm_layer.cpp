@@ -338,7 +338,16 @@ int/*error*/ CCALL PFMLayer::Open(const PfmNamePart* nameParts, size_t namePartC
 				// From doc: If the indicated file does not exist and the newCreateOpenId parameter is zero then the formatter should return pfmErrorNotFound
 				if(newCreateOpenId == 0
 					|| createFileType == pfmFileTypeNone)
-					return pfmErrorNotFound;
+				{
+					res = std::abs(res);
+					if(errno == EACCES)
+						return pfmErrorAccessDenied;
+					else if(errno == EISDIR)
+						return pfmErrorNotAFile;
+					else if(errno == ENOENT)
+						return pfmErrorNotFound;
+					else return pfmErrorInvalid;
+				}
 
 				// Create new file
 				retVal = createOp(path, createFileType, createFileFlags, writeTime, newCreateOpenId, openAttribs);
@@ -698,7 +707,7 @@ int/*error*/ CCALL PFMLayer::FlushFile(int64_t openId,uint8_t flushFlags,uint8_t
 		if(fileFlags != pfmFileFlagsInvalid)
 		{
 			// Change read only flag
-			struct stat buf;
+			efs_stat buf;
 			if(fs_layer::stat(cipherName, &buf) < 0)
 				return pfmErrorFailed;
 			int mode = buf.st_mode;
@@ -819,7 +828,7 @@ int/*error*/ CCALL PFMLayer::List(int64_t openId,int64_t listId,PfmMarshallerLis
 					if(!isDeleted		// Skip deleted, but not yet closed files
 						&& !isSkippedFile(plainPath))
 					{
-						struct stat buf;
+						efs_stat buf;
 
 						if( !fs_layer::lstat( cpath.c_str(), &buf ))
 						{
@@ -850,7 +859,7 @@ int/*error*/ CCALL PFMLayer::List(int64_t openId,int64_t listId,PfmMarshallerLis
 							if(attribs.fileType == pfmFileTypeFile)
 							{
 								// Determine file size for unencrypted file
-								struct stat buf_ue;
+								efs_stat buf_ue;
 								bool getAttrSuccess = false;
 
 								try
@@ -962,7 +971,7 @@ int/*error*/ CCALL PFMLayer::Read(int64_t openId,uint64_t fileOffset,void* data,
 
 	try
 	{
-		ssize_t actSize = fileNode->read(static_cast<off_t>(fileOffset), reinterpret_cast<unsigned char *>(data), requestedSize);
+		ssize_t actSize = fileNode->read(static_cast<efs_off_t>(fileOffset), reinterpret_cast<unsigned char *>(data), requestedSize);
 		if(outActualSize != NULL)
 			(*outActualSize) = actSize;
 	}
@@ -991,7 +1000,7 @@ int/*error*/ CCALL PFMLayer::Write(int64_t openId,uint64_t fileOffset,const void
 
 	try
 	{
-		bool isOK = fileNode->write(static_cast<off_t>(fileOffset), const_cast<unsigned char *>(reinterpret_cast<const unsigned char *>(data)),
+		bool isOK = fileNode->write(static_cast<efs_off_t>(fileOffset), const_cast<unsigned char *>(reinterpret_cast<const unsigned char *>(data)),
 			requestedSize);
 		if(outActualSize != NULL)
 		{
@@ -1028,7 +1037,7 @@ int/*error*/ CCALL PFMLayer::SetSize(int64_t openId,uint64_t fileSize)
 
 	try
 	{
-		int retVal = fileNode->truncate(static_cast<off_t>(fileSize));
+		int retVal = fileNode->truncate(static_cast<efs_off_t>(fileSize));
 		if(retVal < 0)
 			return pfmErrorFailed;
 	}
@@ -1566,7 +1575,7 @@ void PFMLayer::openExisting(PFMLayer::OpenFile *pOpenFile, PfmOpenAttribs *openA
 int PFMLayer::openFileOp(boost::shared_ptr<FileNode> fileNode, PfmOpenAttribs *openAttribs,
 	int64_t newExistingOpenId, PT_UINT8 accessLevel, const std::string &path)
 {
-	struct stat buf;
+	efs_stat buf;
 
 	try
 	{
@@ -1628,7 +1637,7 @@ int PFMLayer::openDirOp(PfmOpenAttribs *openAttribs, int64_t newExistingOpenId,
 	PT_UINT8 accessLevel, const std::string &path)
 {
 	// Get directory information
-	struct stat buf;
+	efs_stat buf;
 	try
 	{
 		std::string cipherPath = rootFS_->root->cipherPath(path.c_str());

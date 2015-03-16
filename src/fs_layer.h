@@ -45,6 +45,36 @@
 
 #include <boost/filesystem.hpp>
 
+// Definition of internal off_t type
+#if OFF_T_SIZE >= 8
+typedef off_t efs_off_t;
+#else
+#	if defined(HAVE_OFF64_T)
+typedef off64_t efs_off_t;
+#	else
+#		if defined(_MSC_VER)
+typedef signed __int64 efs_off_t;
+#		else
+typedef signed long long efs_off_t;
+#		endif
+#	endif
+#endif
+
+// Definition of the internal efs_stat type
+#if defined(HAVE_STRUCT_STAT64)
+typedef struct stat64 efs_stat;
+#else
+#	if defined(HAVE_STRUCT__STAT64)
+typedef struct _stat64 efs_stat;
+#	else
+#		if defined(HAVE_STRUCT___STAT64)
+typedef struct __stat64 efs_stat;
+#		else
+#			error No suitable stat64 struct found
+#		endif
+#	endif
+#endif
+
 class fs_layer
 {
 
@@ -68,8 +98,8 @@ public:
 	static int fsync(int fd);
 	static int fdatasync(int fd);
 
-	static ssize_t pread(int fd, void *buf, size_t count, int64_t offset);
-	static ssize_t pwrite(int fd, const void *buf, size_t count, int64_t offset);
+	static int64_t pread(int fd, void *buf, int64_t count, int64_t offset);
+	static int64_t pwrite(int fd, const void *buf, int64_t count, int64_t offset);
 
 	static int read(int fd, void *buf, unsigned int count);
 	static int write(int fd, const void *buf, unsigned int count);
@@ -86,8 +116,8 @@ public:
 	static int rename(const char *oldpath, const char *newpath);
 	static int unlink(const char *path);
 	static int rmdir(const char *path);
-	static int stat(const char *path, struct stat *buffer);
-	static inline int lstat(const char *path, struct stat *buffer) {
+	static int stat(const char *path, efs_stat *buffer);
+	static inline int lstat(const char *path, efs_stat *buffer) {
 		return stat(path, buffer);
 	}
 	static int chmod (const char*, int);

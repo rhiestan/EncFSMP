@@ -113,7 +113,7 @@ string FileNode::plaintextParent() const
 
 static bool setIV(const boost::shared_ptr<FileIO> &io, uint64_t iv)
 {
-    struct stat stbuf;
+    efs_stat stbuf;
     if((io->getAttr(&stbuf) < 0) || S_ISREG(stbuf.st_mode))
 	return io->setIV( iv );
     else
@@ -225,7 +225,7 @@ int FileNode::open(int flags) const
     return res;
 }
 
-int FileNode::getAttr(struct stat *stbuf) const
+int FileNode::getAttr(efs_stat *stbuf) const
 {
     Lock _lock( mutex );
 
@@ -233,7 +233,7 @@ int FileNode::getAttr(struct stat *stbuf) const
     return res;
 }
 
-off_t FileNode::getSize() const
+efs_off_t FileNode::getSize() const
 {
     Lock _lock( mutex );
 
@@ -241,7 +241,7 @@ off_t FileNode::getSize() const
     return res;
 }
 
-ssize_t FileNode::read( off_t offset, unsigned char *data, ssize_t size ) const
+ssize_t FileNode::read( efs_off_t offset, unsigned char *data, ssize_t size ) const
 {
     IORequest req;
     req.offset = offset;
@@ -253,7 +253,7 @@ ssize_t FileNode::read( off_t offset, unsigned char *data, ssize_t size ) const
     return io->read( req );
 }
 
-bool FileNode::write(off_t offset, unsigned char *data, ssize_t size)
+bool FileNode::write(efs_off_t offset, unsigned char *data, ssize_t size)
 {
     rLog(Info, "FileNode::write offset %" PRIi64 ", data size %i",
 	    offset, (int)size);
@@ -268,7 +268,7 @@ bool FileNode::write(off_t offset, unsigned char *data, ssize_t size)
     return io->write( req );
 }
 
-int FileNode::truncate( off_t size )
+int FileNode::truncate( efs_off_t size )
 {
     Lock _lock( mutex );
 
