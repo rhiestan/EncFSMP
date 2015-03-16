@@ -154,7 +154,7 @@ bool CipherFileIO::setIV( uint64_t iv )
     return base->setIV( iv );
 }
 
-int CipherFileIO::getAttr( struct stat *stbuf ) const
+int CipherFileIO::getAttr( efs_stat *stbuf ) const
 {
     int res = base->getAttr( stbuf );
     // adjust size if we have a file header
@@ -168,9 +168,9 @@ int CipherFileIO::getAttr( struct stat *stbuf ) const
     return res;
 }
 
-off_t CipherFileIO::getSize() const
+efs_off_t CipherFileIO::getSize() const
 {
-    off_t size = base->getSize();
+    efs_off_t size = base->getSize();
     // No check on S_ISREG here -- don't call getSize over getAttr unless this
     // is a normal file!
     if(haveHeader && size > 0)
@@ -185,7 +185,7 @@ void CipherFileIO::initHeader( )
 {
     // check if the file has a header, and read it if it does..  Otherwise,
     // create one.
-    off_t rawSize = base->getSize();
+    efs_off_t rawSize = base->getSize();
     if(rawSize >= HEADER_SIZE)
     {
 	rDebug("reading existing header, rawSize = %" PRIi64, rawSize);
@@ -286,7 +286,7 @@ ssize_t CipherFileIO::readOneBlock( const IORequest &req ) const
 {
     // read raw data, then decipher it..
     int bs = blockSize();
-    off_t blockNum = req.offset / bs;
+    efs_off_t blockNum = req.offset / bs;
     
     ssize_t readSize = 0;
     IORequest tmpReq = req;
@@ -326,7 +326,7 @@ ssize_t CipherFileIO::readOneBlock( const IORequest &req ) const
 bool CipherFileIO::writeOneBlock( const IORequest &req )
 {
     int bs = blockSize();
-    off_t blockNum = req.offset / bs;
+    efs_off_t blockNum = req.offset / bs;
 
     if(haveHeader && fileIV == 0)
 	initHeader();
@@ -410,7 +410,7 @@ bool CipherFileIO::streamRead( unsigned char *buf, int size,
 
 
 
-int CipherFileIO::truncate( off_t size )
+int CipherFileIO::truncate( efs_off_t size )
 {
     int res = 0;
     if(!haveHeader)

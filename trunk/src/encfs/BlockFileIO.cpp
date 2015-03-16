@@ -114,7 +114,7 @@ ssize_t BlockFileIO::read( const IORequest &req ) const
     rAssert( _blockSize != 0 );
 
     int partialOffset = req.offset % _blockSize;
-    off_t blockNum = req.offset / _blockSize;
+    efs_off_t blockNum = req.offset / _blockSize;
     ssize_t result = 0;
 
     if(partialOffset == 0 && req.dataLen <= _blockSize)
@@ -181,17 +181,17 @@ bool BlockFileIO::write( const IORequest &req )
 {
     rAssert( _blockSize != 0 );
 
-    off_t fileSize = getSize();
+    efs_off_t fileSize = getSize();
 
     // where write request begins
-    off_t blockNum = req.offset / _blockSize;
+    efs_off_t blockNum = req.offset / _blockSize;
     int partialOffset = req.offset % _blockSize;
 
     // last block of file (for testing write overlaps with file boundary)
-    off_t lastFileBlock = fileSize / _blockSize;
+    efs_off_t lastFileBlock = fileSize / _blockSize;
     ssize_t lastBlockSize = fileSize % _blockSize;
 
-    off_t lastNonEmptyBlock = lastFileBlock;
+    efs_off_t lastNonEmptyBlock = lastFileBlock;
     if(lastBlockSize == 0)
 	--lastNonEmptyBlock;
 
@@ -291,10 +291,10 @@ int BlockFileIO::blockSize() const
     return _blockSize;
 }
 
-void BlockFileIO::padFile( off_t oldSize, off_t newSize, bool forceWrite )
+void BlockFileIO::padFile( efs_off_t oldSize, efs_off_t newSize, bool forceWrite )
 {
-    off_t oldLastBlock = oldSize / _blockSize;
-    off_t newLastBlock = newSize / _blockSize;
+    efs_off_t oldLastBlock = oldSize / _blockSize;
+    efs_off_t newLastBlock = newSize / _blockSize;
     int newBlockSize = newSize % _blockSize;
 
     IORequest req;
@@ -375,12 +375,12 @@ void BlockFileIO::padFile( off_t oldSize, off_t newSize, bool forceWrite )
 	MemoryPool::release( mb );
 }
 
-int BlockFileIO::truncate( off_t size, FileIO *base )
+int BlockFileIO::truncate( efs_off_t size, FileIO *base )
 {
     int partialBlock = size % _blockSize;
     int res = 0;
 
-    off_t oldSize = getSize();
+    efs_off_t oldSize = getSize();
 
     if( size > oldSize )
     {
@@ -403,7 +403,7 @@ int BlockFileIO::truncate( off_t size, FileIO *base )
 	// partial block after truncate.  Need to read in the block being
 	// truncated before the truncate.  Then write it back out afterwards,
 	// since the encoding will change..
-	off_t blockNum = size / _blockSize;
+	efs_off_t blockNum = size / _blockSize;
 	MemBlock mb = MemoryPool::allocate( _blockSize );
 
 	IORequest req;

@@ -104,8 +104,8 @@ rel::Interface RawFileIO::get_interface() const
 static int open_readonly_workaround(const char *path, int flags)
 {
     int fd = -1;
-    struct stat stbuf;
-    memset(&stbuf, 0, sizeof(struct stat));
+    efs_stat stbuf;
+    memset(&stbuf, 0, sizeof(efs_stat));
     if(fs_layer::lstat( path, &stbuf ) != -1)
     {
 	// make sure user has read/write permission..
@@ -192,7 +192,7 @@ int RawFileIO::open(int flags)
     return result;
 }
 
-int RawFileIO::getAttr( struct stat *stbuf ) const
+int RawFileIO::getAttr( efs_stat *stbuf ) const
 {
     int res = fs_layer::lstat( name.c_str(), stbuf );
     int eno = errno;
@@ -215,12 +215,12 @@ const char *RawFileIO::getFileName() const
     return name.c_str();
 }
 
-off_t RawFileIO::getSize() const
+efs_off_t RawFileIO::getSize() const
 {
     if(!knownSize)
     {
-	struct stat stbuf;
-	memset( &stbuf, 0, sizeof( struct stat ));
+	efs_stat stbuf;
+	memset( &stbuf, 0, sizeof( efs_stat ));
 	int res = fs_layer::lstat( name.c_str(), &stbuf );
 
 	if(res == 0)
@@ -259,7 +259,7 @@ bool RawFileIO::write( const IORequest &req )
     int retrys = 10;
     void *buf = req.data;
     ssize_t bytes = req.dataLen;
-    off_t offset = req.offset;
+    efs_off_t offset = req.offset;
 
     while( bytes && retrys > 0 )
     {
@@ -289,7 +289,7 @@ bool RawFileIO::write( const IORequest &req )
     {
 	if(knownSize)
 	{
-	    off_t last = req.offset + req.dataLen;
+	    efs_off_t last = req.offset + req.dataLen;
 	    if(last > fileSize)
 		fileSize = last;
 	}
@@ -298,7 +298,7 @@ bool RawFileIO::write( const IORequest &req )
     }
 }
 
-int RawFileIO::truncate( off_t size )
+int RawFileIO::truncate( efs_off_t size )
 {
     int res;
 

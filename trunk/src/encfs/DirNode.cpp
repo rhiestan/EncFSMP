@@ -236,7 +236,7 @@ bool RenameOp::apply()
             rDebug("renaming %s -> %s",
                     last->oldCName.c_str(), last->newCName.c_str());
 
-            struct stat st;
+            efs_stat st;
             bool preserve_mtime = fs_layer::stat(last->oldCName.c_str(), &st) == 0;
 
             // internal node rename..
@@ -652,7 +652,7 @@ DirNode::rename( const char *fromPlaintext, const char *toPlaintext )
     int res = 0;
     try
     {
-        struct stat st;
+        efs_stat st;
         bool preserve_mtime = fs_layer::stat(fromCName.c_str(), &st) == 0;
 
 	renameNode( fromPlaintext, toPlaintext );

@@ -297,7 +297,7 @@ static bool exportFile(const boost::shared_ptr<EncFS_Root> &rootInfo,
 	if(!node)
 		return false;
 
-	struct stat st;
+	efs_stat st;
 	if(node->getAttr(&st) != 0)
 		return false;
 
@@ -333,7 +333,7 @@ static bool exportDir(const boost::shared_ptr<EncFS_Root> &rootInfo,
 {
 	// Create destination directory with the same permissions as original
 	{
-		struct stat st;
+		efs_stat st;
 		boost::shared_ptr<FileNode> dirNode = 
 			rootInfo->root->lookupNode( volumeDir.c_str(), "EncFSMP" );
 		if(dirNode->getAttr(&st))
@@ -357,7 +357,7 @@ static bool exportDir(const boost::shared_ptr<EncFS_Root> &rootInfo,
 				std::string destName = destDir + name;
 
 				bool retVal = true;
-				struct stat stBuf;
+				efs_stat stBuf;
 				if( !fs_layer::lstat( cpath.c_str(), &stBuf ))
 				{
 					if( S_ISDIR( stBuf.st_mode ) )

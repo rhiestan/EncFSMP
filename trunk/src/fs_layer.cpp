@@ -143,8 +143,8 @@ boost::filesystem::path fs_layer::stringToFSPath(const std::string &str)
 
 std::string fs_layer::readFileToString(const char *fn)
 {
-	struct stat stbuf;
-	memset( &stbuf, 0, sizeof(struct stat));
+	efs_stat stbuf;
+	memset( &stbuf, 0, sizeof(efs_stat));
 	if( fs_layer::lstat( fn, &stbuf ) != 0)
 		return std::string();
 
@@ -230,7 +230,7 @@ int fs_layer::fdatasync(int fd)
 #endif
 }
 
-ssize_t fs_layer::pread(int fd, void *buf, size_t count, int64_t offset)
+int64_t fs_layer::pread(int fd, void *buf, int64_t count, int64_t offset)
 {
 #if defined(_WIN32)
 	int64_t oldpos = _telli64(fd);
@@ -243,7 +243,7 @@ ssize_t fs_layer::pread(int fd, void *buf, size_t count, int64_t offset)
 #endif
 }
 
-ssize_t fs_layer::pwrite(int fd, const void *buf, size_t count, int64_t offset)
+int64_t fs_layer::pwrite(int fd, const void *buf, int64_t count, int64_t offset)
 {
 #if defined(_WIN32)
 	int64_t oldpos = _telli64(fd);
@@ -471,7 +471,7 @@ int fs_layer::mkdir(const char *fn, int mode)
 		return -1;
 	}
 
-	boost::filesystem::perms perm;
+	boost::filesystem::perms perm = boost::filesystem::no_perms;
 
 	// Translate permissions
 	if(mode & S_IRUSR)
@@ -584,7 +584,7 @@ int fs_layer::rmdir(const char *fn)
 	return 0;
 }
 
-int fs_layer::stat(const char *fn, struct stat *buf)
+int fs_layer::stat(const char *fn, efs_stat *buf)
 {
 	boost::filesystem::path fn_path(stringToFSPath(fn));
 
@@ -607,7 +607,7 @@ int fs_layer::stat(const char *fn, struct stat *buf)
 		hFind = FindFirstFileW(fn_path.native().c_str(), &findFileData);
 		if(hFind != INVALID_HANDLE_VALUE)
 		{
-			fsize = (static_cast<uintmax_t>(findFileData.nFileSizeHigh) << 16) + findFileData.nFileSizeLow;
+			fsize = (static_cast<uintmax_t>(findFileData.nFileSizeHigh) << 32) + findFileData.nFileSizeLow;
 			FILETIME &ft = findFileData.ftLastWriteTime;
 			__int64 t = (static_cast<__int64>(ft.dwHighDateTime)<< 32) + ft.dwLowDateTime;
 			t -= 116444736000000000LL;
