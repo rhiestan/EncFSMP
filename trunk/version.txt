@@ -1,6 +1,11 @@
 ﻿Version history
 ---------------
 
+Version 0.9.6, 20.03.2015
+- Updated OpenSSL to 1.0.2a
+- Fixed bug in acquiring a mutex in MemoryPool, see ticket #12 for details
+
+
 Version 0.9.5, 16.03.2015:
 - Support for files > 2 GB
 - Fixed possible problem in creating new directories with wrong permissions

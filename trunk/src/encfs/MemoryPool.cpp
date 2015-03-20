@@ -76,11 +76,13 @@ static BlockList *gMemPool = NULL;
 
 MemBlock MemoryPool::allocate( int size )
 {
+	BlockList *block = NULL;
 
-	BlockList *parent = NULL;
-	BlockList *block = gMemPool;
 	{
 		boost::lock_guard<boost::mutex> lock(gMPoolMutex);
+
+		BlockList *parent = NULL;
+		block = gMemPool;
 
 		// check if we already have a large enough block available..
 		while(block != NULL && block->size < size)
