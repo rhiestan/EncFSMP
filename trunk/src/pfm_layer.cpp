@@ -103,27 +103,25 @@ PFMLayer::~PFMLayer()
 
 void PFMLayer::startFS(RootPtr rootFS, const wchar_t *mountDir, PfmApi *pfmApi,
 	wchar_t driveLetter, bool worldWrite, bool startBrowser,
-	bool systemVisible, std::ostream &ostr)
+	std::ostream &ostr)
 {
 	rootFS_ = rootFS;
+	mountName_ = mountDir;
 
 	// The following code is copied mostly from the Pismo File Mount's example code tempfs.cpp
 	int error = 0;
-	PfmAlerter* alerter = 0;
 	PfmMount* mount = 0;
 	FD_T toFormatterRead = FD_INVALID;
 	FD_T fromFormatterWrite = FD_INVALID;
 	PfmMountCreateParams mcp;
 
 	PfmMountCreateParams_Init(&mcp);
-	mcp.mountFileName = mountDir;
-	mcp.mountFlags |= pfmMountFlagUncOnly;
+	mcp.mountSourceName = mountDir;
+	mcp.mountFlags |= pfmMountFlagUncOnly | pfmMountFlagUnmountOnRelease | pfmMountFlagLocalDriveType;
 	if(startBrowser)
 		mcp.mountFlags |= pfmMountFlagBrowse;
 	if(worldWrite)
 		mcp.mountFlags |= (pfmMountFlagWorldRead | pfmMountFlagWorldWrite);
-	if(systemVisible)
-		mcp.mountFlags |= pfmMountFlagSystemVisible;
 
 	mcp.driveLetter = driveLetter;
 
@@ -145,7 +143,6 @@ void PFMLayer::startFS(RootPtr rootFS, const wchar_t *mountDir, PfmApi *pfmApi,
 		return;
 	}
 
-	pfmApi->Alerter(mcp.ownerId, &alerter);
 	error = pfmApi->MountCreate(&mcp,&mount);
 	if(error)
 	{
@@ -174,7 +171,7 @@ void PFMLayer::startFS(RootPtr rootFS, const wchar_t *mountDir, PfmApi *pfmApi,
 	int retVal = marshaller->ServeReadWrite(this, volumeFlags, EncFSMPStrings::formatterName8_.c_str(), toFormatterRead, fromFormatterWrite);
 
 #if defined(_WIN32)
-	if(retVal > 0)
+	if(retVal > 0 && retVal != 109)
 	{
 		char *err;
 		if (FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
@@ -193,9 +190,6 @@ void PFMLayer::startFS(RootPtr rootFS, const wchar_t *mountDir, PfmApi *pfmApi,
 
 	if(mount)
 		mount->Release();
-
-	if(alerter)
-		alerter->Release();
 
 	if(marshaller)
 	{
@@ -706,6 +700,8 @@ int/*error*/ CCALL PFMLayer::FlushFile(int64_t openId,uint8_t flushFlags,uint8_t
 		const char *cipherName = pOpenFile->fileNode_->cipherName();
 		if(fileFlags != pfmFileFlagsInvalid)
 		{
+			pOpenFile->fileFlags_ = fileFlags;
+
 			// Change read only flag
 			efs_stat buf;
 			if(fs_layer::stat(cipherName, &buf) < 0)
@@ -740,14 +736,6 @@ int/*error*/ CCALL PFMLayer::FlushFile(int64_t openId,uint8_t flushFlags,uint8_t
 
 	if(flushFlags & pfmFlushFlagOpen)
 		openExisting(pOpenFile, openAttribs, pfmAccessLevelWriteData);
-
-	if(pOpenFile->isFile_)
-	{
-		if(pOpenFile->fileNode_)
-			pOpenFile->fileNode_->sync(false);
-		else
-			return pfmErrorFailed;
-	}
 
 	return 0;
 }
@@ -1085,10 +1073,8 @@ int/*error*/ CCALL PFMLayer::Control(int64_t openId,int8_t accessLevel,int contr
 
 int/*error*/ CCALL PFMLayer::MediaInfo(int64_t openId,PfmMediaInfo* mediaInfo,wchar_t** mediaLabel)
 {
-	static const wchar_t *label = L"EncFS volume";
-
-	wchar_t *stringCopy = new wchar_t[ wcslen(label) + 1];
-	wcscpy(stringCopy, label);
+	wchar_t *stringCopy = new wchar_t[ mountName_.length() + 1];
+	wcscpy(stringCopy, &(mountName_[0]));
 	(*mediaLabel) = stringCopy;
 
 	return 0;
@@ -1281,7 +1267,7 @@ int PFMLayer::createOp(const std::string &path, int8_t createFileType, uint8_t c
 			PT_UINT8 accessLevel = pfmAccessLevelWriteInfo;
 #endif
 			// Create file
-			if(createFileFlags != pfmFileFlagsInvalid)
+/*			if(createFileFlags != pfmFileFlagsInvalid)
 			{
 				if(createFileFlags & pfmFileFlagReadOnly)
 #if defined(_WIN32)
@@ -1293,7 +1279,13 @@ int PFMLayer::createOp(const std::string &path, int8_t createFileType, uint8_t c
 				else
 					flags |= O_RDWR;
 #endif
-			}
+			}*/
+
+#if defined(_WIN32)
+			flags |= _O_RDWR;
+#else
+			flags |= O_RDWR;
+#endif
 			boost::shared_ptr<FileNode> fileNodeNew = 
 				//rootFS_->root->openNode( path.c_str(), "open", flags, &res );
 				rootFS_->root->lookupNode( path.c_str(), "mknod" );
@@ -1302,7 +1294,7 @@ int PFMLayer::createOp(const std::string &path, int8_t createFileType, uint8_t c
 #else
 			mode_t mode = S_IREAD | S_IFREG;
 #endif
-			if(createFileFlags != pfmFileFlagsInvalid)
+/*			if(createFileFlags != pfmFileFlagsInvalid)
 			{
 				if((createFileFlags & pfmFileFlagReadOnly) == 0)
 				{
@@ -1313,7 +1305,17 @@ int PFMLayer::createOp(const std::string &path, int8_t createFileType, uint8_t c
 #endif
 					accessLevel = pfmAccessLevelWriteData;
 				}
-			}
+			}*/
+#if defined(_WIN32)
+			mode |= _S_IWRITE;
+#else
+			mode |= S_IWRITE;
+#endif
+			accessLevel = pfmAccessLevelWriteData;
+
+
+
+
 			res = fileNodeNew->mknod( mode, 0 );
 			if(res != 0)
 				return pfmErrorAccessDenied;

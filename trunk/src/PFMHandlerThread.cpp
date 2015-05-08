@@ -51,7 +51,7 @@
 #include <boost/algorithm/string/replace.hpp>
 
 PFMHandlerThread::PFMHandlerThread() : wxThread(wxTHREAD_DETACHED),
-	worldWrite_(false), startBrowser_(true), systemVisible_(false)
+	worldWrite_(false), startBrowser_(true)
 {
 }
 
@@ -61,8 +61,7 @@ PFMHandlerThread::~PFMHandlerThread()
 
 void PFMHandlerThread::setParameters(const wxString &mountName,
 	const wxString &path, const wxString &driveLetter,
-	const wxString &password, bool worldWrite, bool startBrowser,
-	bool systemVisible)
+	const wxString &password, bool worldWrite, bool startBrowser)
 {
 	mountName_ = mountName;
 	path_ = path;
@@ -70,7 +69,6 @@ void PFMHandlerThread::setParameters(const wxString &mountName,
 	password_ = password;
 	worldWrite_ = worldWrite;
 	startBrowser_ = startBrowser;
-	systemVisible_ = systemVisible;
 }
 
 wxThread::ExitCode PFMHandlerThread::Entry()
@@ -106,7 +104,7 @@ wxThread::ExitCode PFMHandlerThread::Entry()
 			PfmApi *pfmApi = PFMProxy::getInstance().getPfmApi();
 
 			pfm.startFS(rootFS, mountName_.c_str(), pfmApi, driveLetterW,	// Will not return before unmount
-				worldWrite_, startBrowser_, systemVisible_, ostr);
+				worldWrite_, startBrowser_, ostr);
 		}
 		else
 		{

@@ -35,7 +35,7 @@ public:
 	};
 
 	MountEntry()
-		: isWorldWritable_(false), isSystemVisible_(false),
+		: isWorldWritable_(false),
 		mountState_(MSNotMounted)
 	{ }
 	MountEntry(const MountEntry &o) { copy(o); }
@@ -47,10 +47,9 @@ public:
 		driveLetter_ = o.driveLetter_;
 		assignedDriveLetter_ = o.assignedDriveLetter_;
 		password_ = o.password_;
-		assignedUncName_ = o.assignedUncName_;
+		assignedMountPoint_ = o.assignedMountPoint_;
 		volatilePassword_ = o.volatilePassword_;
 		isWorldWritable_ = o.isWorldWritable_;
-		isSystemVisible_ = o.isSystemVisible_;
 		mountState_ = o.mountState_;
 		return *this;
 	}
@@ -60,8 +59,8 @@ public:
 	}
 
 	wxString name_, encFSPath_, driveLetter_, assignedDriveLetter_, password_;
-	wxString assignedUncName_, volatilePassword_;	// Not persistent attributes
-	bool isWorldWritable_, isSystemVisible_;
+	wxString assignedMountPoint_, volatilePassword_;	// Not persistent attributes
+	bool isWorldWritable_;
 	MountState mountState_;
 };
 
@@ -73,7 +72,7 @@ public:
 	virtual ~MountList();
 
 	bool addMount(wxString name, wxString encFSPath, wxString driveLetter,
-		wxString password, bool isWorldWritable, bool isSystemVisible, bool isMounted);
+		wxString password, bool isWorldWritable, bool isMounted);
 
 	std::list<MountEntry> &getList() { return mountEntries_; }
 

@@ -6,7 +6,7 @@
 
 #define ENCFSMP_VERSION_MAJOR 0
 #define ENCFSMP_VERSION_MINOR 9
-#define ENCFSMP_VERSION_BUILD 6
+#define ENCFSMP_VERSION_BUILD 7
 
 #define ENCFSMP_VERSION_STRING EFS_STRINGIFY(ENCFSMP_VERSION_MAJOR) \
 	"." EFS_STRINGIFY(ENCFSMP_VERSION_MINOR) \
@@ -25,7 +25,11 @@
 #	define ENCFSMP_COMPILER "Visual C++"
 #	define ENCFSMP_COMPILER_VERSION EFS_STRINGIFY(_MSC_FULL_VER)
 #elif defined(__clang__)
-#	define ENCFSMP_COMPILER "Clang"
+#	if defined( __apple_build_version__)
+#		define ENCFSMP_COMPILER "Apple Clang"
+#	else
+#		define ENCFSMP_COMPILER "Clang"
+#	endif
 #	define ENCFSMP_COMPILER_VERSION EFS_STRINGIFY(__clang_major__) "." EFS_STRINGIFY(__clang_minor__) "." EFS_STRINGIFY(__clang_patchlevel__)
 #elif defined(__GNUG__)
 #	define ENCFSMP_COMPILER "GCC"

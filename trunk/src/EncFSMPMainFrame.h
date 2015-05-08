@@ -35,7 +35,7 @@ public:
 	virtual ~EncFSMPMainFrame();
 
 	void addNewMountEvent(bool isMountEvent, bool isError,
-		const std::wstring &mountName, wchar_t driveLetter, const std::wstring &uncName);
+		const std::wstring &mountName, wchar_t driveLetter, const std::wstring &mountPoint);
 	void reportEncFSError(const wxString &error, const wxString &mountName);
 	void sendCommand(const wxString &command,
 		const wxString &mountName,
@@ -101,7 +101,6 @@ private:
 	wxMenu *pMountsListPopupMenu_;
 
 	bool firstTimeOnTimer_;
-	bool isRunningAsAdmin_;
 
 	class MountEvent
 	{
@@ -115,7 +114,7 @@ private:
 			isError_ = o.isError_;
 			mountName_ = o.mountName_;
 			driveLetter_ = o.driveLetter_;
-			uncName_ = o.uncName_;
+			mountPoint_ = o.mountPoint_;
 			return *this;
 		}
 		MountEvent & operator=(const MountEvent & o)
@@ -125,7 +124,7 @@ private:
 
 		bool isMountEvent_;		// true: mount, false: unmount
 		bool isError_;			// Some error occurred during mount
-		std::wstring mountName_, uncName_;
+		std::wstring mountName_, mountPoint_;
 		wchar_t driveLetter_;
 	};
 

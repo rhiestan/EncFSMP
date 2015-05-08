@@ -60,7 +60,7 @@ public:
 
 	void startFS(RootPtr rootFS, const wchar_t *mountDir, PfmApi *pfmApi,
 		wchar_t driveLetter, bool worldWrite, bool startBrowser,
-		bool systemVisible, std::ostream &ostr);
+		std::ostream &ostr);
 
 	// PfmFormatterOps
 	void CCALL ReleaseName(wchar_t* name);
@@ -224,6 +224,8 @@ private:
 	std::list< OpenFile > openFiles_;
 	int64_t newFileID_;
 	std::list< FileID > fileIDs_;
+
+	std::wstring mountName_;
 };
 
 #endif

@@ -33,7 +33,6 @@ const wxString EncFSMPStrings::configEncFSPathKey_(wxT("EncFSPath"));
 const wxString EncFSMPStrings::configDriveLetterKey_(wxT("DriveLetter"));
 const wxString EncFSMPStrings::configPasswordKey_(wxT("Password"));
 const wxString EncFSMPStrings::configIsWorldWritableKey_(wxT("IsWorldWritable"));
-const wxString EncFSMPStrings::configIsSystemVisibleKey_(wxT("IsSystemVisible"));
 const wxString EncFSMPStrings::configWindowDimensions_(wxT("WindowDimensions"));
 const wxString EncFSMPStrings::configColumnWidths_(wxT("ColumnWidths"));
 const wxString EncFSMPStrings::configMinimizeToTray_(wxT("MinimizeToTray"));

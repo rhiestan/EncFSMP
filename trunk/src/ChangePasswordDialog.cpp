@@ -30,6 +30,12 @@ ChangePasswordDialog::~ChangePasswordDialog()
 {
 }
 
+void ChangePasswordDialog::OnInitDialog( wxInitDialogEvent& event )
+{
+	Layout();
+	Fit();
+}
+
 void ChangePasswordDialog::OnOKButtonClick( wxCommandEvent& event )
 {
 	if (Validate() && TransferDataFromWindow())

@@ -1,7 +1,15 @@
 ﻿Version history
 ---------------
 
-Version 0.9.6, 20.03.2015
+Version 0.9.7, 08.05.2015:
+- Updated Pismo File Mount to 1.0.0.177
+- Windows: Removed "System visible" flag for mounts and "Restart as Admin" menu
+- Fixed ticket #13 and #16: Mounted Volumes are now local under Windows
+- Fixed ticket #14: Improved handling of read-only files
+- Fixed ticket #15: Dialogs now also work on high-DPI devices
+
+
+Version 0.9.6, 20.03.2015:
 - Updated OpenSSL to 1.0.2a
 - Fixed bug in acquiring a mutex in MemoryPool, see ticket #12 for details
 

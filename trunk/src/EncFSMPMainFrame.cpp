@@ -89,8 +89,7 @@ EncFSMPMainFrame::EncFSMPMainFrame(wxWindow* parent)
 	aTimer_(this, ID_TIMER), minimizeToTray_(false),
 	disableUnmountDialogOnExit_(false), savePasswordsInRAM_(false),
 	pTaskBarIcon_(NULL), pMountsListPopupMenu_(NULL),
-	firstTimeOnTimer_(false), isRunningAsAdmin_(false),
-	pEncFSMPErrorLog_(NULL)
+	firstTimeOnTimer_(false), pEncFSMPErrorLog_(NULL)
 {
 	pMountsListCtrl_->ClearAll();
 	pMountsListCtrl_->InsertColumn(0, wxT("Mounted"));
@@ -101,27 +100,6 @@ EncFSMPMainFrame::EncFSMPMainFrame(wxWindow* parent)
 #endif
 
 	SetIcon(getIcon());
-
-#if defined(EFS_WIN32)
-	if(Win32Utils::hasUAC())
-	{
-		if(!Win32Utils::isRunAsAdmin())
-		{
-			wxBitmap uacShieldBM;
-			wxMenuItem *pUACMenuItem = new wxMenuItem( pToolsMenu_, ID_UAC,
-				wxString( wxT("Restart with admin rights") ) , wxEmptyString, wxITEM_NORMAL );
-			if(Win32Utils::getShieldIcon(uacShieldBM))
-				pUACMenuItem->SetBitmap(uacShieldBM);
-			pToolsMenu_->Insert( 0, pUACMenuItem );
-		}
-		else
-		{
-			// Add "(Admin)" to window title
-			SetTitle(GetTitle() + wxString(wxT(" (Admin)")));
-			isRunningAsAdmin_ = true;
-		}
-	}
-#endif
 
 #if wxCHECK_VERSION(2, 9, 0)
 	if(wxTaskBarIcon::IsAvailable())
@@ -180,7 +158,7 @@ EncFSMPMainFrame::~EncFSMPMainFrame()
  * This method gets called by the PFMMonitorThread in case of an mount/unmount event.
  */
 void EncFSMPMainFrame::addNewMountEvent(bool isMountEvent, bool isError,
-	const std::wstring &mountName, wchar_t driveLetter, const std::wstring &uncName)
+	const std::wstring &mountName, wchar_t driveLetter, const std::wstring &mountPoint)
 {
 	{
 		wxMutexLocker lock(mountEventsMutex_);
@@ -189,7 +167,7 @@ void EncFSMPMainFrame::addNewMountEvent(bool isMountEvent, bool isError,
 		evt.isError_ = isError;
 		evt.mountName_ = mountName;
 		evt.driveLetter_ = driveLetter;
-		evt.uncName_ = uncName;
+		evt.mountPoint_ = mountPoint;
 		mountEvents_.push_back(evt);
 	}
 
@@ -520,7 +498,7 @@ void EncFSMPMainFrame::OnCreateMountButton( wxCommandEvent& event )
 		if(dlg.storePassword_)
 			password = dlg.password_;
 		mountList_.addMount(dlg.mountName_, dlg.getEncFSPath(), dlg.getDriveLetter(),
-			password, dlg.worldWritable_, dlg.systemVisible_, false);
+			password, dlg.worldWritable_, false);
 
 		mountList_.storeToConfig();
 
@@ -552,7 +530,7 @@ void EncFSMPMainFrame::OnOpenExistingEncFSButton( wxCommandEvent& event )
 
 		mountList_.addMount(dlg.mountName_, dlg.getEncFSPath(),
 			wxString(dlg.getDriveLetter()), password,
-			dlg.worldWritable_, dlg.systemVisible_, false);
+			dlg.worldWritable_, false);
 
 		mountList_.storeToConfig();
 		updateMountListCtrl();
@@ -660,16 +638,6 @@ void EncFSMPMainFrame::OnMountButton( wxCommandEvent& event )
 		else if(pMountEntry->mountState_ == MountEntry::MSNotMounted)
 		{
 			// Mount: Start a PFMHandlerThread
-#if defined(EFS_WIN32)
-			if(Win32Utils::hasUAC()
-				&& pMountEntry->isSystemVisible_
-				&& !isRunningAsAdmin_)
-			{
-				wxMessageBox(wxT("Mounts with the System Visible Flag set require admin rights."),
-					wxT("Admin rights required"), wxOK | wxICON_ERROR);
-				return;
-			}
-#endif
 			wxString password = pMountEntry->password_;
 			if(password.IsEmpty())
 				password = pMountEntry->volatilePassword_;
@@ -684,20 +652,11 @@ void EncFSMPMainFrame::OnMountButton( wxCommandEvent& event )
 					pMountEntry->volatilePassword_ = password;
 			}
 			bool isWorldWritable = pMountEntry->isWorldWritable_;
-			bool isSystemVisible = pMountEntry->isSystemVisible_;
-#if defined(EFS_WIN32)
-			// We need to set the world writable flag so that all users (not only the admin user) can see the mount and change the files in it
-			if(Win32Utils::hasUAC() && isRunningAsAdmin_)
-			{
-				isWorldWritable = true;
-				isSystemVisible = true;
-			}
-#endif
+
 			PFMHandlerThread *pPFMHandlerThread = new PFMHandlerThread();
 			pPFMHandlerThread->setParameters(pMountEntry->name_,
 				pMountEntry->encFSPath_, pMountEntry->driveLetter_,
-				password, isWorldWritable,
-				false, isSystemVisible);
+				password, isWorldWritable, false);
 
 			pPFMHandlerThread->Create();
 			pPFMHandlerThread->Run();
@@ -739,8 +698,7 @@ void EncFSMPMainFrame::OnEditButton( wxCommandEvent& event )
 		dlg.setMountList(&mountList_);
 		dlg.setEditMode(pMountEntry->name_,
 			pMountEntry->encFSPath_, pMountEntry->driveLetter_[0],
-			pMountEntry->password_, pMountEntry->isWorldWritable_,
-			pMountEntry->isSystemVisible_);
+			pMountEntry->password_, pMountEntry->isWorldWritable_);
 		if(dlg.ShowModal() == wxID_OK)
 		{
 			wxString password;
@@ -752,7 +710,6 @@ void EncFSMPMainFrame::OnEditButton( wxCommandEvent& event )
 			pMountEntry->driveLetter_ = wxString(dlg.getDriveLetter());
 			pMountEntry->password_ = password;
 			pMountEntry->isWorldWritable_ = dlg.worldWritable_;
-			pMountEntry->isSystemVisible_ = dlg.systemVisible_;
 
 			mountList_.storeToConfig();
 			updateMountListCtrl();
@@ -788,7 +745,7 @@ void EncFSMPMainFrame::OnBrowseButton( wxCommandEvent& event )
 				wxT("Serious error"), wxICON_ERROR | wxOK, this);
 		}
 #elif defined(EFS_MACOSX)
-		wxString path = pMountEntry->assignedUncName_;
+		wxString path = pMountEntry->assignedMountPoint_;
 		wxString cmd(wxT("/usr/bin/open \""));
 		cmd.Append(path);
 		cmd.Append(wxT("\""));
@@ -825,6 +782,7 @@ void EncFSMPMainFrame::OnInfoButton( wxCommandEvent& event )
 			dlg.pChainedIVCheckBox_->Enable(false);
 			dlg.externalIV_ = info.externalIV;
 			dlg.pExternalIVCheckBox_->Enable(false);
+			dlg.SetExtraStyle( dlg.GetExtraStyle() | wxWS_EX_VALIDATE_RECURSIVELY);
 			dlg.ShowModal();
 		}
 		else
@@ -894,7 +852,7 @@ void EncFSMPMainFrame::OnMountEvent( wxCommandEvent &event )
 		if(pMountEntry != NULL)
 		{
 			pMountEntry->assignedDriveLetter_ = wxString(evt.driveLetter_);
-			pMountEntry->assignedUncName_ = wxString(evt.uncName_.c_str());
+			pMountEntry->assignedMountPoint_ = wxString(evt.mountPoint_.c_str());
 			if(evt.isMountEvent_)
 				pMountEntry->mountState_ = MountEntry::MSMounted;
 			else
@@ -1030,16 +988,6 @@ void EncFSMPMainFrame::OnEncFSCommand( wxCommandEvent &event )
 					return;
 				}
 				// Mount: Start a PFMHandlerThread
-#if defined(EFS_WIN32)
-				if(Win32Utils::hasUAC()
-					&& pMountEntry->isSystemVisible_
-					&& !isRunningAsAdmin_)
-				{
-					wxMessageBox(wxT("Mounts with the System Visible Flag set require admin rights."),
-						wxT("Admin rights required"), wxOK | wxICON_ERROR);
-					return;
-				}
-#endif
 				wxString password = pMountEntry->password_;
 				if(password.IsEmpty())
 					password = passwordCmd;
@@ -1056,20 +1004,10 @@ void EncFSMPMainFrame::OnEncFSCommand( wxCommandEvent &event )
 				if(savePasswordsInRAM_)
 					pMountEntry->volatilePassword_ = password;
 				bool isWorldWritable = pMountEntry->isWorldWritable_;
-				bool isSystemVisible = pMountEntry->isSystemVisible_;
-#if defined(EFS_WIN32)
-				// We need to set the world writable flag so that all users (not only the admin user) can see the mount and change the files in it
-				if(Win32Utils::hasUAC() && isRunningAsAdmin_)
-				{
-					isWorldWritable = true;
-					isSystemVisible = true;
-				}
-#endif
 				PFMHandlerThread *pPFMHandlerThread = new PFMHandlerThread();
 				pPFMHandlerThread->setParameters(pMountEntry->name_,
 					pMountEntry->encFSPath_, pMountEntry->driveLetter_,
-					password, isWorldWritable,
-					false, isSystemVisible);
+					password, isWorldWritable, false);
 
 				pPFMHandlerThread->Create();
 				pPFMHandlerThread->Run();

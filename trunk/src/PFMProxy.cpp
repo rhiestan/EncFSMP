@@ -22,9 +22,12 @@
 #include "PFMProxy.h"
 #include "PFMMonitorThread.h"
 
-#ifndef _INC_WINDOWS
-#define _INC_WINDOWS
+#if defined(_WIN32)
+#	ifndef _INC_WINDOWS
+#		define _INC_WINDOWS
+#	endif
 #endif
+
 
 // Pismo File Mount
 #include "pfmapi.h"
@@ -112,15 +115,12 @@ bool PFMProxy::unmount(const wxString &mountName)
 	while(mountId > 0)
 	{
 		PfmMount *curMount = NULL;
-		int err = pfmApi_->MountOpenId(mountId, &curMount);
+		int err = pfmApi_->MountIdOpen(mountId, &curMount);
 		if(err == 0 && curMount != NULL)
 		{
-			wxString name(curMount->GetFileName());
-			wxString correctedName = name;
-			if(name.SubString(0, 3) == wxT("\\??\\"))
-			{
-				correctedName = name.substr(4);
-			}
+			// Remove any paths in front of name
+			wxFileName nameFN(curMount->GetMountSourceName());
+			wxString correctedName = nameFN.GetFullName();
 
 			if(correctedName == mountName)
 			{

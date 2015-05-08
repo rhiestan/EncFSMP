@@ -29,6 +29,7 @@ public:
 	virtual ~ChangePasswordDialog();
 
 protected:
+	virtual void OnInitDialog( wxInitDialogEvent& event );
 	virtual void OnOKButtonClick( wxCommandEvent& event );
 
 private:

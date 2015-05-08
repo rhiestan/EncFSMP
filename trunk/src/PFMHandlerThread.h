@@ -28,8 +28,7 @@ public:
 
 	void setParameters(const wxString &mountName,
 		const wxString &path, const wxString &driveLetter,
-		const wxString &password, bool worldWrite, bool startBrowser,
-		bool systemVisible);
+		const wxString &password, bool worldWrite, bool startBrowser);
 
 protected:
 	virtual wxThread::ExitCode Entry();
@@ -39,7 +38,7 @@ private:
 	wxString path_;
 	wxString driveLetter_;
 	wxString password_;
-	bool worldWrite_, startBrowser_, systemVisible_;
+	bool worldWrite_, startBrowser_;
 };
 
 #endif

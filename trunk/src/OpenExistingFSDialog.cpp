@@ -39,8 +39,7 @@ void OpenExistingFSDialog::setMountList(MountList *pMountList)
 
 void OpenExistingFSDialog::setEditMode(const wxString &mountName,
 	const wxString &encFSPath, wchar_t driveLetter,
-	const wxString &password, bool isWorldWritable,
-	bool isSystemVisible)
+	const wxString &password, bool isWorldWritable)
 {
 	editMode_ = true;
 	mountName_ = mountName;
@@ -63,8 +62,6 @@ void OpenExistingFSDialog::setEditMode(const wxString &mountName,
 	}
 	worldWritable_ = isWorldWritable;
 	pWorldWritableCheckBox_->SetValue(isWorldWritable);
-	systemVisible_ = isSystemVisible;
-	pSystemVisibleCheckBox_->SetValue(isSystemVisible);
 }
 
 void OpenExistingFSDialog::OnInitDialog( wxInitDialogEvent& event )
@@ -142,13 +139,11 @@ void OpenExistingFSDialog::OnInitDialog( wxInitDialogEvent& event )
 #else
 	pDriveLetterStaticText_->Hide();
 	pDriveLetterChoice_->Hide();
-	pSystemVisibleStaticText_->Hide();
-	pSystemVisibleCheckBox_->Hide();
 	pFlexGridSizer_->AddGrowableRow(5);
-	pFlexGridSizer_->AddGrowableRow(7);
 #endif
 
 	Layout();
+	Fit();
 }
 
 void OpenExistingFSDialog::OnStorePasswordCheckBox( wxCommandEvent& event )
