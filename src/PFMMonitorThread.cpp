@@ -24,8 +24,10 @@
 #include "EncFSMPMainFrame.h"
 #include "EncFSMPStrings.h"
 
-#ifndef _INC_WINDOWS
-#define _INC_WINDOWS
+#if defined(_WIN32)
+#	ifndef _INC_WINDOWS
+#		define _INC_WINDOWS
+#	endif
 #endif
 
 // Pismo File Mount
@@ -110,28 +112,28 @@ wxThread::ExitCode PFMMonitorThread::Entry()
 				if(curChangeInstance >= startChangeInstance)
 				{
 					PfmMount *curMount = NULL;
-					int err = pfmApi->MountOpenId(mountId, &curMount);
+					int err = pfmApi->MountIdOpen(mountId, &curMount);
 
 					if(err == 0 && curMount != NULL)
 					{
 						int statusFlags = curMount->GetStatusFlags();
 
 						std::wstring formatterName(curMount->GetFormatterName());
-						std::wstring fileName(curMount->GetFileName());
+						std::wstring fileName(curMount->GetMountSourceName());
 						wchar_t driveLetter = curMount->GetDriveLetter();
 #if !defined(EFS_WIN32)
 						driveLetter = L' ';
 #endif
 						std::wstring ownerName(curMount->GetOwnerName());
 						std::wstring ownerId(curMount->GetOwnerId());
-						std::wstring uncName(curMount->GetUncName());
+						std::wstring mountPoint(curMount->GetMountPoint());
 
 						if(formatterName == EncFSMPStrings::formatterName_)
 						{
 							if((statusFlags & (pfmStatusFlagReady | pfmStatusFlagDisconnected | pfmStatusFlagClosed)) != 0)
 							{
-								bool isMountEvent = ((statusFlags & pfmStatusFlagReady) != 0);
-								pMainFrame->addNewMountEvent(isMountEvent, false, fileName, driveLetter, uncName);
+								bool isMountEvent = ((statusFlags & (pfmStatusFlagDisconnected | pfmStatusFlagClosed)) == 0);
+								pMainFrame->addNewMountEvent(isMountEvent, false, fileName, driveLetter, mountPoint);
 							}
 						}
 

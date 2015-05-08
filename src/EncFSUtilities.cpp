@@ -419,7 +419,12 @@ std::string EncFSUtilities::wxStringToEncFSPath(const wxString &path)
 	std::wstring pathUTF16(path.c_str());
 #if defined(EFS_WIN32)
 	// Replace all \ with /
-	boost::replace_all(pathUTF16, L"\\", L"/");
+	//boost::replace_all(pathUTF16, L"\\", L"/");
+	for(size_t i = 0; i < pathUTF16.length(); i++)
+	{
+		if(pathUTF16[i] == L'\\')
+			pathUTF16[i] = L'/';
+	}
 #endif
 
 	// Make sure path has trailing separator

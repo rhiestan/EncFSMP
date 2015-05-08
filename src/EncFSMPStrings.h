@@ -36,7 +36,6 @@ public:
 	const static wxString configDriveLetterKey_;
 	const static wxString configPasswordKey_;
 	const static wxString configIsWorldWritableKey_;
-	const static wxString configIsSystemVisibleKey_;
 	const static wxString configWindowDimensions_;
 	const static wxString configColumnWidths_;
 	const static wxString configMinimizeToTray_;

@@ -34,13 +34,13 @@ MountList::~MountList()
 }
 
 bool MountList::addMount(wxString name, wxString encFSPath, wxString driveLetter,
-	wxString password, bool isWorldWritable, bool isSystemVisible, bool isMounted)
+	wxString password, bool isWorldWritable, bool isMounted)
 {
 	wxString correctedName = name;
-	if(name.SubString(0, 3) == wxT("\\??\\"))
-	{
-		correctedName = name.substr(4);
-	}
+
+	// Remove any paths in front of name
+	wxFileName nameFN(correctedName);
+	correctedName = nameFN.GetFullName();
 
 	// Check for double entry
 	if(findEntryByName(correctedName) != NULL)
@@ -52,7 +52,6 @@ bool MountList::addMount(wxString name, wxString encFSPath, wxString driveLetter
 	newEntry.driveLetter_ = driveLetter;
 	newEntry.password_ = password;
 	newEntry.isWorldWritable_ = isWorldWritable;
-	newEntry.isSystemVisible_ = isSystemVisible;
 	newEntry.mountState_ = (isMounted ? MountEntry::MSMounted : MountEntry::MSNotMounted);
 
 	mountEntries_.push_back(newEntry);
@@ -63,10 +62,10 @@ bool MountList::addMount(wxString name, wxString encFSPath, wxString driveLetter
 MountEntry *MountList::findEntryByName(wxString name)
 {
 	wxString correctedName = name;
-	if(name.SubString(0, 3) == wxT("\\??\\"))
-	{
-		correctedName = name.substr(4);
-	}
+	
+	// Remove any paths in front of name
+	wxFileName nameFN(correctedName);
+	correctedName = nameFN.GetFullName();
 
 	std::list<MountEntry>::iterator iter = mountEntries_.begin();
 	while(iter != mountEntries_.end())
@@ -105,7 +104,6 @@ bool MountList::storeToConfig()
 		if(cur.password_.Length() > 0)
 			config->Write(EncFSMPStrings::configPasswordKey_, cur.password_);
 		config->Write(EncFSMPStrings::configIsWorldWritableKey_, cur.isWorldWritable_);
-		config->Write(EncFSMPStrings::configIsSystemVisibleKey_, cur.isSystemVisible_);
 
 		config->SetPath(wxT(".."));
 
@@ -136,7 +134,6 @@ bool MountList::loadFromConfig()
 		config->Read(EncFSMPStrings::configDriveLetterKey_, &cur.driveLetter_);
 		config->Read(EncFSMPStrings::configPasswordKey_, &cur.password_);
 		config->Read(EncFSMPStrings::configIsWorldWritableKey_, &cur.isWorldWritable_);
-		config->Read(EncFSMPStrings::configIsSystemVisibleKey_, &cur.isSystemVisible_);
 
 		cur.assignedDriveLetter_ = wxEmptyString;
 		cur.mountState_ = MountEntry::MSNotMounted;

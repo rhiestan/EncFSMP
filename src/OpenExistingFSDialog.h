@@ -33,8 +33,7 @@ public:
 	void setMountList(MountList *pMountList);
 	void setEditMode(const wxString &mountName,
 		const wxString &encFSPath, wchar_t driveLetter,
-		const wxString &password, bool isWorldWritable,
-		bool isSystemVisible);
+		const wxString &password, bool isWorldWritable);
 
 	wchar_t getDriveLetter() const { return driveLetter_; }
 	wxString getEncFSPath() const { return encFSPath_; }

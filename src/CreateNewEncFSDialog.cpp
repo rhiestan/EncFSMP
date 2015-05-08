@@ -50,10 +50,8 @@ CreateNewEncFSDialog::CreateNewEncFSDialog(wxWindow* parent)
 	cipherBlockSize_(4096), keyDerivationDuration_(500)
 {
 	worldWritable_ = false;
-	systemVisible_ = false;
 	storePassword_ = false;
 	pWorldWritableCheckBox_->SetValue(false);
-	pSystemVisibleCheckBox_->SetValue(false);
 	pStorePasswordCheckBox_->SetValue(false);
 
 #if defined(EFS_WIN32)
@@ -79,14 +77,11 @@ CreateNewEncFSDialog::CreateNewEncFSDialog(wxWindow* parent)
 
 	pWorldWritableStaticText_->Hide();
 	pWorldWritableCheckBox_->Hide();
-	pFlexGridSizer_->AddGrowableRow(3);
+	pFlexGridSizer_->AddGrowableRow(6);
 #else
 	pDriveLetterStaticText_->Hide();
 	pDriveLetterChoice_->Hide();
-	pSystemVisibleStaticText_->Hide();
-	pSystemVisibleCheckBox_->Hide();
-	pFlexGridSizer_->AddGrowableRow(2);
-	pFlexGridSizer_->AddGrowableRow(4);
+	pFlexGridSizer_->AddGrowableRow(5);
 #endif
 
 	pCipherAlgorithmChoice_->Clear();
@@ -132,6 +127,7 @@ CreateNewEncFSDialog::CreateNewEncFSDialog(wxWindow* parent)
 	OnEncFSConfigurationRadioBox(dummyEvent);
 
 	Layout();
+	Fit();
 }
 
 CreateNewEncFSDialog::~CreateNewEncFSDialog()
