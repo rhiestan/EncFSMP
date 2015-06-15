@@ -498,7 +498,7 @@ void EncFSMPMainFrame::OnCreateMountButton( wxCommandEvent& event )
 		if(dlg.storePassword_)
 			password = dlg.password_;
 		mountList_.addMount(dlg.mountName_, dlg.getEncFSPath(), dlg.getDriveLetter(),
-			password, dlg.worldWritable_, false);
+			password, dlg.worldWritable_, dlg.getIsLocalDrive(), false);
 
 		mountList_.storeToConfig();
 
@@ -530,7 +530,7 @@ void EncFSMPMainFrame::OnOpenExistingEncFSButton( wxCommandEvent& event )
 
 		mountList_.addMount(dlg.mountName_, dlg.getEncFSPath(),
 			wxString(dlg.getDriveLetter()), password,
-			dlg.worldWritable_, false);
+			dlg.worldWritable_, dlg.getIsLocalDrive(), false);
 
 		mountList_.storeToConfig();
 		updateMountListCtrl();
@@ -656,7 +656,7 @@ void EncFSMPMainFrame::OnMountButton( wxCommandEvent& event )
 			PFMHandlerThread *pPFMHandlerThread = new PFMHandlerThread();
 			pPFMHandlerThread->setParameters(pMountEntry->name_,
 				pMountEntry->encFSPath_, pMountEntry->driveLetter_,
-				password, isWorldWritable, false);
+				password, isWorldWritable, pMountEntry->isLocalDrive_, false);
 
 			pPFMHandlerThread->Create();
 			pPFMHandlerThread->Run();
@@ -698,6 +698,7 @@ void EncFSMPMainFrame::OnEditButton( wxCommandEvent& event )
 		dlg.setMountList(&mountList_);
 		dlg.setEditMode(pMountEntry->name_,
 			pMountEntry->encFSPath_, pMountEntry->driveLetter_[0],
+			pMountEntry->isLocalDrive_,
 			pMountEntry->password_, pMountEntry->isWorldWritable_);
 		if(dlg.ShowModal() == wxID_OK)
 		{
@@ -709,6 +710,7 @@ void EncFSMPMainFrame::OnEditButton( wxCommandEvent& event )
 
 			pMountEntry->driveLetter_ = wxString(dlg.getDriveLetter());
 			pMountEntry->password_ = password;
+			pMountEntry->isLocalDrive_ = dlg.getIsLocalDrive();
 			pMountEntry->isWorldWritable_ = dlg.worldWritable_;
 
 			mountList_.storeToConfig();
@@ -724,7 +726,10 @@ void EncFSMPMainFrame::OnBrowseButton( wxCommandEvent& event )
 	{
 #if defined(EFS_WIN32)
 		wxString path = pMountEntry->assignedDriveLetter_;
-		path.Append(wxT(":\\"));
+		if(!path.IsEmpty())
+			path.Append(wxT(":\\"));
+		else
+			path = pMountEntry->assignedMountPoint_;
 		
 		if(!wxFileName::DirExists(path))
 			return;
@@ -851,7 +856,10 @@ void EncFSMPMainFrame::OnMountEvent( wxCommandEvent &event )
 		MountEntry *pMountEntry = mountList_.findEntryByName(evt.mountName_);
 		if(pMountEntry != NULL)
 		{
-			pMountEntry->assignedDriveLetter_ = wxString(evt.driveLetter_);
+			if(evt.driveLetter_ == 0)
+				pMountEntry->assignedDriveLetter_ = wxEmptyString;
+			else
+				pMountEntry->assignedDriveLetter_ = wxString(evt.driveLetter_);
 			pMountEntry->assignedMountPoint_ = wxString(evt.mountPoint_.c_str());
 			if(evt.isMountEvent_)
 				pMountEntry->mountState_ = MountEntry::MSMounted;
@@ -1007,7 +1015,7 @@ void EncFSMPMainFrame::OnEncFSCommand( wxCommandEvent &event )
 				PFMHandlerThread *pPFMHandlerThread = new PFMHandlerThread();
 				pPFMHandlerThread->setParameters(pMountEntry->name_,
 					pMountEntry->encFSPath_, pMountEntry->driveLetter_,
-					password, isWorldWritable, false);
+					password, isWorldWritable, pMountEntry->isLocalDrive_, false);
 
 				pPFMHandlerThread->Create();
 				pPFMHandlerThread->Run();
@@ -1075,9 +1083,19 @@ void EncFSMPMainFrame::updateMountListCtrl()
 #if defined(EFS_WIN32)
 		wxString driveLetterStr(wxT("Auto"));
 		if(curEntry.mountState_ == MountEntry::MSMounted)
-			driveLetterStr = curEntry.assignedDriveLetter_ + wxT(":");
-		else if(curEntry.driveLetter_ != wxT("?"))
-			driveLetterStr = curEntry.driveLetter_ + wxT(":");
+		{
+			if(!curEntry.assignedDriveLetter_.IsEmpty())
+				driveLetterStr = curEntry.assignedDriveLetter_ + wxT(":");
+			else
+				driveLetterStr = curEntry.assignedMountPoint_;
+		}
+		else
+		{
+			if(curEntry.driveLetter_ == wxT("-"))
+				driveLetterStr = wxT("None");
+			else if(curEntry.driveLetter_ != wxT("?"))
+				driveLetterStr = curEntry.driveLetter_ + wxT(":");
+		}
 		pMountsListCtrl_->SetItem(i, 3, driveLetterStr);
 #endif
 

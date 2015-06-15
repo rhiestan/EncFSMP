@@ -108,6 +108,7 @@ public:
 	static int ftruncate(int fd, int64_t length);
 	static int statvfs(const char *path, struct statvfs *buf);
 	static int utimes(const char *filename, const struct fs_layer::timeval_fs times[2]);
+	static int futimes(int fd, const struct fs_layer::timeval_fs times[2]);
 	static int utime(const char *filename, struct utimbuf *times);
 	static int creat(const char *fn, unsigned short mode);
 	static int open(const char *fn, int flags, ...);

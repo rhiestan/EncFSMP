@@ -46,18 +46,21 @@
 
 CreateNewEncFSDialog::CreateNewEncFSDialog(wxWindow* parent)
 	: CreateNewEncFSDialogBase(parent), pMountList_(NULL),
-	driveLetter_(L'?'), cipherKeySize_(256),
-	cipherBlockSize_(4096), keyDerivationDuration_(500)
+	driveLetter_(L'?'), isLocalDrive_(true), cipherKeySize_(256),
+	cipherBlockSize_(4096), keyDerivationDuration_(500),
+	autoChoice_(0), noneChoice_(0)
 {
 	worldWritable_ = false;
 	storePassword_ = false;
 	pWorldWritableCheckBox_->SetValue(false);
 	pStorePasswordCheckBox_->SetValue(false);
+	pLocalDriveCheckBox_->SetValue(true);
 
 #if defined(EFS_WIN32)
 	pDriveLetterChoice_->Clear();
-	int autoItem = pDriveLetterChoice_->Append(wxT("Auto"));
-	pDriveLetterChoice_->Select(autoItem);
+	autoChoice_ = pDriveLetterChoice_->Append(wxT("Auto"));
+	noneChoice_ = pDriveLetterChoice_->Append(wxT("None"));
+	pDriveLetterChoice_->Select(autoChoice_);
 
 	// Find out unused drive letters
 	DWORD usedLogicalDrives = GetLogicalDrives();
@@ -82,6 +85,9 @@ CreateNewEncFSDialog::CreateNewEncFSDialog(wxWindow* parent)
 	pDriveLetterStaticText_->Hide();
 	pDriveLetterChoice_->Hide();
 	pFlexGridSizer_->AddGrowableRow(5);
+	pLocalDriveStaticText_->Hide();
+	pLocalDriveCheckBox_->Hide();
+	pFlexGridSizer_->AddGrowableRow(7);
 #endif
 
 	pCipherAlgorithmChoice_->Clear();
@@ -254,9 +260,13 @@ void CreateNewEncFSDialog::OnOK( wxCommandEvent& event )
 		}
 
 #if defined(EFS_WIN32)
-		if(pDriveLetterChoice_->GetSelection() == 0)
+		if(pDriveLetterChoice_->GetSelection() == autoChoice_)
 		{
 			driveLetter_ = L'?';	// Auto
+		}
+		else if(pDriveLetterChoice_->GetSelection() == noneChoice_)
+		{
+			driveLetter_ = L'-';	// None (treated by EncFSMP, not PFM)
 		}
 		else
 		{
@@ -282,6 +292,8 @@ void CreateNewEncFSDialog::OnOK( wxCommandEvent& event )
 				wxT("Error"), wxOK | wxICON_ERROR);
 			return;
 		}
+
+		isLocalDrive_ = pLocalDriveCheckBox_->GetValue();
 
 		if(password_.Length() == 0)
 		{

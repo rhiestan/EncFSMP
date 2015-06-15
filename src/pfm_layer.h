@@ -59,8 +59,8 @@ public:
 	virtual ~PFMLayer();
 
 	void startFS(RootPtr rootFS, const wchar_t *mountDir, PfmApi *pfmApi,
-		wchar_t driveLetter, bool worldWrite, bool startBrowser,
-		std::ostream &ostr);
+		wchar_t driveLetter, bool worldWrite, bool localDrive, 
+		bool startBrowser, std::ostream &ostr);
 
 	// PfmFormatterOps
 	void CCALL ReleaseName(wchar_t* name);
@@ -112,7 +112,7 @@ public:
 	class OpenFile
 	{
 	public:
-		OpenFile() : openId_(0), sequenceId_(0), isFile_(true), fileId_(0),
+		OpenFile() : openId_(0), sequenceId_(0), fd_(-1), isFile_(true), fileId_(0),
 			isDeleted_(false), isReadOnly_(false), fileFlags_(0), fileSize_(0), createTime_(0),
 			accessTime_(0), writeTime_(0), changeTime_(0)
 		{ }
@@ -122,6 +122,7 @@ public:
 		{
 			openId_ = o.openId_;
 			sequenceId_ = o.sequenceId_;
+			fd_ = o.fd_;
 			fileNode_ = o.fileNode_;
 			isFile_ = o.isFile_;
 			isDeleted_ = o.isDeleted_;
@@ -142,6 +143,7 @@ public:
 			return copy(o);
 		}
 		int64_t openId_, sequenceId_;
+		int fd_;
 		bool isFile_;	// File: true, Directory: false
 		bool isDeleted_;
 		int64_t fileId_;
@@ -197,7 +199,7 @@ public:
 	int deleteOp(OpenFile *pOpenFile);
 	void openExisting(OpenFile *pOpenFile, PfmOpenAttribs *openAttribs,
 		PT_UINT8 accessLevel);
-	int openFileOp(boost::shared_ptr<FileNode> fileNode, PfmOpenAttribs *openAttribs,
+	int openFileOp(boost::shared_ptr<FileNode> fileNode, int fd, PfmOpenAttribs *openAttribs,
 		int64_t newExistingOpenId, PT_UINT8 accessLevel, const std::string &path);
 	int openDirOp(PfmOpenAttribs *openAttribs, int64_t newExistingOpenId,
 		PT_UINT8 accessLevel, const std::string &path);

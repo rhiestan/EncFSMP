@@ -102,8 +102,8 @@ PFMLayer::~PFMLayer()
 }
 
 void PFMLayer::startFS(RootPtr rootFS, const wchar_t *mountDir, PfmApi *pfmApi,
-	wchar_t driveLetter, bool worldWrite, bool startBrowser,
-	std::ostream &ostr)
+	wchar_t driveLetter, bool worldWrite, bool localDrive,
+	bool startBrowser, std::ostream &ostr)
 {
 	rootFS_ = rootFS;
 	mountName_ = mountDir;
@@ -117,13 +117,16 @@ void PFMLayer::startFS(RootPtr rootFS, const wchar_t *mountDir, PfmApi *pfmApi,
 
 	PfmMountCreateParams_Init(&mcp);
 	mcp.mountSourceName = mountDir;
-	mcp.mountFlags |= pfmMountFlagUncOnly | pfmMountFlagUnmountOnRelease | pfmMountFlagLocalDriveType;
+	mcp.mountFlags |= pfmMountFlagUncOnly | pfmMountFlagUnmountOnRelease;
+	if(localDrive)
+		mcp.mountFlags |= pfmMountFlagLocalDriveType;
 	if(startBrowser)
 		mcp.mountFlags |= pfmMountFlagBrowse;
 	if(worldWrite)
 		mcp.mountFlags |= (pfmMountFlagWorldRead | pfmMountFlagWorldWrite);
 
-	mcp.driveLetter = driveLetter;
+	if(driveLetter != L'-')
+		mcp.driveLetter = driveLetter;
 
 	error = PfmMarshallerFactory(&marshaller);
 	if(error)
@@ -251,9 +254,12 @@ int/*error*/ CCALL PFMLayer::Open(const PfmNamePart* nameParts, size_t namePartC
 	if(!parentFolderFound)
 	{
 		// Not found in open files, look on file system
-		DirTraverse dirTParent = rootFS_->root->openDir(parentFolder.c_str());
-		// If not, return pfmErrorParentNotFound
-		if(!dirTParent.valid())
+		std::string cipherPath = rootFS_->root->cipherPath(parentFolder.c_str());
+		efs_stat stat;
+		int ret = fs_layer::stat(cipherPath.c_str(), &stat);
+		if(ret != 0)
+			return pfmErrorParentNotFound;
+		if((stat.st_mode & S_IFDIR) == 0)	// Check whether it is a directory
 			return pfmErrorParentNotFound;
 
 		if(parentFileId != NULL)
@@ -293,16 +299,12 @@ int/*error*/ CCALL PFMLayer::Open(const PfmNamePart* nameParts, size_t namePartC
 	// Check whether path is a directory or a file
 	bool isDir = false;
 	{
-		try
-		{
-			DirTraverse dirT = rootFS_->root->openDir(path.c_str());
-			if(dirT.valid())
-				isDir = true;
-		}
-		catch( rlog::Error &err )
-		{
-			// Not an error, path is just not a directory
-		}
+		std::string cipherPath = rootFS_->root->cipherPath(path.c_str());
+		efs_stat stat;
+		int ret = fs_layer::stat(cipherPath.c_str(), &stat);
+		if(ret == 0
+			&& (stat.st_mode & S_IFDIR))	// Check whether it is a directory
+			isDir = true;
 	}
 
 	// Check whether file exists
@@ -317,7 +319,7 @@ int/*error*/ CCALL PFMLayer::Open(const PfmNamePart* nameParts, size_t namePartC
 
 			if(fileNode)
 			{
-				retVal = openFileOp(fileNode, openAttribs, newExistingOpenId, existingAccessLevel, path);
+				retVal = openFileOp(fileNode, res, openAttribs, newExistingOpenId, existingAccessLevel, path);
 				if(retVal != 0)
 					return retVal;
 
@@ -532,7 +534,7 @@ int/*error*/ CCALL PFMLayer::Move(int64_t sourceOpenId, int64_t sourceParentFile
 			if(fileNode)
 			{
 				// Target file already exists. Perform open
-				retVal = openFileOp(fileNode, openAttribs, newExistingOpenId, existingAccessLevel, path);
+				retVal = openFileOp(fileNode, res, openAttribs, newExistingOpenId, existingAccessLevel, path);
 				if(retVal != 0)
 					return retVal;
 
@@ -730,7 +732,15 @@ int/*error*/ CCALL PFMLayer::FlushFile(int64_t openId,uint8_t flushFlags,uint8_t
 			tm[0].tv_usec = 0;
 			tm[1].tv_sec = FileTimeToUnixTime(writeTime);
 			tm[1].tv_usec = 0;
-			fs_layer::utimes(cipherName, tm);
+			if(pOpenFile->fd_ < 0)
+				fs_layer::utimes(cipherName, tm);
+			else
+				fs_layer::futimes(pOpenFile->fd_, tm);
+
+			pOpenFile->accessTime_ = writeTime;
+			pOpenFile->changeTime_ = writeTime;
+			pOpenFile->writeTime_ = writeTime;
+			pOpenFile->createTime_ = writeTime;
 		}
 	}
 
@@ -1330,6 +1340,7 @@ int PFMLayer::createOp(const std::string &path, int8_t createFileType, uint8_t c
 			of.fileNode_ = fileNodeNew;
 			of.openId_ = newCreateOpenId;
 			of.sequenceId_ = 1;
+			of.fd_ = res;
 			of.pathName_ = path;
 			of.isReadOnly_ = (accessLevel == pfmAccessLevelWriteInfo);
 			of.fileId_ = createFileId(path);
@@ -1574,7 +1585,7 @@ void PFMLayer::openExisting(PFMLayer::OpenFile *pOpenFile, PfmOpenAttribs *openA
 	openAttribs->attribs.changeTime = pOpenFile->changeTime_;
 }
 
-int PFMLayer::openFileOp(boost::shared_ptr<FileNode> fileNode, PfmOpenAttribs *openAttribs,
+int PFMLayer::openFileOp(boost::shared_ptr<FileNode> fileNode, int fd, PfmOpenAttribs *openAttribs,
 	int64_t newExistingOpenId, PT_UINT8 accessLevel, const std::string &path)
 {
 	efs_stat buf;
@@ -1597,6 +1608,7 @@ int PFMLayer::openFileOp(boost::shared_ptr<FileNode> fileNode, PfmOpenAttribs *o
 	of.fileNode_ = fileNode;
 	of.openId_ = newExistingOpenId;
 	of.sequenceId_ = 1;
+	of.fd_ = fd;
 	of.pathName_ = path;
 	of.isReadOnly_ = ((buf.st_mode & S_IWUSR) == 0);
 	of.fileId_ = createFileId(path);

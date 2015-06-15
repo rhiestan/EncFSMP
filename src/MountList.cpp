@@ -34,7 +34,7 @@ MountList::~MountList()
 }
 
 bool MountList::addMount(wxString name, wxString encFSPath, wxString driveLetter,
-	wxString password, bool isWorldWritable, bool isMounted)
+	wxString password, bool isWorldWritable, bool isLocalDrive, bool isMounted)
 {
 	wxString correctedName = name;
 
@@ -52,6 +52,7 @@ bool MountList::addMount(wxString name, wxString encFSPath, wxString driveLetter
 	newEntry.driveLetter_ = driveLetter;
 	newEntry.password_ = password;
 	newEntry.isWorldWritable_ = isWorldWritable;
+	newEntry.isLocalDrive_ = isLocalDrive;
 	newEntry.mountState_ = (isMounted ? MountEntry::MSMounted : MountEntry::MSNotMounted);
 
 	mountEntries_.push_back(newEntry);
@@ -104,6 +105,7 @@ bool MountList::storeToConfig()
 		if(cur.password_.Length() > 0)
 			config->Write(EncFSMPStrings::configPasswordKey_, cur.password_);
 		config->Write(EncFSMPStrings::configIsWorldWritableKey_, cur.isWorldWritable_);
+		config->Write(EncFSMPStrings::configIsLocalDriveKey_, cur.isLocalDrive_);
 
 		config->SetPath(wxT(".."));
 
@@ -134,6 +136,7 @@ bool MountList::loadFromConfig()
 		config->Read(EncFSMPStrings::configDriveLetterKey_, &cur.driveLetter_);
 		config->Read(EncFSMPStrings::configPasswordKey_, &cur.password_);
 		config->Read(EncFSMPStrings::configIsWorldWritableKey_, &cur.isWorldWritable_);
+		config->Read(EncFSMPStrings::configIsLocalDriveKey_, &cur.isLocalDrive_, true);
 
 		cur.assignedDriveLetter_ = wxEmptyString;
 		cur.mountState_ = MountEntry::MSNotMounted;

@@ -1,6 +1,14 @@
 ﻿Version history
 ---------------
 
+Version 0.9.8, 15.06.2015:
+- Updated OpenSSL to 1.0.2c
+- Fixed bug with handling last write time, fixes ticket #25
+- Improved speed while reading directories on Windows
+- Windows: Added option to mount drives as Local or Network drives
+- Windows: Added option not to mount a new volume using a drive letter (only under C:\Volumes)
+
+
 Version 0.9.7, 08.05.2015:
 - Updated Pismo File Mount to 1.0.0.177
 - Windows: Removed "System visible" flag for mounts and "Restart as Admin" menu

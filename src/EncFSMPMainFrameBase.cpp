@@ -166,7 +166,7 @@ OpenExistingFSDialogBase::OpenExistingFSDialogBase( wxWindow* parent, wxWindowID
 	wxBoxSizer* bSizer13;
 	bSizer13 = new wxBoxSizer( wxVERTICAL );
 	
-	pFlexGridSizer_ = new wxFlexGridSizer( 7, 2, 0, 0 );
+	pFlexGridSizer_ = new wxFlexGridSizer( 8, 2, 0, 0 );
 	pFlexGridSizer_->AddGrowableCol( 1 );
 	pFlexGridSizer_->SetFlexibleDirection( wxBOTH );
 	pFlexGridSizer_->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
@@ -235,6 +235,15 @@ OpenExistingFSDialogBase::OpenExistingFSDialogBase( wxWindow* parent, wxWindowID
 	
 	pFlexGridSizer_->Add( pWorldWritableCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
+	pLocalDriveStaticText_ = new wxStaticText( m_panel3, ID_LOCALDRIVESTATICTEXT, wxT("Local drive:"), wxDefaultPosition, wxDefaultSize, 0 );
+	pLocalDriveStaticText_->Wrap( -1 );
+	pFlexGridSizer_->Add( pLocalDriveStaticText_, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
+	
+	pLocalDriveCheckBox_ = new wxCheckBox( m_panel3, ID_LOCALDRIVECHECKBOX, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	pLocalDriveCheckBox_->SetToolTip( wxT("If checked, the mounted drive will appear as a local drive. If unchecked, it will appear as a network drive.") );
+	
+	pFlexGridSizer_->Add( pLocalDriveCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+	
 	bSizer13->Add( pFlexGridSizer_, 0, wxALL|wxEXPAND, 3 );
 	
 	
@@ -282,7 +291,7 @@ CreateNewEncFSDialogBase::CreateNewEncFSDialogBase( wxWindow* parent, wxWindowID
 	wxBoxSizer* bSizer14;
 	bSizer14 = new wxBoxSizer( wxVERTICAL );
 	
-	pFlexGridSizer_ = new wxFlexGridSizer( 7, 2, 0, 0 );
+	pFlexGridSizer_ = new wxFlexGridSizer( 8, 2, 0, 0 );
 	pFlexGridSizer_->AddGrowableCol( 1 );
 	pFlexGridSizer_->SetFlexibleDirection( wxBOTH );
 	pFlexGridSizer_->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
@@ -350,6 +359,15 @@ CreateNewEncFSDialogBase::CreateNewEncFSDialogBase( wxWindow* parent, wxWindowID
 	pWorldWritableCheckBox_->SetToolTip( wxT("Make files and directories writable for users other than the owner") );
 	
 	pFlexGridSizer_->Add( pWorldWritableCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+	
+	pLocalDriveStaticText_ = new wxStaticText( m_panel4, ID_LOCALDRIVESTATICTEXT, wxT("Local drive:"), wxDefaultPosition, wxDefaultSize, 0 );
+	pLocalDriveStaticText_->Wrap( -1 );
+	pFlexGridSizer_->Add( pLocalDriveStaticText_, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
+	
+	pLocalDriveCheckBox_ = new wxCheckBox( m_panel4, ID_LOCALDRIVECHECKBOX, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	pLocalDriveCheckBox_->SetToolTip( wxT("If checked, the mounted drive will appear as a local drive. If unchecked, it will appear as a network drive.") );
+	
+	pFlexGridSizer_->Add( pLocalDriveCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
 	bSizer14->Add( pFlexGridSizer_, 0, wxEXPAND, 5 );
 	
