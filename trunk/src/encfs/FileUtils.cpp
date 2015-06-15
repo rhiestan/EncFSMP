@@ -1449,7 +1449,7 @@ CipherKey EncFSConfig::makeKey(const char *password, int passwdLen)
 CipherKey EncFSConfig::getUserKey(bool useStdin)
 {
     char passBuf[MaxPassBuf];
-    char *res;
+    char *res = NULL;
 
     if( useStdin )
     {

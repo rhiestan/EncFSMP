@@ -33,10 +33,12 @@ public:
 	void setMountList(MountList *pMountList);
 	void setEditMode(const wxString &mountName,
 		const wxString &encFSPath, wchar_t driveLetter,
+		bool isLocalDrive,
 		const wxString &password, bool isWorldWritable);
 
 	wchar_t getDriveLetter() const { return driveLetter_; }
 	wxString getEncFSPath() const { return encFSPath_; }
+	bool getIsLocalDrive() const { return isLocalDrive_; }
 
 protected:
 	virtual void OnInitDialog( wxInitDialogEvent& event );
@@ -50,6 +52,9 @@ private:
 	bool editMode_;
 	wchar_t driveLetter_;
 	wxString encFSPath_;
+	bool isLocalDrive_;
+
+	int autoChoice_, noneChoice_;
 
 	DECLARE_EVENT_TABLE()
 };

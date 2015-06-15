@@ -34,6 +34,7 @@ public:
 
 	wchar_t getDriveLetter() const { return driveLetter_; }
 	wxString getEncFSPath() const { return encFSPath_; }
+	bool getIsLocalDrive() const { return isLocalDrive_; }
 	wxString getCipherAlgorithm() const { return cipherAlgorithm_; }
 	long getCipherKeySize() const { return cipherKeySize_; }
 	long getCipherBlockSize() const { return cipherBlockSize_; }
@@ -51,11 +52,14 @@ private:
 
 	wchar_t driveLetter_;
 	wxString encFSPath_;
+	bool isLocalDrive_;
 	wxString cipherAlgorithm_;
 	long cipherKeySize_;
 	long cipherBlockSize_;
 	wxString nameEncoding_;
 	long keyDerivationDuration_;
+
+	int autoChoice_, noneChoice_;
 
 	DECLARE_EVENT_TABLE()
 };

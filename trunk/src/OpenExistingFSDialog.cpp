@@ -24,7 +24,8 @@
 
 OpenExistingFSDialog::OpenExistingFSDialog(wxWindow *parent)
 	: OpenExistingFSDialogBase(parent),
-	pMountList_(NULL), editMode_(false), driveLetter_(L'?')
+	pMountList_(NULL), editMode_(false), driveLetter_(L'?'),
+	isLocalDrive_(true), autoChoice_(0), noneChoice_(0)
 {
 }
 
@@ -39,6 +40,7 @@ void OpenExistingFSDialog::setMountList(MountList *pMountList)
 
 void OpenExistingFSDialog::setEditMode(const wxString &mountName,
 	const wxString &encFSPath, wchar_t driveLetter,
+	bool isLocalDrive,
 	const wxString &password, bool isWorldWritable)
 {
 	editMode_ = true;
@@ -47,6 +49,7 @@ void OpenExistingFSDialog::setEditMode(const wxString &mountName,
 	encFSPath_ = encFSPath;
 	pEncFSPathDirPicker_->SetPath(encFSPath);
 	driveLetter_ = driveLetter;
+	pLocalDriveCheckBox_->SetValue(isLocalDrive);
 	if(password.Length() > 0)
 	{
 		storePassword_ = true;
@@ -86,11 +89,13 @@ void OpenExistingFSDialog::OnInitDialog( wxInitDialogEvent& event )
 		pStorePasswordCheckBox_->SetValue(false);
 		pPasswordTextCtrl_->Enable(false);
 		pPasswordRetypeTextCtrl_->Enable(false);
+		pLocalDriveCheckBox_->SetValue(true);
 	}
 
 #if defined(EFS_WIN32)
 	pDriveLetterChoice_->Clear();
-	int autoItem = pDriveLetterChoice_->Append(wxT("Auto"));
+	autoChoice_ = pDriveLetterChoice_->Append(wxT("Auto"));
+	noneChoice_ = pDriveLetterChoice_->Append(wxT("None"));
 
 	// Find out unused drive letters
 	DWORD usedLogicalDrives = GetLogicalDrives();
@@ -107,39 +112,28 @@ void OpenExistingFSDialog::OnInitDialog( wxInitDialogEvent& event )
 		}
 		usedLogicalDrives >>= 1;
 	}
-	if(editMode_ && driveLetter_ != L'?')
-		pDriveLetterChoice_->SetStringSelection(wxString(driveLetter_) + wxT(":"));
+	if(editMode_)
+	{
+		if(driveLetter_ == L'?')
+			pDriveLetterChoice_->Select(autoChoice_);
+		else if(driveLetter_ == L'-')
+			pDriveLetterChoice_->Select(noneChoice_);
+		else
+			pDriveLetterChoice_->SetStringSelection(wxString(driveLetter_) + wxT(":"));
+	}
 	else
-		pDriveLetterChoice_->Select(autoItem);
+		pDriveLetterChoice_->Select(autoChoice_);
 
 	pWorldWritableStaticText_->Hide();
 	pWorldWritableCheckBox_->Hide();
 	pFlexGridSizer_->AddGrowableRow(6);
-
-/*
-	wxArrayString volumes = wxFSVolume::GetVolumes();
-	for(int i = 0; i < volumes.size(); i++)
-	{
-		wxString curVol = volumes[i];
-		wxFSVolume vol(curVol);
-		if(vol.IsOk())
-		{
-			wxString displayName = vol.GetDisplayName();
-			wxString name = vol.GetName();
-			wxFSVolumeFlags flags = static_cast<wxFSVolumeFlags>(vol.GetFlags());
-
-			wxFSVolumeKind kind = vol.GetKind();
-			if(kind == wxFS_VOL_DISK)
-			{
-				int jj = 27;
-			}
-		}
-	}
-	*/
 #else
 	pDriveLetterStaticText_->Hide();
 	pDriveLetterChoice_->Hide();
-	pFlexGridSizer_->AddGrowableRow(5);
+	pFlexGridSizer_->AddGrowableRow(2);
+	pLocalDriveStaticText_->Hide();
+	pLocalDriveCheckBox_->Hide();
+	pFlexGridSizer_->AddGrowableRow(7);
 #endif
 
 	Layout();
@@ -184,9 +178,13 @@ void OpenExistingFSDialog::OnOKButton( wxCommandEvent& event )
 		}
 
 #if defined(EFS_WIN32)
-		if(pDriveLetterChoice_->GetSelection() == 0)
+		if(pDriveLetterChoice_->GetSelection() == autoChoice_)
 		{
 			driveLetter_ = L'?';	// Auto
+		}
+		else if(pDriveLetterChoice_->GetSelection() == noneChoice_)
+		{
+			driveLetter_ = L'-';	// None (treated by EncFSMP, not PFM)
 		}
 		else
 		{
@@ -217,6 +215,8 @@ void OpenExistingFSDialog::OnOKButton( wxCommandEvent& event )
 			password_ = wxEmptyString;
 			passwordRetype_ = wxEmptyString;
 		}
+
+		isLocalDrive_ = pLocalDriveCheckBox_->GetValue();
 
 		EndModal(wxID_OK);
 	}

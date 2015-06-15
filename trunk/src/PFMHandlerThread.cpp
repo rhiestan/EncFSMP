@@ -61,13 +61,14 @@ PFMHandlerThread::~PFMHandlerThread()
 
 void PFMHandlerThread::setParameters(const wxString &mountName,
 	const wxString &path, const wxString &driveLetter,
-	const wxString &password, bool worldWrite, bool startBrowser)
+	const wxString &password, bool worldWrite, bool localDrive, bool startBrowser)
 {
 	mountName_ = mountName;
 	path_ = path;
 	driveLetter_ = driveLetter;
 	password_ = password;
 	worldWrite_ = worldWrite;
+	localDrive_ = localDrive;
 	startBrowser_ = startBrowser;
 }
 
@@ -104,7 +105,7 @@ wxThread::ExitCode PFMHandlerThread::Entry()
 			PfmApi *pfmApi = PFMProxy::getInstance().getPfmApi();
 
 			pfm.startFS(rootFS, mountName_.c_str(), pfmApi, driveLetterW,	// Will not return before unmount
-				worldWrite_, startBrowser_, ostr);
+				worldWrite_, localDrive_, startBrowser_, ostr);
 		}
 		else
 		{

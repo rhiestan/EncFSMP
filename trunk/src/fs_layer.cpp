@@ -347,6 +347,36 @@ fs_layer::utimes(const char *filename, const struct fs_layer::timeval_fs times[2
 	return 0;
 }
 
+int fs_layer::futimes(int fd, const struct fs_layer::timeval_fs times[2])
+{
+#if defined(_WIN32)
+	if(fd < 0)
+		return -1;
+	HANDLE hd = (HANDLE)_get_osfhandle(fd);
+	if(hd == INVALID_HANDLE_VALUE)
+		return -1;
+
+	FILETIME ft;
+	__int64 temp = times[0].tv_sec;
+	temp *= 10000000;
+	temp += 116444736000000000LL;
+	ft.dwLowDateTime = static_cast<DWORD>(temp);
+	ft.dwHighDateTime = static_cast<DWORD>(temp >> 32);
+
+	if(SetFileTime(hd, NULL, NULL, &ft) == 0)
+		return -1;
+
+	return 0;
+#else
+	struct timeval times_native[2];
+	times_native[0].tv_sec = times[0].tv_sec;
+	times_native[0].tv_usec = times[0].tv_usec;
+	times_native[1].tv_sec = times[1].tv_sec;
+	times_native[1].tv_usec = times[1].tv_usec;
+	return ::futimes(fd, times_native);
+#endif
+}
+
 int fs_layer::statvfs(const char *path, struct statvfs *fs)
 {
 #if defined(_WIN32)
@@ -404,7 +434,7 @@ int fs_layer::creat(const char *fn, unsigned short mode)
 
 int fs_layer::open(const char *fn, int flags, ...)
 {
-	int fd = 0;
+	int fd = -1;
 
 	int mode = 0;
 	va_list ap;
@@ -588,6 +618,43 @@ int fs_layer::stat(const char *fn, efs_stat *buf)
 {
 	boost::filesystem::path fn_path(stringToFSPath(fn));
 
+	std::time_t lwt = 0;
+	uintmax_t fsize = 0;
+	uintmax_t hlc = 0;
+	unsigned short mode = 0;
+
+#if defined(EFS_WIN32)
+	// On Windows, the boost variant is too slow as it queries the file twice
+	WIN32_FILE_ATTRIBUTE_DATA fad;
+	if(GetFileAttributesEx(fn_path.native().c_str(), GetFileExInfoStandard, &fad) == 0)
+		return -1;
+
+	if(fad.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+	{
+		// Ignore the read-only flag for folders on Windows
+		// See for example http://support.microsoft.com/kb/326549
+		mode = (S_IFDIR | S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR | S_IWGRP | S_IWOTH);
+	}
+	else if(fad.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
+	{
+		// Reparse point, or link: Not supported by EncFSMP
+		mode = (S_IFLNK | S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR | S_IWGRP | S_IWOTH);
+	}
+	else
+	{
+		// Regular file
+		mode = (S_IFREG | S_IRUSR | S_IRGRP | S_IROTH);
+		if((fad.dwFileAttributes & FILE_ATTRIBUTE_READONLY) == 0)
+			mode |= (S_IWUSR | S_IWGRP | S_IWOTH);
+		fsize = (static_cast<uintmax_t>(fad.nFileSizeHigh) << 32) + fad.nFileSizeLow;
+	}
+
+	FILETIME &ft = fad.ftLastWriteTime;
+	__int64 t = (static_cast<__int64>(ft.dwHighDateTime)<< 32) + ft.dwLowDateTime;
+	t -= 116444736000000000LL;
+	t /= 10000000;
+	lwt = static_cast<std::time_t>(t);
+#else
 	boost::system::error_code ec;
 	boost::filesystem::file_status status = boost::filesystem::status(fn_path, ec);
 	if(ec)
@@ -595,30 +662,7 @@ int fs_layer::stat(const char *fn, efs_stat *buf)
 		errno = ec.value();
 		return -1;
 	}
-	std::time_t lwt = 0;
-	uintmax_t fsize = 0;
-	uintmax_t hlc = 0;
-#if defined(EFS_WIN32)
-	// The boost variant is a bit slow, this is faster:
-	if(boost::filesystem::is_regular_file(status))
-	{
-		WIN32_FIND_DATA findFileData;
-		HANDLE hFind;
-		hFind = FindFirstFileW(fn_path.native().c_str(), &findFileData);
-		if(hFind != INVALID_HANDLE_VALUE)
-		{
-			fsize = (static_cast<uintmax_t>(findFileData.nFileSizeHigh) << 32) + findFileData.nFileSizeLow;
-			FILETIME &ft = findFileData.ftLastWriteTime;
-			__int64 t = (static_cast<__int64>(ft.dwHighDateTime)<< 32) + ft.dwLowDateTime;
-			t -= 116444736000000000LL;
-			t /= 10000000;
-			lwt = static_cast<std::time_t>(t);
-			FindClose(hFind);
-		}
-	}
-	else
-	{
-#endif
+
 	lwt = boost::filesystem::last_write_time(fn_path, ec);
 	if(ec)
 	{
@@ -638,11 +682,7 @@ int fs_layer::stat(const char *fn, efs_stat *buf)
 		errno = ec.value();
 		return -1;
 	}
-#if defined(EFS_WIN32)
-	}
-#endif
 
-	unsigned short mode = 0;
 	// File type
 	if(boost::filesystem::is_regular_file(status))
 		mode |= S_IFREG;
@@ -673,17 +713,11 @@ int fs_layer::stat(const char *fn, efs_stat *buf)
 	if(status.permissions() & boost::filesystem::others_exe)
 		mode |= S_IXOTH;
 
-#if defined(EFS_WIN32)
-	// Ignore the read-only flag for folders on Windows
-	// See for example http://support.microsoft.com/kb/326549
-	if(boost::filesystem::is_directory(status))
-		mode |= (S_IWUSR | S_IWGRP | S_IWOTH);
-#endif
-
 	if(status.permissions() & boost::filesystem::set_uid_on_exe)
 		mode |= S_ISUID;
 	if(status.permissions() & boost::filesystem::set_gid_on_exe)
 		mode |= S_ISGID;
+#endif
 
 	buf->st_dev = buf->st_rdev = 0;
 	buf->st_ino = 0;
