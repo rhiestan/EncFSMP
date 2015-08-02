@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist SYSTEM "file://localhost/System/Library/DTDs/PropertyList.dtd">
+<plist version="0.9">
+<dict>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleIdentifier</key>
+	<string>ch.hiesti.EncFSMP</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>de</string>
+		<string>en</string>
+		<string>fr</string>
+		<string>it</string>
+	</array>
+	<key>CFBundleExecutable</key>
+	<string>EncFSMP</string>
+	<key>CFBundleIconFile</key>
+	<string>encfsmp.icns</string>
+	<key>CFBundleName</key>
+	<string> EncFSMP </string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>${ENCFSMP_VERSION_MAJOR}.${ENCFSMP_VERSION_MINOR}.${ENCFSMP_VERSION_BUILD}</string>
+	<key>CFBundleShortVersionString</key>
+	<string>${ENCFSMP_VERSION_MAJOR}.${ENCFSMP_VERSION_MINOR}.${ENCFSMP_VERSION_BUILD}</string>
+	<key>CFBundleGetInfoString</key>
+	<string> EncFSMP ${ENCFSMP_VERSION_MAJOR}.${ENCFSMP_VERSION_MINOR}.${ENCFSMP_VERSION_BUILD}</string>
+	<key>CFBundleLongVersionString</key>
+	<string>${ENCFSMP_VERSION_MAJOR}.${ENCFSMP_VERSION_MINOR}.${ENCFSMP_VERSION_BUILD}</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright ${ENCFSMP_COPYRIGHT_YEAR} by Roman Hiestand</string>
+	<key>LSRequiresCarbon</key>
+	<true/>
+	<key>CSResourcesFileMapped</key>
+	<true/>
+</dict>
+</plist>
