@@ -1,6 +1,11 @@
 ﻿Version history
 ---------------
 
+Version 0.9.9, 02.08.2015:
+- Updated OpenSSL to 1.0.2d
+- Updated Pismo File Mount to 1.0.0.178
+
+
 Version 0.9.8, 15.06.2015:
 - Updated OpenSSL to 1.0.2c
 - Fixed bug with handling last write time, fixes ticket #25
