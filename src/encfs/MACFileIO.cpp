@@ -142,9 +142,9 @@ static efs_off_t locWithoutHeader( efs_off_t offset, int blockSize, int headerSi
     return offset - blockNum * headerSize;
 }
 
-int MACFileIO::getAttr( efs_stat *stbuf ) const
+int MACFileIO::getAttr( efs_stat *stbuf, void *statCache ) const
 {
-    int res = base->getAttr( stbuf );
+    int res = base->getAttr( stbuf, statCache );
 
     if(res == 0 && S_ISREG(stbuf->st_mode))
     {

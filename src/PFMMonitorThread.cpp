@@ -105,46 +105,61 @@ wxThread::ExitCode PFMMonitorThread::Entry()
 			PfmIterator *iter = NULL;
 			pfmApi->MountIterate(startChangeInstance, &nextChangeInstance, &iter);
 
-			long long curChangeInstance = 0;
-			int mountId = iter->Next(&curChangeInstance);
-			while(mountId > 0)
+			if(iter != NULL)
 			{
-				if(curChangeInstance >= startChangeInstance)
+				long long curChangeInstance = 0;
+				int mountId = iter->Next(&curChangeInstance);
+				while(mountId > 0)
 				{
-					PfmMount *curMount = NULL;
-					int err = pfmApi->MountIdOpen(mountId, &curMount);
-
-					if(err == 0 && curMount != NULL)
+					if(curChangeInstance >= startChangeInstance)
 					{
-						int statusFlags = curMount->GetStatusFlags();
+						PfmMount *curMount = NULL;
+						int err = pfmApi->MountIdOpen(mountId, &curMount);
 
-						std::wstring formatterName(curMount->GetFormatterName());
-						std::wstring fileName(curMount->GetMountSourceName());
-						wchar_t driveLetter = curMount->GetDriveLetter();
-#if !defined(EFS_WIN32)
-						driveLetter = L' ';
-#endif
-						std::wstring ownerName(curMount->GetOwnerName());
-						std::wstring ownerId(curMount->GetOwnerId());
-						std::wstring mountPoint(curMount->GetMountPoint());
-
-						if(formatterName == EncFSMPStrings::formatterName_)
+						if(err == 0 && curMount != NULL)
 						{
-							if((statusFlags & (pfmStatusFlagReady | pfmStatusFlagDisconnected | pfmStatusFlagClosed)) != 0)
+							int statusFlags = curMount->GetStatusFlags();
+
+							std::wstring formatterName(curMount->GetFormatterName());
+							std::wstring fileName(curMount->GetMountSourceName());
+							wchar_t driveLetter = curMount->GetDriveLetter();
+#if !defined(EFS_WIN32)
+							driveLetter = L' ';
+#endif
+							std::wstring ownerName(curMount->GetOwnerName());
+							std::wstring ownerId(curMount->GetOwnerId());
+							std::wstring mountPoint(curMount->GetMountPoint());
+
+							if(formatterName == EncFSMPStrings::formatterName_)
 							{
-								bool isMountEvent = ((statusFlags & (pfmStatusFlagDisconnected | pfmStatusFlagClosed)) == 0);
-								pMainFrame->addNewMountEvent(isMountEvent, false, fileName, driveLetter, mountPoint);
+								if((statusFlags & (pfmStatusFlagReady | pfmStatusFlagDisconnected | pfmStatusFlagClosed)) != 0)
+								{
+									bool isMountEvent = ((statusFlags & (pfmStatusFlagDisconnected | pfmStatusFlagClosed)) == 0);
+									pMainFrame->addNewMountEvent(isMountEvent, false, fileName, driveLetter, mountPoint);
+								}
 							}
+
+							curMount->Release();
 						}
-
-						curMount->Release();
 					}
+					mountId = iter->Next(&curChangeInstance);
 				}
-				mountId = iter->Next(&curChangeInstance);
-			}
 
-			iter->Release();
-			startChangeInstance = nextChangeInstance;
+				iter->Release();
+				startChangeInstance = nextChangeInstance;
+			}
+			else
+			{
+				// Workaround for problem, shouldn't happen
+#if defined(EFS_WIN32)
+				Sleep(50);
+#else
+				struct timespec tm;
+				tm.tv_sec = 0;
+				tm.tv_nsec = 50000000L;
+				nanosleep(&tm, NULL);
+#endif
+			}
 		}
 	}
 

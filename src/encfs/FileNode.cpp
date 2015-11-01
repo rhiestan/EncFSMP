@@ -114,7 +114,7 @@ string FileNode::plaintextParent() const
 static bool setIV(const boost::shared_ptr<FileIO> &io, uint64_t iv)
 {
     efs_stat stbuf;
-    if((io->getAttr(&stbuf) < 0) || S_ISREG(stbuf.st_mode))
+    if((io->getAttr(&stbuf, 0) < 0) || S_ISREG(stbuf.st_mode))
 	return io->setIV( iv );
     else
 	return true;
@@ -225,11 +225,11 @@ int FileNode::open(int flags) const
     return res;
 }
 
-int FileNode::getAttr(efs_stat *stbuf) const
+int FileNode::getAttr(efs_stat *stbuf, void *statCache) const
 {
     Lock _lock( mutex );
 
-    int res = io->getAttr( stbuf );
+    int res = io->getAttr( stbuf, statCache );
     return res;
 }
 

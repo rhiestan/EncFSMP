@@ -33,8 +33,9 @@ MountList::~MountList()
 {
 }
 
-bool MountList::addMount(wxString name, wxString encFSPath, wxString driveLetter,
-	wxString password, bool isWorldWritable, bool isLocalDrive, bool isMounted)
+bool MountList::addMount(wxString name, wxString encFSPath, wxString externalConfigFileName,
+		wxString driveLetter, wxString password, bool useExternalConfigFile,
+		bool enableCaching, bool isWorldWritable, bool isLocalDrive, bool isMounted)
 {
 	wxString correctedName = name;
 
@@ -49,8 +50,10 @@ bool MountList::addMount(wxString name, wxString encFSPath, wxString driveLetter
 	MountEntry newEntry;
 	newEntry.name_ = correctedName;
 	newEntry.encFSPath_ = encFSPath;
+	newEntry.externalConfigFileName_ = externalConfigFileName;
 	newEntry.driveLetter_ = driveLetter;
 	newEntry.password_ = password;
+	newEntry.useExternalConfigFile_ = useExternalConfigFile;
 	newEntry.isWorldWritable_ = isWorldWritable;
 	newEntry.isLocalDrive_ = isLocalDrive;
 	newEntry.mountState_ = (isMounted ? MountEntry::MSMounted : MountEntry::MSNotMounted);
@@ -101,9 +104,12 @@ bool MountList::storeToConfig()
 		if(!config->Write(EncFSMPStrings::configNameKey_, cur.name_))
 			return false;
 		config->Write(EncFSMPStrings::configEncFSPathKey_, cur.encFSPath_);
+		config->Write(EncFSMPStrings::configExternalConfigFileKey_, cur.externalConfigFileName_);
 		config->Write(EncFSMPStrings::configDriveLetterKey_, cur.driveLetter_);
 		if(cur.password_.Length() > 0)
 			config->Write(EncFSMPStrings::configPasswordKey_, cur.password_);
+		config->Write(EncFSMPStrings::configUseExternalConfigFileKey_, cur.useExternalConfigFile_);
+		config->Write(EncFSMPStrings::configEnableCachingKey_, cur.enableCaching_);
 		config->Write(EncFSMPStrings::configIsWorldWritableKey_, cur.isWorldWritable_);
 		config->Write(EncFSMPStrings::configIsLocalDriveKey_, cur.isLocalDrive_);
 
@@ -133,8 +139,11 @@ bool MountList::loadFromConfig()
 			return false;
 		if(!config->Read(EncFSMPStrings::configEncFSPathKey_, &cur.encFSPath_))
 			return false;
+		config->Read(EncFSMPStrings::configExternalConfigFileKey_, &cur.externalConfigFileName_);
 		config->Read(EncFSMPStrings::configDriveLetterKey_, &cur.driveLetter_);
 		config->Read(EncFSMPStrings::configPasswordKey_, &cur.password_);
+		config->Read(EncFSMPStrings::configUseExternalConfigFileKey_, &cur.useExternalConfigFile_, false);
+		config->Read(EncFSMPStrings::configEnableCachingKey_, &cur.enableCaching_, false);
 		config->Read(EncFSMPStrings::configIsWorldWritableKey_, &cur.isWorldWritable_);
 		config->Read(EncFSMPStrings::configIsLocalDriveKey_, &cur.isLocalDrive_, true);
 

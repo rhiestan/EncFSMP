@@ -30,8 +30,11 @@ const wxString EncFSMPStrings::configMountListPath_(wxT("/MountList"));
  
 const wxString EncFSMPStrings::configNameKey_(wxT("Name"));
 const wxString EncFSMPStrings::configEncFSPathKey_(wxT("EncFSPath"));
+const wxString EncFSMPStrings::configExternalConfigFileKey_(wxT("ExternalConfigFile"));
 const wxString EncFSMPStrings::configDriveLetterKey_(wxT("DriveLetter"));
 const wxString EncFSMPStrings::configPasswordKey_(wxT("Password"));
+const wxString EncFSMPStrings::configUseExternalConfigFileKey_(wxT("UseExternalConfigFile"));
+const wxString EncFSMPStrings::configEnableCachingKey_(wxT("EnableCaching"));
 const wxString EncFSMPStrings::configIsWorldWritableKey_(wxT("IsWorldWritable"));
 const wxString EncFSMPStrings::configIsLocalDriveKey_(wxT("IsLocalDrive"));
 const wxString EncFSMPStrings::configWindowDimensions_(wxT("WindowDimensions"));

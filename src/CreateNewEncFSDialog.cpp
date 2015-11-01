@@ -46,15 +46,19 @@
 
 CreateNewEncFSDialog::CreateNewEncFSDialog(wxWindow* parent)
 	: CreateNewEncFSDialogBase(parent), pMountList_(NULL),
-	driveLetter_(L'?'), isLocalDrive_(true), cipherKeySize_(256),
+	driveLetter_(L'?'), useExternalConfigFile_(false), isLocalDrive_(true),
+	cachingEnabled_(false), cipherKeySize_(256),
 	cipherBlockSize_(4096), keyDerivationDuration_(500),
 	autoChoice_(0), noneChoice_(0)
 {
+	pUseExternalConfigFileCheckBox_->SetValue(useExternalConfigFile_);
+	pExternalConfigFileNamePickerCtrl_->Enable(false);
 	worldWritable_ = false;
 	storePassword_ = false;
 	pWorldWritableCheckBox_->SetValue(false);
 	pStorePasswordCheckBox_->SetValue(false);
 	pLocalDriveCheckBox_->SetValue(true);
+	pEnableCachingCheckBox_->SetValue(false);
 
 #if defined(EFS_WIN32)
 	pDriveLetterChoice_->Clear();
@@ -143,6 +147,19 @@ CreateNewEncFSDialog::~CreateNewEncFSDialog()
 void CreateNewEncFSDialog::setMountList(MountList *pMountList)
 {
 	pMountList_ = pMountList;
+}
+
+void CreateNewEncFSDialog::OnUseExternalConfigFileCheckBox( wxCommandEvent& event )
+{
+	bool isChecked = event.IsChecked();
+	if(isChecked)
+	{
+		pExternalConfigFileNamePickerCtrl_->Enable(true);
+	}
+	else
+	{
+		pExternalConfigFileNamePickerCtrl_->Enable(false);
+	}
 }
 
 void CreateNewEncFSDialog::OnEncFSConfigurationRadioBox( wxCommandEvent& event )
@@ -293,7 +310,30 @@ void CreateNewEncFSDialog::OnOK( wxCommandEvent& event )
 			return;
 		}
 
+		useExternalConfigFile_ = pUseExternalConfigFileCheckBox_->GetValue();
+		if(useExternalConfigFile_)
+		{
+			externalConfigFileName_ = pExternalConfigFileNamePickerCtrl_->GetPath();
+			wxFileName externalConfigFN(externalConfigFileName_);
+			if(externalConfigFN.FileExists())
+			{
+				wxMessageBox(wxT("External config file already exists!"),
+					wxT("Error"), wxOK | wxICON_ERROR);
+				return;
+			}
+
+			wxFileName externalConfigPath(externalConfigFN);
+			externalConfigPath.SetFullName(wxEmptyString);
+			if(!externalConfigPath.IsDirWritable())
+			{
+				wxMessageBox(wxT("Path of external config file is not writable!"),
+					wxT("Error"), wxOK | wxICON_ERROR);
+				return;
+			}
+		}
+
 		isLocalDrive_ = pLocalDriveCheckBox_->GetValue();
+		cachingEnabled_ = pEnableCachingCheckBox_->GetValue();
 
 		if(password_.Length() == 0)
 		{

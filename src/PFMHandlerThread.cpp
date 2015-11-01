@@ -51,7 +51,8 @@
 #include <boost/algorithm/string/replace.hpp>
 
 PFMHandlerThread::PFMHandlerThread() : wxThread(wxTHREAD_DETACHED),
-	worldWrite_(false), startBrowser_(true)
+	useExternalConfigFile_(false), enableCaching_(false),
+	worldWrite_(false), localDrive_(false), startBrowser_(true)
 {
 }
 
@@ -60,13 +61,19 @@ PFMHandlerThread::~PFMHandlerThread()
 }
 
 void PFMHandlerThread::setParameters(const wxString &mountName,
-	const wxString &path, const wxString &driveLetter,
-	const wxString &password, bool worldWrite, bool localDrive, bool startBrowser)
+		const wxString &path, const wxString &externalConfigFile,
+		const wxString &driveLetter,
+		const wxString &password,
+		bool useExternalConfigFile, bool enableCaching,
+		bool worldWrite, bool localDrive, bool startBrowser)
 {
 	mountName_ = mountName;
 	path_ = path;
+	externalConfigFileName_ = externalConfigFile;
 	driveLetter_ = driveLetter;
 	password_ = password;
+	useExternalConfigFile_ = useExternalConfigFile;
+	enableCaching_ = enableCaching;
 	worldWrite_ = worldWrite;
 	localDrive_ = localDrive;
 	startBrowser_ = startBrowser;
@@ -96,6 +103,8 @@ wxThread::ExitCode PFMHandlerThread::Entry()
 		opts->createIfNotFound = false;
 		opts->checkKey = true;					// If this is set to false, mounting never fails even with a wrong password
 		opts->passwordProgram = std::string(password_.mb_str());	//passwordUTF8;	// Abusing this parameter here, so that it uses EncFSConfig::getUserKey with password program
+		opts->externalConfigFileName = EncFSUtilities::wxStringToEncFSFile(externalConfigFileName_);
+		opts->useExternalConfigFile = useExternalConfigFile_;
 		rootFS = initFS( NULL, opts, ostr );
 
 		if(rootFS)
@@ -105,7 +114,7 @@ wxThread::ExitCode PFMHandlerThread::Entry()
 			PfmApi *pfmApi = PFMProxy::getInstance().getPfmApi();
 
 			pfm.startFS(rootFS, mountName_.c_str(), pfmApi, driveLetterW,	// Will not return before unmount
-				worldWrite_, localDrive_, startBrowser_, ostr);
+				enableCaching_, worldWrite_, localDrive_, startBrowser_, ostr);
 		}
 		else
 		{

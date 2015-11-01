@@ -46,7 +46,7 @@ public:
     virtual bool setIV( uint64_t iv );
 
     virtual int open( int flags );
-    virtual int getAttr( efs_stat *stbuf ) const;
+    virtual int getAttr( efs_stat *stbuf, void *statCache ) const;
     virtual efs_off_t getSize() const;
 
     virtual int truncate( efs_off_t size );

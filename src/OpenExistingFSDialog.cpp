@@ -24,8 +24,9 @@
 
 OpenExistingFSDialog::OpenExistingFSDialog(wxWindow *parent)
 	: OpenExistingFSDialogBase(parent),
-	pMountList_(NULL), editMode_(false), driveLetter_(L'?'),
-	isLocalDrive_(true), autoChoice_(0), noneChoice_(0)
+	pMountList_(NULL), editMode_(false), useExternalConfigFile_(false), driveLetter_(L'?'),
+	isLocalDrive_(true), cachingEnabled_(false),
+	autoChoice_(0), noneChoice_(0)
 {
 }
 
@@ -39,15 +40,21 @@ void OpenExistingFSDialog::setMountList(MountList *pMountList)
 }
 
 void OpenExistingFSDialog::setEditMode(const wxString &mountName,
-	const wxString &encFSPath, wchar_t driveLetter,
-	bool isLocalDrive,
-	const wxString &password, bool isWorldWritable)
+	const wxString &encFSPath,
+	bool useExternalConfigFile, wxString externalConfigFileName,
+	wchar_t driveLetter, bool isLocalDrive,
+	const wxString &password, bool isWorldWritable,
+	bool cachingEnabled)
 {
 	editMode_ = true;
 	mountName_ = mountName;
 	pMountNameTextCtrl_->SetValue(mountName);
 	encFSPath_ = encFSPath;
 	pEncFSPathDirPicker_->SetPath(encFSPath);
+	useExternalConfigFile_ = useExternalConfigFile;
+	pUseExternalConfigFileCheckBox_->SetValue(useExternalConfigFile);
+	externalConfigFileName_ = externalConfigFileName;
+	pExternalConfigFileNamePickerCtrl_->SetPath(externalConfigFileName);
 	driveLetter_ = driveLetter;
 	pLocalDriveCheckBox_->SetValue(isLocalDrive);
 	if(password.Length() > 0)
@@ -65,6 +72,8 @@ void OpenExistingFSDialog::setEditMode(const wxString &mountName,
 	}
 	worldWritable_ = isWorldWritable;
 	pWorldWritableCheckBox_->SetValue(isWorldWritable);
+	cachingEnabled_ = cachingEnabled;
+	pEnableCachingCheckBox_->SetValue(cachingEnabled);
 }
 
 void OpenExistingFSDialog::OnInitDialog( wxInitDialogEvent& event )
@@ -80,11 +89,15 @@ void OpenExistingFSDialog::OnInitDialog( wxInitDialogEvent& event )
 #endif
 		wxCommandEvent dummyEvent;
 		OnStorePasswordCheckBox(dummyEvent);
+		OnUseExternalConfigFileCheckBox(dummyEvent);
 
 		this->SetTitle(wxT("Edit mount"));
 	}
 	else
 	{
+		useExternalConfigFile_ = false;
+		pUseExternalConfigFileCheckBox_->SetValue(false);
+		pExternalConfigFileNamePickerCtrl_->Enable(false);
 		storePassword_ = false;
 		pStorePasswordCheckBox_->SetValue(false);
 		pPasswordTextCtrl_->Enable(false);
@@ -140,6 +153,13 @@ void OpenExistingFSDialog::OnInitDialog( wxInitDialogEvent& event )
 	Fit();
 }
 
+void OpenExistingFSDialog::OnUseExternalConfigFileCheckBox( wxCommandEvent& event )
+{
+	bool doEnable = pUseExternalConfigFileCheckBox_->GetValue();
+
+	pExternalConfigFileNamePickerCtrl_->Enable(doEnable);
+}
+
 void OpenExistingFSDialog::OnStorePasswordCheckBox( wxCommandEvent& event )
 {
 	bool doEnable = false;
@@ -172,6 +192,19 @@ void OpenExistingFSDialog::OnOKButton( wxCommandEvent& event )
 			if(!wxFileName::DirExists(encFSPath_))
 			{
 				wxMessageBox(wxT("EncFS path does not exist! Please enter a valid path"),
+					wxT("Error"), wxOK | wxICON_ERROR);
+				return;
+			}
+		}
+
+		useExternalConfigFile_ = pUseExternalConfigFileCheckBox_->GetValue();
+		if(useExternalConfigFile_)
+		{
+			externalConfigFileName_ = pExternalConfigFileNamePickerCtrl_->GetPath();
+			wxFileName externalConfigFN(externalConfigFileName_);
+			if(!externalConfigFN.FileExists())
+			{
+				wxMessageBox(wxT("External config file not found!"),
 					wxT("Error"), wxOK | wxICON_ERROR);
 				return;
 			}
@@ -217,6 +250,7 @@ void OpenExistingFSDialog::OnOKButton( wxCommandEvent& event )
 		}
 
 		isLocalDrive_ = pLocalDriveCheckBox_->GetValue();
+		cachingEnabled_ = pEnableCachingCheckBox_->GetValue();
 
 		EndModal(wxID_OK);
 	}

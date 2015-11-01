@@ -88,6 +88,10 @@ struct EncFS_Opts
 
     ConfigMode configMode;
 
+    // Added by R. Hiestand
+    bool useExternalConfigFile;
+    std::string externalConfigFileName;
+
     EncFS_Opts()
     {
         createIfNotFound = true;
@@ -100,6 +104,7 @@ struct EncFS_Opts
         ownerCreate = false;
         reverseEncryption = false;
         configMode = Config_Prompt;
+        useExternalConfigFile = false;
     }
 };
 
@@ -107,14 +112,16 @@ struct EncFS_Opts
     Read existing config file.  Looks for any supported configuration version.
 */
 ConfigType readConfig( const std::string &rootDir, 
-        const boost::shared_ptr<EncFSConfig> &config ); 
+        const boost::shared_ptr<EncFSConfig> &config,
+		bool useExternalConfigFile, const std::string &externalConfigFileName ); 
 
 /*
     Save the configuration.  Saves back as the same configuration type as was
     read from.
 */
 bool saveConfig( ConfigType type, const std::string &rootdir, 
-	const boost::shared_ptr<EncFSConfig> &config );
+	const boost::shared_ptr<EncFSConfig> &config,
+	bool useExternalConfigFile, const std::string &externalConfigFileName);
 
 class EncFS_Context;
 

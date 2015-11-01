@@ -81,7 +81,7 @@ public:
     int open(int flags) const;
 
     // getAttr returns 0 on success, -errno on failure
-    int getAttr(efs_stat *stbuf) const;
+    int getAttr(efs_stat *stbuf, void *statCache) const;
     efs_off_t getSize() const;
 
     ssize_t read(efs_off_t offset, unsigned char *data, ssize_t size) const;

@@ -75,7 +75,7 @@ public:
     virtual int open( int flags ) =0;
    
     // get filesystem attributes for a file
-    virtual int getAttr( efs_stat *stbuf ) const =0;
+    virtual int getAttr( efs_stat *stbuf, void *statCache ) const =0;
     virtual efs_off_t getSize( ) const =0;
 
     virtual ssize_t read( const IORequest &req ) const =0;

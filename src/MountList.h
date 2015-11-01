@@ -44,11 +44,14 @@ public:
 	{
 		name_ = o.name_;
 		encFSPath_ = o.encFSPath_;
+		externalConfigFileName_ = o.externalConfigFileName_;
 		driveLetter_ = o.driveLetter_;
 		assignedDriveLetter_ = o.assignedDriveLetter_;
 		password_ = o.password_;
 		assignedMountPoint_ = o.assignedMountPoint_;
 		volatilePassword_ = o.volatilePassword_;
+		useExternalConfigFile_ = o.useExternalConfigFile_;
+		enableCaching_ = o.enableCaching_;
 		isWorldWritable_ = o.isWorldWritable_;
 		isLocalDrive_ = o.isLocalDrive_;
 		mountState_ = o.mountState_;
@@ -59,9 +62,9 @@ public:
 		return copy(o);
 	}
 
-	wxString name_, encFSPath_, driveLetter_, assignedDriveLetter_, password_;
+	wxString name_, encFSPath_, externalConfigFileName_, driveLetter_, assignedDriveLetter_, password_;
 	wxString assignedMountPoint_, volatilePassword_;	// Not persistent attributes
-	bool isWorldWritable_, isLocalDrive_;
+	bool useExternalConfigFile_, enableCaching_, isWorldWritable_, isLocalDrive_;
 	MountState mountState_;
 };
 
@@ -72,8 +75,9 @@ public:
 	MountList();
 	virtual ~MountList();
 
-	bool addMount(wxString name, wxString encFSPath, wxString driveLetter,
-		wxString password, bool isWorldWritable, bool isLocalDrive, bool isMounted);
+	bool addMount(wxString name, wxString encFSPath, wxString externalConfigFileName,
+		wxString driveLetter, wxString password, bool useExternalConfigFile,
+		bool enableCaching, bool isWorldWritable, bool isLocalDrive, bool isMounted);
 
 	std::list<MountEntry> &getList() { return mountEntries_; }
 

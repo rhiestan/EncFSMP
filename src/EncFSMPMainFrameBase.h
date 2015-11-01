@@ -28,8 +28,8 @@
 #include <wx/textctrl.h>
 #include <wx/valtext.h>
 #include <wx/filepicker.h>
-#include <wx/choice.h>
 #include <wx/checkbox.h>
+#include <wx/choice.h>
 #include <wx/valgen.h>
 #include <wx/dialog.h>
 #include <wx/radiobox.h>
@@ -57,43 +57,49 @@
 #define ID_OPENEXISTINGFSDIALOG 1018
 #define ID_MOUNTNAMETEXTCTRL 1019
 #define ID_ENCFSPATHDIRPICKER 1020
-#define ID_DRIVELETTERSTATICTEXT 1021
-#define ID_DRIVELETTERCHOICE 1022
-#define ID_STOREPASSWORDCHECKBOX 1023
-#define ID_PASSWORDTEXTCTRL 1024
-#define ID_PASSWORDRETYPETEXTCTRL 1025
-#define ID_WORLDWRITABLESTATICTEXT 1026
-#define ID_WORLDWRITABLECHECKBOX 1027
-#define ID_LOCALDRIVESTATICTEXT 1028
-#define ID_LOCALDRIVECHECKBOX 1029
-#define ID_CREATENEWENCFSDIALOG 1030
-#define ID_ENCFSCONFIGURATIONRADIOBUTTON 1031
-#define ID_CIPHERALGORITHMCHOICE 1032
-#define ID_CIPHERKEYSIZECHOICE 1033
-#define ID_CIPHERBLOCKSIZECHOICE 1034
-#define ID_NAMEENCODINGCHOICE 1035
-#define ID_PERBLOCKHMACCHECKBOX 1036
-#define ID_UNIQUEIVCHECKBOX 1037
-#define ID_CHAINEDIVCHECKBOX 1038
-#define ID_EXTERNALIVCHECKBOX 1039
-#define ID_KEYDERIVATIONDURATIONCHOICE 1040
-#define ID_SHOWENCFSINFODIALOG 1041
-#define ID_ENCFSPATHTEXTCTRL 1042
-#define ID_ENCFSCONFIGVERSIONTEXTCTRL 1043
-#define ID_CIPHERALGORITHMTEXTCTRL 1044
-#define ID_CIPHERKEYSIZETEXTCTRL 1045
-#define ID_CIPHERBLOCKSIZETEXTCTRL 1046
-#define ID_NAMEENCODINGTEXTCTRL 1047
-#define ID_KEYDERIVITERATIONSTEXTCTRL 1048
-#define ID_SALTSIZETEXTCTRL 1049
-#define ID_CHANGEPASSWORDDIALOGBASE 1050
-#define ID_OLDPASSWORDTEXTCTRL 1051
-#define ID_NEWPASSWORDTEXTCTRL 1052
-#define ID_RETYPENEWPASSWORD 1053
-#define ID_PSTORENEWPASSWORDCHECKBOX_ 1054
-#define ID_ENCFSMPERRORLOGBASE 1055
-#define ID_CLEARERRORLISTBUTTON 1056
-#define ID_ERRORLISTTEXTCTRL 1057
+#define ID_USEEXTERNALCONFIGFILESTATICTEXT 1021
+#define ID_USEEXTERNALCONFIGFILECHECKBOX 1022
+#define ID_EXTERNALCONFIGFILENAMESTATICTEXT 1023
+#define ID_EXTERNALCONFIGFILENAMEPICKERCTRL 1024
+#define ID_DRIVELETTERSTATICTEXT 1025
+#define ID_DRIVELETTERCHOICE 1026
+#define ID_STOREPASSWORDCHECKBOX 1027
+#define ID_PASSWORDTEXTCTRL 1028
+#define ID_PASSWORDRETYPETEXTCTRL 1029
+#define ID_WORLDWRITABLESTATICTEXT 1030
+#define ID_WORLDWRITABLECHECKBOX 1031
+#define ID_LOCALDRIVESTATICTEXT 1032
+#define ID_LOCALDRIVECHECKBOX 1033
+#define ID_ENABLECACHINGSTATICTEXT 1034
+#define ID_ENABLECACHINGCHECKBOX 1035
+#define ID_CREATENEWENCFSDIALOG 1036
+#define ID_ENCFSCONFIGURATIONRADIOBUTTON 1037
+#define ID_CIPHERALGORITHMCHOICE 1038
+#define ID_CIPHERKEYSIZECHOICE 1039
+#define ID_CIPHERBLOCKSIZECHOICE 1040
+#define ID_NAMEENCODINGCHOICE 1041
+#define ID_PERBLOCKHMACCHECKBOX 1042
+#define ID_UNIQUEIVCHECKBOX 1043
+#define ID_CHAINEDIVCHECKBOX 1044
+#define ID_EXTERNALIVCHECKBOX 1045
+#define ID_KEYDERIVATIONDURATIONCHOICE 1046
+#define ID_SHOWENCFSINFODIALOG 1047
+#define ID_ENCFSPATHTEXTCTRL 1048
+#define ID_ENCFSCONFIGVERSIONTEXTCTRL 1049
+#define ID_CIPHERALGORITHMTEXTCTRL 1050
+#define ID_CIPHERKEYSIZETEXTCTRL 1051
+#define ID_CIPHERBLOCKSIZETEXTCTRL 1052
+#define ID_NAMEENCODINGTEXTCTRL 1053
+#define ID_KEYDERIVITERATIONSTEXTCTRL 1054
+#define ID_SALTSIZETEXTCTRL 1055
+#define ID_CHANGEPASSWORDDIALOGBASE 1056
+#define ID_OLDPASSWORDTEXTCTRL 1057
+#define ID_NEWPASSWORDTEXTCTRL 1058
+#define ID_RETYPENEWPASSWORD 1059
+#define ID_PSTORENEWPASSWORDCHECKBOX_ 1060
+#define ID_ENCFSMPERRORLOGBASE 1061
+#define ID_CLEARERRORLISTBUTTON 1062
+#define ID_ERRORLISTTEXTCTRL 1063
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class EncFSMPMainFrameBase
@@ -197,6 +203,7 @@ class OpenExistingFSDialogBase : public wxDialog
 		
 		// Private event handlers
 		void _wxFB_OnInitDialog( wxInitDialogEvent& event ){ OnInitDialog( event ); }
+		void _wxFB_OnUseExternalConfigFileCheckBox( wxCommandEvent& event ){ OnUseExternalConfigFileCheckBox( event ); }
 		void _wxFB_OnStorePasswordCheckBox( wxCommandEvent& event ){ OnStorePasswordCheckBox( event ); }
 		void _wxFB_OnCancelButton( wxCommandEvent& event ){ OnCancelButton( event ); }
 		void _wxFB_OnOKButton( wxCommandEvent& event ){ OnOKButton( event ); }
@@ -208,6 +215,10 @@ class OpenExistingFSDialogBase : public wxDialog
 		wxStaticText* m_staticText1;
 		wxStaticText* m_staticText2;
 		wxDirPickerCtrl* pEncFSPathDirPicker_;
+		wxStaticText* pUseExternalConfigFileStaticText_;
+		wxCheckBox* pUseExternalConfigFileCheckBox_;
+		wxStaticText* pExternalConfigFileNameStaticText_;
+		wxFilePickerCtrl* pExternalConfigFileNamePickerCtrl_;
 		wxStaticText* pDriveLetterStaticText_;
 		wxChoice* pDriveLetterChoice_;
 		wxStaticText* m_staticText30;
@@ -217,6 +228,8 @@ class OpenExistingFSDialogBase : public wxDialog
 		wxStaticText* pWorldWritableStaticText_;
 		wxStaticText* pLocalDriveStaticText_;
 		wxCheckBox* pLocalDriveCheckBox_;
+		wxStaticText* pEnableCachingStaticText_;
+		wxCheckBox* pEnableCachingCheckBox_;
 		
 		wxStdDialogButtonSizer* m_sdbSizer1;
 		wxButton* m_sdbSizer1OK;
@@ -224,6 +237,7 @@ class OpenExistingFSDialogBase : public wxDialog
 		
 		// Virtual event handlers, overide them in your derived class
 		virtual void OnInitDialog( wxInitDialogEvent& event ) = 0;
+		virtual void OnUseExternalConfigFileCheckBox( wxCommandEvent& event ) = 0;
 		virtual void OnStorePasswordCheckBox( wxCommandEvent& event ) = 0;
 		virtual void OnCancelButton( wxCommandEvent& event ) = 0;
 		virtual void OnOKButton( wxCommandEvent& event ) = 0;
@@ -254,6 +268,7 @@ class CreateNewEncFSDialogBase : public wxDialog
 	private:
 		
 		// Private event handlers
+		void _wxFB_OnUseExternalConfigFileCheckBox( wxCommandEvent& event ){ OnUseExternalConfigFileCheckBox( event ); }
 		void _wxFB_OnEncFSConfigurationRadioBox( wxCommandEvent& event ){ OnEncFSConfigurationRadioBox( event ); }
 		void _wxFB_OnCipherAlgorithmChoice( wxCommandEvent& event ){ OnCipherAlgorithmChoice( event ); }
 		void _wxFB_OnCancel( wxCommandEvent& event ){ OnCancel( event ); }
@@ -266,6 +281,10 @@ class CreateNewEncFSDialogBase : public wxDialog
 		wxStaticText* m_staticText1;
 		wxStaticText* m_staticText2;
 		wxDirPickerCtrl* pEncFSPathDirPicker_;
+		wxStaticText* pUseExternalConfigFileStaticText_;
+		wxCheckBox* pUseExternalConfigFileCheckBox_;
+		wxStaticText* pExternalConfigFileNameStaticText_;
+		wxFilePickerCtrl* pExternalConfigFileNamePickerCtrl_;
 		wxStaticText* m_staticText25;
 		wxStaticText* m_staticText26;
 		wxTextCtrl* pPasswordRetypeTextCtrl_;
@@ -275,6 +294,8 @@ class CreateNewEncFSDialogBase : public wxDialog
 		wxStaticText* pWorldWritableStaticText_;
 		wxStaticText* pLocalDriveStaticText_;
 		wxCheckBox* pLocalDriveCheckBox_;
+		wxStaticText* pEnableCachingStaticText_;
+		wxCheckBox* pEnableCachingCheckBox_;
 		wxRadioBox* pEncFSConfigurationRadioButton_;
 		
 		wxStaticText* m_staticText16;
@@ -299,6 +320,7 @@ class CreateNewEncFSDialogBase : public wxDialog
 		wxButton* m_sdbSizer2Cancel;
 		
 		// Virtual event handlers, overide them in your derived class
+		virtual void OnUseExternalConfigFileCheckBox( wxCommandEvent& event ) = 0;
 		virtual void OnEncFSConfigurationRadioBox( wxCommandEvent& event ) = 0;
 		virtual void OnCipherAlgorithmChoice( wxCommandEvent& event ) = 0;
 		virtual void OnCancel( wxCommandEvent& event ) = 0;

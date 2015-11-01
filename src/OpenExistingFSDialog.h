@@ -32,16 +32,22 @@ public:
 
 	void setMountList(MountList *pMountList);
 	void setEditMode(const wxString &mountName,
-		const wxString &encFSPath, wchar_t driveLetter,
-		bool isLocalDrive,
-		const wxString &password, bool isWorldWritable);
+		const wxString &encFSPath,
+		bool useExternalConfigFile, wxString externalConfigFileName,
+		wchar_t driveLetter, bool isLocalDrive,
+		const wxString &password, bool isWorldWritable,
+		bool cachingEnabled);
 
+	bool getUseExternalConfigFile() const { return useExternalConfigFile_; }
+	wxString getExternalConfigFileName() const { return externalConfigFileName_; }
 	wchar_t getDriveLetter() const { return driveLetter_; }
 	wxString getEncFSPath() const { return encFSPath_; }
 	bool getIsLocalDrive() const { return isLocalDrive_; }
+	bool getCachingEnabled() const { return cachingEnabled_; }
 
 protected:
 	virtual void OnInitDialog( wxInitDialogEvent& event );
+	virtual void OnUseExternalConfigFileCheckBox( wxCommandEvent& event );
 	virtual void OnStorePasswordCheckBox( wxCommandEvent& event );
 	virtual void OnCancelButton( wxCommandEvent& event );
 	virtual void OnOKButton( wxCommandEvent& event );
@@ -50,9 +56,12 @@ private:
 	MountList *pMountList_;
 
 	bool editMode_;
+	bool useExternalConfigFile_;
+	wxString externalConfigFileName_;
 	wchar_t driveLetter_;
 	wxString encFSPath_;
 	bool isLocalDrive_;
+	bool cachingEnabled_;
 
 	int autoChoice_, noneChoice_;
 

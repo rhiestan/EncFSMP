@@ -192,9 +192,9 @@ int RawFileIO::open(int flags)
     return result;
 }
 
-int RawFileIO::getAttr( efs_stat *stbuf ) const
+int RawFileIO::getAttr( efs_stat *stbuf, void *statCache ) const
 {
-    int res = fs_layer::lstat( name.c_str(), stbuf );
+    int res = fs_layer::stat_cached( name.c_str(), stbuf, statCache );
     int eno = errno;
 
     if(res < 0)

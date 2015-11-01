@@ -118,6 +118,7 @@ public:
 	static int unlink(const char *path);
 	static int rmdir(const char *path);
 	static int stat(const char *path, efs_stat *buffer);
+	static int stat_cached(const char *path, efs_stat *buffer, void *pStatCache);
 	static inline int lstat(const char *path, efs_stat *buffer) {
 		return stat(path, buffer);
 	}

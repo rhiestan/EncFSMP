@@ -33,8 +33,11 @@ public:
 	const static wxString configMountListPath_;
 	const static wxString configNameKey_;
 	const static wxString configEncFSPathKey_;
+	const static wxString configExternalConfigFileKey_;
 	const static wxString configDriveLetterKey_;
 	const static wxString configPasswordKey_;
+	const static wxString configUseExternalConfigFileKey_;
+	const static wxString configEnableCachingKey_;
 	const static wxString configIsWorldWritableKey_;
 	const static wxString configIsLocalDriveKey_;
 	const static wxString configWindowDimensions_;
