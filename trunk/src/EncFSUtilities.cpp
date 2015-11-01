@@ -70,6 +70,7 @@ EncFSUtilities::~EncFSUtilities()
 const int V6SubVersion = 20100713;	// Not optimal just to copy the data, but what can you do?
 
 bool EncFSUtilities::createEncFS(const wxString &encFSPath, const wxString &password,
+	const wxString &externalConfigFileName, bool useExternalConfigFile,
 	const wxString &cipherAlgorithm, long cipherKeySize, long cipherBlockSize,
 	const wxString &nameEncoding, long keyDerivationDuration,
 	bool perBlockHMAC, bool uniqueIV, bool chainedIV, bool externalIV)
@@ -148,18 +149,22 @@ bool EncFSUtilities::createEncFS(const wxString &encFSPath, const wxString &pass
 	}
 
 	std::string rootDir = EncFSUtilities::wxStringToEncFSPath(encFSPath);
-	if(!saveConfig( Config_V6, rootDir, config ))
+	std::string externalConfigFileNameStr = EncFSUtilities::wxStringToEncFSFile(externalConfigFileName);
+
+	if(!saveConfig( Config_V6, rootDir, config, useExternalConfigFile, externalConfigFileNameStr ))
 		return false;
 
 	return true;
 }
 
-bool EncFSUtilities::getEncFSInfo(const wxString &encFSPath, EncFSInfo &info)
+bool EncFSUtilities::getEncFSInfo(const wxString &encFSPath, const wxString &externalConfigFileName,
+		bool useExternalConfigFile, EncFSInfo &info)
 {
 	std::string rootDir = wxStringToEncFSPath(encFSPath);
+	std::string externalConfigFileNameStr = wxStringToEncFSFile(externalConfigFileName);
 	boost::shared_ptr<EncFSConfig> config(new EncFSConfig);
 
-	ConfigType type = readConfig( rootDir, config );
+	ConfigType type = readConfig( rootDir, config, useExternalConfigFile, externalConfigFileNameStr );
 	switch(type)
 	{
 	case Config_None:
@@ -215,12 +220,14 @@ bool EncFSUtilities::getEncFSInfo(const wxString &encFSPath, EncFSInfo &info)
 }
 
 bool EncFSUtilities::changePassword(const wxString &encFSPath,
+	const wxString &externalConfigFileName, bool useExternalConfigFile,
 	const wxString &oldPassword, const wxString &newPassword, wxString &errorMsg)
 {
 	std::string rootDir = wxStringToEncFSPath(encFSPath);
+	std::string externalConfigFileNameStr = wxStringToEncFSFile(externalConfigFileName);
 
 	boost::shared_ptr<EncFSConfig> config(new EncFSConfig);
-	ConfigType cfgType = readConfig( rootDir, config );
+	ConfigType cfgType = readConfig( rootDir, config, useExternalConfigFile, externalConfigFileNameStr );
 	if(cfgType == Config_None)
 	{
 		errorMsg = wxT("Unable to load or parse config file");
@@ -268,7 +275,7 @@ bool EncFSUtilities::changePassword(const wxString &encFSPath,
 		config->assignKeyData( keyBuf, encodedKeySize );
 		delete [] keyBuf;
 
-		if(saveConfig( cfgType, rootDir, config ))
+		if(saveConfig( cfgType, rootDir, config, useExternalConfigFile, externalConfigFileNameStr ))
 		{
 			// password modified -- changes volume key of filesystem..
 			errorMsg = wxT("Volume Key successfully updated.");
@@ -298,7 +305,7 @@ static bool exportFile(const boost::shared_ptr<EncFS_Root> &rootInfo,
 		return false;
 
 	efs_stat st;
-	if(node->getAttr(&st) != 0)
+	if(node->getAttr(&st, 0) != 0)
 		return false;
 
 	if(node->open(O_RDONLY) < 0)
@@ -336,7 +343,7 @@ static bool exportDir(const boost::shared_ptr<EncFS_Root> &rootInfo,
 		efs_stat st;
 		boost::shared_ptr<FileNode> dirNode = 
 			rootInfo->root->lookupNode( volumeDir.c_str(), "EncFSMP" );
-		if(dirNode->getAttr(&st))
+		if(dirNode->getAttr(&st, 0))
 			return false;
 
 		fs_layer::mkdir(destDir.c_str(), st.st_mode);
@@ -387,6 +394,7 @@ static bool exportDir(const boost::shared_ptr<EncFS_Root> &rootInfo,
 }
 
 bool EncFSUtilities::exportEncFS(const wxString &encFSPath,
+	const wxString &externalConfigFileName, bool useExternalConfigFile,
 	const wxString &password, const wxString &exportPath, wxString &errorMsg)
 {
 	std::string rootDir = wxStringToEncFSPath(encFSPath);
@@ -397,6 +405,8 @@ bool EncFSUtilities::exportEncFS(const wxString &encFSPath,
 	opts->createIfNotFound = false;
 	opts->checkKey = false;
 	opts->passwordProgram = std::string(password.mb_str());
+	opts->externalConfigFileName = EncFSUtilities::wxStringToEncFSFile(externalConfigFileName);
+	opts->useExternalConfigFile = useExternalConfigFile;
 	RootPtr rootInfo = initFS( NULL, opts, ostr );
 
 	if(!rootInfo)
@@ -438,3 +448,20 @@ std::string EncFSUtilities::wxStringToEncFSPath(const wxString &path)
 	return pathUTF8;
 }
 
+std::string EncFSUtilities::wxStringToEncFSFile(const wxString &path)
+{
+	std::wstring pathUTF16(path.c_str());
+#if defined(EFS_WIN32)
+	// Replace all \ with /
+	//boost::replace_all(pathUTF16, L"\\", L"/");
+	for(size_t i = 0; i < pathUTF16.length(); i++)
+	{
+		if(pathUTF16[i] == L'\\')
+			pathUTF16[i] = L'/';
+	}
+#endif
+
+	std::string pathUTF8 = boost::locale::conv::utf_to_utf<char>(pathUTF16.c_str());
+
+	return pathUTF8;
+}

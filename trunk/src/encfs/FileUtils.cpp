@@ -394,24 +394,31 @@ ConfigType readConfig_load( ConfigInfo *nm, const char *path,
 }
 
 ConfigType readConfig( const string &rootDir, 
-        const boost::shared_ptr<EncFSConfig> &config )
+        const boost::shared_ptr<EncFSConfig> &config,
+		bool useExternalConfigFile, const std::string &externalConfigFileName)
 {
     ConfigInfo *nm = ConfigFileMapping;
     while(nm->fileName)
     {
-	// allow environment variable to override default config path
-	if( nm->environmentOverride != NULL )
-	{
-	    char *envFile = getenv( nm->environmentOverride );
-	    if( envFile != NULL )
-		return readConfig_load( nm, envFile, config );
-	}
-	// the standard place to look is in the root directory
-	string path = rootDir + nm->fileName;
-	if( fileExists( path.c_str() ) )
-	    return readConfig_load( nm, path.c_str(), config);
+        // allow environment variable to override default config path
+        if( nm->environmentOverride != NULL )
+        {
+            char *envFile = getenv( nm->environmentOverride );
+            if( envFile != NULL )
+                return readConfig_load( nm, envFile, config );
+        }
+        // Added by R. Hiestand
+        if( useExternalConfigFile )
+        {
+            if( fileExists( externalConfigFileName.c_str() ) )
+				return readConfig_load( nm, externalConfigFileName.c_str(), config );
+        }
+	    // the standard place to look is in the root directory
+        string path = rootDir + nm->fileName;
+        if( fileExists( path.c_str() ) )
+            return readConfig_load( nm, path.c_str(), config);
 
-	++nm;
+        ++nm;
     }
 
     return Config_None;
@@ -544,7 +551,8 @@ bool readV4Config( const char *configFile,
 }
 
 bool saveConfig( ConfigType type, const string &rootDir,
-	const boost::shared_ptr<EncFSConfig> &config )
+	const boost::shared_ptr<EncFSConfig> &config,
+	bool useExternalConfigFile, const std::string &externalConfigFileName)
 {
     bool ok = false;
 
@@ -561,6 +569,10 @@ bool saveConfig( ConfigType type, const string &rootDir,
 		if( envFile != NULL )
 		    path.assign( envFile );
 	    }
+
+        // Added by R. Hiestand
+        if(useExternalConfigFile)
+            path.assign( externalConfigFileName );
 
 	    try
 	    {
@@ -1230,7 +1242,7 @@ RootPtr createV6Config( EncFS_Context *ctx,
 	return rootInfo;
     }
 
-    if(!saveConfig( Config_V6, rootDir, config ))
+    if(!saveConfig( Config_V6, rootDir, config, false, "" ))
 	return rootInfo;
 
     // fill in config struct
@@ -1638,7 +1650,7 @@ RootPtr initFS( EncFS_Context *ctx, const boost::shared_ptr<EncFS_Opts> &opts,
     RootPtr rootInfo;
     boost::shared_ptr<EncFSConfig> config(new EncFSConfig);
 
-    if(readConfig( opts->rootDir, config ) != Config_None)
+    if(readConfig( opts->rootDir, config, opts->useExternalConfigFile, opts->externalConfigFileName ) != Config_None)
     {
 	if(opts->reverseEncryption)
 	{

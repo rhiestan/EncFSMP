@@ -34,7 +34,10 @@ public:
 
 	wchar_t getDriveLetter() const { return driveLetter_; }
 	wxString getEncFSPath() const { return encFSPath_; }
+	bool getUseExternalConfigFile() const { return useExternalConfigFile_; }
+	wxString getExternalConfigFileName() const { return externalConfigFileName_; }
 	bool getIsLocalDrive() const { return isLocalDrive_; }
+	bool getCachingEnabled() const { return cachingEnabled_; }
 	wxString getCipherAlgorithm() const { return cipherAlgorithm_; }
 	long getCipherKeySize() const { return cipherKeySize_; }
 	long getCipherBlockSize() const { return cipherBlockSize_; }
@@ -42,6 +45,7 @@ public:
 	long getKeyDerivationDuration() const { return keyDerivationDuration_; }
 
 protected:
+	virtual void OnUseExternalConfigFileCheckBox( wxCommandEvent& event );
 	virtual void OnEncFSConfigurationRadioBox( wxCommandEvent& event );
 	virtual void OnCipherAlgorithmChoice( wxCommandEvent& event );
 	virtual void OnCancel( wxCommandEvent& event );
@@ -52,7 +56,10 @@ private:
 
 	wchar_t driveLetter_;
 	wxString encFSPath_;
+	bool useExternalConfigFile_;
+	wxString externalConfigFileName_;
 	bool isLocalDrive_;
+	bool cachingEnabled_;
 	wxString cipherAlgorithm_;
 	long cipherKeySize_;
 	long cipherBlockSize_;

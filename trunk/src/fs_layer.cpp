@@ -24,6 +24,7 @@
 
 #include "fs_layer.h"
 #include "efs_config.h"
+#include "FileStatCache.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -731,6 +732,21 @@ int fs_layer::stat(const char *fn, efs_stat *buf)
 	buf->st_ctime = lwt;
 
 	return 0;
+}
+
+int fs_layer::stat_cached(const char *path, efs_stat *buffer, void *pStatCache)
+{
+	int ret = 0;
+	if(pStatCache != NULL)
+	{
+		FileStatCache *pFileStatCache = reinterpret_cast<FileStatCache*>(pStatCache);
+		ret = pFileStatCache->stat(path, buffer);
+	}
+	else
+	{
+		ret = stat(path, buffer);
+	}
+	return ret;
 }
 
 int fs_layer::chmod(const char* fn, int mode)

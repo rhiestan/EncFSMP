@@ -25,6 +25,9 @@ class DirTraverse;
 #include "config.h"
 
 #include <list>
+#include <map>
+
+#include "FileStatCache.h"
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -59,7 +62,7 @@ public:
 	virtual ~PFMLayer();
 
 	void startFS(RootPtr rootFS, const wchar_t *mountDir, PfmApi *pfmApi,
-		wchar_t driveLetter, bool worldWrite, bool localDrive, 
+		wchar_t driveLetter, bool useCaching, bool worldWrite, bool localDrive, 
 		bool startBrowser, std::ostream &ostr);
 
 	// PfmFormatterOps
@@ -159,31 +162,7 @@ public:
 		std::list<FileList> fileLists_;			// For directories
 	};
 
-	/**
-	 * Class to hold file name <-> file id correlation.
-	 */
-	class FileID
-	{
-	public:
-		FileID(): fileID_(0) { }
-		FileID(const FileID &o) { copy(o); }
-		virtual ~FileID() { }
-		FileID &copy(const FileID &o)
-		{
-			fileID_ = o.fileID_;
-			pathName_ = o.pathName_;
-			return *this;
-		}
-		FileID & operator=(const FileID & o)
-		{
-			return copy(o);
-		}
-
-		int64_t fileID_;
-		std::string pathName_;
-	};
-
-	FileID *getFileID(const std::string &path);
+	int64_t getFileID(const std::string &path);
 	int64_t addFileID(const std::string &path);
 	bool renameFileID(int64_t fileId, const std::string &newpath);
 	bool deleteFileID(int64_t fileId);
@@ -214,18 +193,25 @@ public:
 	bool isSkippedFile(const std::string &fileName);
 	PT_INT8 determineAccessLevel(bool isReadOnly, PT_INT8 requestedAccessLevel);
 	void printOpenFiles(const char *msg);
+	void addOpenFile(const OpenFile &of);
+	bool renameOpenFile(OpenFile *pOpenFile, const std::string &newPath);
 
 private:
-
-	// TODO: Mutex
 
 	PfmMarshaller* marshaller;
 
 	RootPtr rootFS_;
 
-	std::list< OpenFile > openFiles_;
+	typedef std::map< int64_t, OpenFile > OpenFileMapType;
+	OpenFileMapType openFiles_;
+	typedef std::map< std::string, int64_t > OpenIdMapType;
+	OpenIdMapType openIdMap_;
 	int64_t newFileID_;
-	std::list< FileID > fileIDs_;
+
+	typedef std::map< std::string, int64_t > FileIDMap;
+	FileIDMap fileIDs_;
+
+	FileStatCache fileStatCache_;
 
 	std::wstring mountName_;
 };

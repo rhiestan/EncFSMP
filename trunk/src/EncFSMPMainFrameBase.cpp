@@ -149,6 +149,7 @@ EncFSMPMainFrameBase::~EncFSMPMainFrameBase()
 
 BEGIN_EVENT_TABLE( OpenExistingFSDialogBase, wxDialog )
 	EVT_INIT_DIALOG( OpenExistingFSDialogBase::_wxFB_OnInitDialog )
+	EVT_CHECKBOX( ID_USEEXTERNALCONFIGFILECHECKBOX, OpenExistingFSDialogBase::_wxFB_OnUseExternalConfigFileCheckBox )
 	EVT_CHECKBOX( ID_STOREPASSWORDCHECKBOX, OpenExistingFSDialogBase::_wxFB_OnStorePasswordCheckBox )
 	EVT_BUTTON( wxID_CANCEL, OpenExistingFSDialogBase::_wxFB_OnCancelButton )
 	EVT_BUTTON( wxID_OK, OpenExistingFSDialogBase::_wxFB_OnOKButton )
@@ -166,7 +167,7 @@ OpenExistingFSDialogBase::OpenExistingFSDialogBase( wxWindow* parent, wxWindowID
 	wxBoxSizer* bSizer13;
 	bSizer13 = new wxBoxSizer( wxVERTICAL );
 	
-	pFlexGridSizer_ = new wxFlexGridSizer( 8, 2, 0, 0 );
+	pFlexGridSizer_ = new wxFlexGridSizer( 11, 2, 0, 0 );
 	pFlexGridSizer_->AddGrowableCol( 1 );
 	pFlexGridSizer_->SetFlexibleDirection( wxBOTH );
 	pFlexGridSizer_->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
@@ -187,6 +188,22 @@ OpenExistingFSDialogBase::OpenExistingFSDialogBase( wxWindow* parent, wxWindowID
 	
 	pEncFSPathDirPicker_ = new wxDirPickerCtrl( m_panel3, ID_ENCFSPATHDIRPICKER, wxEmptyString, wxT("Select a folder"), wxDefaultPosition, wxDefaultSize, wxDIRP_DEFAULT_STYLE );
 	pFlexGridSizer_->Add( pEncFSPathDirPicker_, 0, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
+	
+	pUseExternalConfigFileStaticText_ = new wxStaticText( m_panel3, ID_USEEXTERNALCONFIGFILESTATICTEXT, wxT("Use external config file:"), wxDefaultPosition, wxDefaultSize, 0 );
+	pUseExternalConfigFileStaticText_->Wrap( -1 );
+	pFlexGridSizer_->Add( pUseExternalConfigFileStaticText_, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
+	
+	pUseExternalConfigFileCheckBox_ = new wxCheckBox( m_panel3, ID_USEEXTERNALCONFIGFILECHECKBOX, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	pUseExternalConfigFileCheckBox_->SetToolTip( wxT("Advanced feature. Use a config file which is stored in a directory separate from the encrypted directory.") );
+	
+	pFlexGridSizer_->Add( pUseExternalConfigFileCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+	
+	pExternalConfigFileNameStaticText_ = new wxStaticText( m_panel3, ID_EXTERNALCONFIGFILENAMESTATICTEXT, wxT("External config file:"), wxDefaultPosition, wxDefaultSize, 0 );
+	pExternalConfigFileNameStaticText_->Wrap( -1 );
+	pFlexGridSizer_->Add( pExternalConfigFileNameStaticText_, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
+	
+	pExternalConfigFileNamePickerCtrl_ = new wxFilePickerCtrl( m_panel3, ID_EXTERNALCONFIGFILENAMEPICKERCTRL, wxEmptyString, wxT("Select an external config file"), wxT("*.*"), wxDefaultPosition, wxDefaultSize, wxFLP_DEFAULT_STYLE );
+	pFlexGridSizer_->Add( pExternalConfigFileNamePickerCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
 	
 	pDriveLetterStaticText_ = new wxStaticText( m_panel3, ID_DRIVELETTERSTATICTEXT, wxT("Drive letter:"), wxDefaultPosition, wxDefaultSize, 0 );
 	pDriveLetterStaticText_->Wrap( -1 );
@@ -244,6 +261,15 @@ OpenExistingFSDialogBase::OpenExistingFSDialogBase( wxWindow* parent, wxWindowID
 	
 	pFlexGridSizer_->Add( pLocalDriveCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
+	pEnableCachingStaticText_ = new wxStaticText( m_panel3, ID_ENABLECACHINGSTATICTEXT, wxT("Enable caching:"), wxDefaultPosition, wxDefaultSize, 0 );
+	pEnableCachingStaticText_->Wrap( -1 );
+	pFlexGridSizer_->Add( pEnableCachingStaticText_, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
+	
+	pEnableCachingCheckBox_ = new wxCheckBox( m_panel3, ID_ENABLECACHINGCHECKBOX, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	pEnableCachingCheckBox_->SetToolTip( wxT("Switches on caching. Only enable if no concurrent access to the underlying encrypted folder occurs.") );
+	
+	pFlexGridSizer_->Add( pEnableCachingCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+	
 	bSizer13->Add( pFlexGridSizer_, 0, wxALL|wxEXPAND, 3 );
 	
 	
@@ -273,6 +299,7 @@ OpenExistingFSDialogBase::~OpenExistingFSDialogBase()
 }
 
 BEGIN_EVENT_TABLE( CreateNewEncFSDialogBase, wxDialog )
+	EVT_CHECKBOX( ID_USEEXTERNALCONFIGFILECHECKBOX, CreateNewEncFSDialogBase::_wxFB_OnUseExternalConfigFileCheckBox )
 	EVT_RADIOBOX( ID_ENCFSCONFIGURATIONRADIOBUTTON, CreateNewEncFSDialogBase::_wxFB_OnEncFSConfigurationRadioBox )
 	EVT_CHOICE( ID_CIPHERALGORITHMCHOICE, CreateNewEncFSDialogBase::_wxFB_OnCipherAlgorithmChoice )
 	EVT_BUTTON( wxID_CANCEL, CreateNewEncFSDialogBase::_wxFB_OnCancel )
@@ -291,7 +318,7 @@ CreateNewEncFSDialogBase::CreateNewEncFSDialogBase( wxWindow* parent, wxWindowID
 	wxBoxSizer* bSizer14;
 	bSizer14 = new wxBoxSizer( wxVERTICAL );
 	
-	pFlexGridSizer_ = new wxFlexGridSizer( 8, 2, 0, 0 );
+	pFlexGridSizer_ = new wxFlexGridSizer( 11, 2, 0, 0 );
 	pFlexGridSizer_->AddGrowableCol( 1 );
 	pFlexGridSizer_->SetFlexibleDirection( wxBOTH );
 	pFlexGridSizer_->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
@@ -312,6 +339,22 @@ CreateNewEncFSDialogBase::CreateNewEncFSDialogBase( wxWindow* parent, wxWindowID
 	
 	pEncFSPathDirPicker_ = new wxDirPickerCtrl( m_panel4, ID_ENCFSPATHDIRPICKER, wxEmptyString, wxT("Select a folder"), wxDefaultPosition, wxDefaultSize, wxDIRP_DEFAULT_STYLE );
 	pFlexGridSizer_->Add( pEncFSPathDirPicker_, 1, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
+	
+	pUseExternalConfigFileStaticText_ = new wxStaticText( m_panel4, ID_USEEXTERNALCONFIGFILESTATICTEXT, wxT("Use external config file:"), wxDefaultPosition, wxDefaultSize, 0 );
+	pUseExternalConfigFileStaticText_->Wrap( -1 );
+	pFlexGridSizer_->Add( pUseExternalConfigFileStaticText_, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
+	
+	pUseExternalConfigFileCheckBox_ = new wxCheckBox( m_panel4, ID_USEEXTERNALCONFIGFILECHECKBOX, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	pUseExternalConfigFileCheckBox_->SetToolTip( wxT("Advanced feature. Use a config file which is stored in a directory separate from the encrypted directory.") );
+	
+	pFlexGridSizer_->Add( pUseExternalConfigFileCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+	
+	pExternalConfigFileNameStaticText_ = new wxStaticText( m_panel4, ID_EXTERNALCONFIGFILENAMESTATICTEXT, wxT("External config file:"), wxDefaultPosition, wxDefaultSize, 0 );
+	pExternalConfigFileNameStaticText_->Wrap( -1 );
+	pFlexGridSizer_->Add( pExternalConfigFileNameStaticText_, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 2 );
+	
+	pExternalConfigFileNamePickerCtrl_ = new wxFilePickerCtrl( m_panel4, ID_EXTERNALCONFIGFILENAMEPICKERCTRL, wxEmptyString, wxT("Select an external config file"), wxT("*.*"), wxDefaultPosition, wxDefaultSize, wxFLP_DEFAULT_STYLE|wxFLP_OVERWRITE_PROMPT|wxFLP_SAVE );
+	pFlexGridSizer_->Add( pExternalConfigFileNamePickerCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
 	
 	m_staticText25 = new wxStaticText( m_panel4, wxID_ANY, wxT("Password:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText25->Wrap( -1 );
@@ -368,6 +411,15 @@ CreateNewEncFSDialogBase::CreateNewEncFSDialogBase( wxWindow* parent, wxWindowID
 	pLocalDriveCheckBox_->SetToolTip( wxT("If checked, the mounted drive will appear as a local drive. If unchecked, it will appear as a network drive.") );
 	
 	pFlexGridSizer_->Add( pLocalDriveCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+	
+	pEnableCachingStaticText_ = new wxStaticText( m_panel4, ID_ENABLECACHINGSTATICTEXT, wxT("Enable caching:"), wxDefaultPosition, wxDefaultSize, 0 );
+	pEnableCachingStaticText_->Wrap( -1 );
+	pFlexGridSizer_->Add( pEnableCachingStaticText_, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
+	
+	pEnableCachingCheckBox_ = new wxCheckBox( m_panel4, ID_ENABLECACHINGCHECKBOX, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	pEnableCachingCheckBox_->SetToolTip( wxT("Switches on caching. Only enable if no concurrent access to the underlying encrypted folder occurs.") );
+	
+	pFlexGridSizer_->Add( pEnableCachingCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
 	bSizer14->Add( pFlexGridSizer_, 0, wxEXPAND, 5 );
 	

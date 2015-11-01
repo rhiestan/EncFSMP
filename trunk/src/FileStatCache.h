@@ -17,32 +17,52 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef PFMHANDLERTHREAD_H
-#define PFMHANDLERTHREAD_H
+#ifndef FILESTATCACHE_H
+#define FILESTATCACHE_H
 
-class PFMHandlerThread: public wxThread
+#include "config.h"
+
+#include <map>
+#include <deque>
+
+// Required for efs_stat
+#include "fs_layer.h"
+
+/**
+ * This class caches results of stat().
+ *
+ * stat() is used many times, and it is helpful to cache its result.
+ */
+class FileStatCache
 {
 public:
-	PFMHandlerThread();
-	virtual ~PFMHandlerThread();
+	FileStatCache();
+	virtual ~FileStatCache();
 
-	void setParameters(const wxString &mountName,
-		const wxString &path, const wxString &externalConfigFile,
-		const wxString &driveLetter,
-		const wxString &password,
-		bool useExternalConfigFile, bool enableCaching,
-		bool worldWrite, bool localDrive, bool startBrowser);
+	void clearCache();
+
+	void setCacheSize(int cacheSize);
+	int getCachesize() const { return cacheSize_; }
+
+	int stat(const char *path, efs_stat *buffer);
+
+	void forgetCachedStat(const char *path);
 
 protected:
-	virtual wxThread::ExitCode Entry();
+	void addStatToCache(const char *path, int retVal, efs_stat *buffer);
 
 private:
-	wxString mountName_;
-	wxString path_;
-	wxString externalConfigFileName_;
-	wxString driveLetter_;
-	wxString password_;
-	bool useExternalConfigFile_, enableCaching_, worldWrite_, localDrive_, startBrowser_;
+	struct CacheEntry
+	{
+		int64_t time_;		// When the stat was made, used for cache eviction
+		efs_stat stat_;
+		int retVal_;		// Return value of stat
+	};
+
+	typedef std::map<std::string, CacheEntry> FileStatCacheType;
+	FileStatCacheType cache_;
+
+	int cacheSize_;
 };
 
 #endif

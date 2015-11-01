@@ -60,10 +60,10 @@ PFMLayer::PFMLayer() :
 PFMLayer::~PFMLayer()
 {
 	// Close openFiles_
-	std::list< OpenFile >::iterator iter = openFiles_.begin();
+	OpenFileMapType::iterator iter = openFiles_.begin();
 	while(iter != openFiles_.end())
 	{
-		OpenFile &cur = *iter;
+		OpenFile &cur = iter->second;
 
 		// Save some attributes for later.
 		// Reason: We need the file to be closed in order to delete it.
@@ -74,6 +74,7 @@ PFMLayer::~PFMLayer()
 
 		// The file is closed. Remove from the list of open files
 		openFiles_.erase(iter);
+		openIdMap_.erase(pathName);
 		// Don't access cur after this point
 
 		if(isDeleted)
@@ -102,11 +103,15 @@ PFMLayer::~PFMLayer()
 }
 
 void PFMLayer::startFS(RootPtr rootFS, const wchar_t *mountDir, PfmApi *pfmApi,
-	wchar_t driveLetter, bool worldWrite, bool localDrive,
+	wchar_t driveLetter, bool useCaching, bool worldWrite, bool localDrive,
 	bool startBrowser, std::ostream &ostr)
 {
 	rootFS_ = rootFS;
 	mountName_ = mountDir;
+	if(useCaching)
+		fileStatCache_.setCacheSize(1000);
+	else
+		fileStatCache_.setCacheSize(0);
 
 	// The following code is copied mostly from the Pismo File Mount's example code tempfs.cpp
 	int error = 0;
@@ -117,7 +122,7 @@ void PFMLayer::startFS(RootPtr rootFS, const wchar_t *mountDir, PfmApi *pfmApi,
 
 	PfmMountCreateParams_Init(&mcp);
 	mcp.mountSourceName = mountDir;
-	mcp.mountFlags |= pfmMountFlagUncOnly | pfmMountFlagUnmountOnRelease;
+	mcp.mountFlags |= pfmMountFlagUncOnly | pfmMountFlagUnmountOnRelease;	// | pfmMountFlagWorldOwned;
 	if(localDrive)
 		mcp.mountFlags |= pfmMountFlagLocalDriveType;
 	if(startBrowser)
@@ -240,31 +245,46 @@ int/*error*/ CCALL PFMLayer::Open(const PfmNamePart* nameParts, size_t namePartC
 	}
 
 	// Check whether parent folder exists
-	// First, look in open files
-	bool parentFolderFound = false;
-	OpenFile *pParentOpenFile = findOpenFileByName(parentFolder);
-	if(pParentOpenFile != NULL
-		&& !pParentOpenFile->isFile_)
+
+	// Root folder always exists
+	if(parentFolder.empty())
 	{
-		parentFolderFound = true;
 		if(parentFileId != NULL)
-			(*parentFileId) = pParentOpenFile->fileId_;
+			(*parentFileId) = 0;	// Special fileId for "parent" of root
 	}
-
-	if(!parentFolderFound)
+	else if(parentFolder == "/")
 	{
-		// Not found in open files, look on file system
-		std::string cipherPath = rootFS_->root->cipherPath(parentFolder.c_str());
-		efs_stat stat;
-		int ret = fs_layer::stat(cipherPath.c_str(), &stat);
-		if(ret != 0)
-			return pfmErrorParentNotFound;
-		if((stat.st_mode & S_IFDIR) == 0)	// Check whether it is a directory
-			return pfmErrorParentNotFound;
-
 		if(parentFileId != NULL)
 			(*parentFileId) = createFileId(parentFolder);
+	}
+	else
+	{
+		// Look in open files
+		bool parentFolderFound = false;
+		OpenFile *pParentOpenFile = findOpenFileByName(parentFolder);
+		if(pParentOpenFile != NULL
+			&& !pParentOpenFile->isFile_)
+		{
+			parentFolderFound = true;
+			if(parentFileId != NULL)
+				(*parentFileId) = pParentOpenFile->fileId_;
+		}
 
+		if(!parentFolderFound)
+		{
+			// Not found in open files, look on file system
+			std::string cipherPath = rootFS_->root->cipherPath(parentFolder.c_str());
+			efs_stat stat;
+			int ret = fileStatCache_.stat(cipherPath.c_str(), &stat);
+			if(ret != 0)
+				return pfmErrorParentNotFound;
+			if((stat.st_mode & S_IFDIR) == 0)	// Check whether it is a directory
+				return pfmErrorParentNotFound;
+
+			if(parentFileId != NULL)
+				(*parentFileId) = createFileId(parentFolder);
+
+		}
 	}
 
 	int retVal = pfmErrorNotFound;
@@ -301,7 +321,7 @@ int/*error*/ CCALL PFMLayer::Open(const PfmNamePart* nameParts, size_t namePartC
 	{
 		std::string cipherPath = rootFS_->root->cipherPath(path.c_str());
 		efs_stat stat;
-		int ret = fs_layer::stat(cipherPath.c_str(), &stat);
+		int ret = fileStatCache_.stat(cipherPath.c_str(), &stat);
 		if(ret == 0
 			&& (stat.st_mode & S_IFDIR))	// Check whether it is a directory
 			isDir = true;
@@ -637,56 +657,54 @@ int/*error*/ CCALL PFMLayer::Delete(int64_t openId,int64_t parentFileId,const Pf
 
 int/*error*/ CCALL PFMLayer::Close(int64_t openId,int64_t openSequence)
 {
-	std::list< OpenFile >::iterator iter = openFiles_.begin();
-	while(iter != openFiles_.end())
+	OpenFileMapType::iterator iter = openFiles_.find(openId);
+	if(iter != openFiles_.end())
 	{
-		OpenFile &cur = *iter;
+		OpenFile &cur = iter->second;
 
-		if(cur.openId_ == openId)
+		if(openSequence >= cur.sequenceId_)
 		{
-			if(openSequence >= cur.sequenceId_)
+			// Save some attributes for later.
+			// Reason: We need the file to be closed in order to delete it.
+			// To close it, we have to delete the OpenFile instance.
+			bool isDeleted = cur.isDeleted_;
+			bool isFile = cur.isFile_;
+			std::string pathName = cur.pathName_;
+
+			// The file is closed. Remove from the list of open files
+			openFiles_.erase(iter);
+			openIdMap_.erase(pathName);
+			// Don't access cur after this point
+
+			if(isDeleted)
 			{
-				// Save some attributes for later.
-				// Reason: We need the file to be closed in order to delete it.
-				// To close it, we have to delete the OpenFile instance.
-				bool isDeleted = cur.isDeleted_;
-				bool isFile = cur.isFile_;
-				std::string pathName = cur.pathName_;
-
-				// The file is closed. Remove from the list of open files
-				openFiles_.erase(iter);
-				// Don't access cur after this point
-
-				if(isDeleted)
+				try
 				{
-					try
+					if(isFile)
 					{
-						if(isFile)
-						{
-							std::cout << "Unlink: " << pathName.c_str() << std::endl;
-							int retVal = rootFS_->root->unlink(pathName.c_str());
-							std::cout << "retVal: " << retVal << std::endl;
-						}
-						else
-						{
-							std::string cipherPathName = rootFS_->root->cipherPath(pathName.c_str());
-							if(fs_layer::rmdir(cipherPathName.c_str()) < 0)
-							{
-								fs_layer::chmod(cipherPathName.c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH);
-								fs_layer::rmdir(cipherPathName.c_str());
-							}
-						}
+						int retVal = rootFS_->root->unlink(pathName.c_str());
+						if(retVal != 0)												// See above: Is file is not closed, delete does not work
+							throw rlog::Error("PFMLayer::Close", __FILE__,
+								__FUNCTION__, __LINE__, "Could not delete file");
 					}
-					catch( rlog::Error &err )
+					else
 					{
-						reportEncFSMPErr(L"File deletion failed", pathName, err);
+						std::string cipherPathName = rootFS_->root->cipherPath(pathName.c_str());
+						if(fs_layer::rmdir(cipherPathName.c_str()) < 0)
+						{
+							fs_layer::chmod(cipherPathName.c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH);
+							fs_layer::rmdir(cipherPathName.c_str());
+						}
 					}
 				}
-
+				catch( rlog::Error &err )
+				{
+					reportEncFSMPErr(L"File deletion failed", pathName, err);
+				}
 			}
-			return 0;
+
 		}
-		iter++;
+		return 0;
 	}
 	return pfmErrorFailed;
 }
@@ -706,7 +724,7 @@ int/*error*/ CCALL PFMLayer::FlushFile(int64_t openId,uint8_t flushFlags,uint8_t
 
 			// Change read only flag
 			efs_stat buf;
-			if(fs_layer::stat(cipherName, &buf) < 0)
+			if(fileStatCache_.stat(cipherName, &buf) < 0)
 				return pfmErrorFailed;
 			int mode = buf.st_mode;
 
@@ -722,6 +740,8 @@ int/*error*/ CCALL PFMLayer::FlushFile(int64_t openId,uint8_t flushFlags,uint8_t
 			}
 			if(fs_layer::chmod(cipherName, mode) < 0)
 				return pfmErrorFailed;
+
+			fileStatCache_.forgetCachedStat(cipherName);
 		}
 
 		if(writeTime != pfmTimeInvalid)
@@ -741,6 +761,8 @@ int/*error*/ CCALL PFMLayer::FlushFile(int64_t openId,uint8_t flushFlags,uint8_t
 			pOpenFile->changeTime_ = writeTime;
 			pOpenFile->writeTime_ = writeTime;
 			pOpenFile->createTime_ = writeTime;
+
+			fileStatCache_.forgetCachedStat(cipherName);
 		}
 	}
 
@@ -828,7 +850,7 @@ int/*error*/ CCALL PFMLayer::List(int64_t openId,int64_t listId,PfmMarshallerLis
 					{
 						efs_stat buf;
 
-						if( !fs_layer::lstat( cpath.c_str(), &buf ))
+						if( !fileStatCache_.stat(cpath.c_str(), &buf) )		//fs_layer::lstat( cpath.c_str(), &buf ))
 						{
 							uint8_t needMore = 1;
 							PfmAttribs attribs;
@@ -866,7 +888,7 @@ int/*error*/ CCALL PFMLayer::List(int64_t openId,int64_t listId,PfmMarshallerLis
 									OpenFile *pOpenFile = findOpenFileByName(plainPath);
 									if(pOpenFile != NULL)
 									{
-										int err = pOpenFile->fileNode_->getAttr(&buf_ue);
+										int err = pOpenFile->fileNode_->getAttr(&buf_ue, &fileStatCache_);
 										if(err == 0)
 											getAttrSuccess = true;
 									}
@@ -879,7 +901,7 @@ int/*error*/ CCALL PFMLayer::List(int64_t openId,int64_t listId,PfmMarshallerLis
 											rootFS_->root->lookupNode( plainPath.c_str(), "open" );
 										if(fileNode)
 										{
-											int err = fileNode->getAttr(&buf_ue);
+											int err = fileNode->getAttr(&buf_ue, &fileStatCache_);
 											if(err == 0)
 												getAttrSuccess = true;
 										}
@@ -1016,6 +1038,9 @@ int/*error*/ CCALL PFMLayer::Write(int64_t openId,uint64_t fileOffset,const void
 		return pfmErrorFailed;
 	}
 
+	// Size and/or last write time has changed, forget cached file stat
+	fileStatCache_.forgetCachedStat( fileNode->cipherName() );
+
 	return 0;
 }
 
@@ -1044,6 +1069,9 @@ int/*error*/ CCALL PFMLayer::SetSize(int64_t openId,uint64_t fileSize)
 		reportEncFSMPErr(L"Error during SetSize operation", pOpenFile->pathName_, err);
 		return pfmErrorFailed;
 	}
+
+	// Size has changed, forget cached file stat
+	fileStatCache_.forgetCachedStat( fileNode->cipherName() );
 
 	pOpenFile->fileSize_ = fileSize;
 	return 0;
@@ -1125,28 +1153,19 @@ int/*error*/ CCALL PFMLayer::Access(int64_t openId,int8_t accessLevel,PfmOpenAtt
 	return 0;
 }
 
-PFMLayer::FileID *PFMLayer::getFileID(const std::string &path)
+int64_t PFMLayer::getFileID(const std::string &path)
 {
-	std::list< FileID >::iterator iter = fileIDs_.begin();
-	while(iter != fileIDs_.end())
-	{
-		FileID *pCur = &(*iter);
-		if(fs_layer::is_same_path(pCur->pathName_, path))
-			return pCur;
+	FileIDMap::const_iterator iter = fileIDs_.find(path);
+	if(iter == fileIDs_.end())
+		return -1;
 
-		iter++;
-	}
-
-	return NULL;
+	return iter->second;
 }
 
 int64_t PFMLayer::addFileID(const std::string &path)
 {
-	FileID newFileID;
-	newFileID.pathName_ = path;
-	newFileID.fileID_ = newFileID_++;
-	fileIDs_.push_back(newFileID);
-
+	int64_t newID = newFileID_++;
+	fileIDs_[path] = newID;
 
 /*
 	std::stringstream ostr;
@@ -1156,18 +1175,19 @@ int64_t PFMLayer::addFileID(const std::string &path)
 	OutputDebugStringA(debugString.c_str());
 #endif
 */
-	return newFileID.fileID_;
+	return newID;
 }
 
 bool PFMLayer::renameFileID(int64_t fileId, const std::string &newpath)
 {
-	std::list< FileID >::iterator iter = fileIDs_.begin();
+	FileIDMap::iterator iter = fileIDs_.begin();
 	while(iter != fileIDs_.end())
 	{
-		FileID *pCur = &(*iter);
-		if(pCur->fileID_ == fileId)
+		int64_t curFileId = iter->second;
+		if(curFileId == fileId)
 		{
-			pCur->pathName_ = newpath;
+			fileIDs_.erase(iter);
+			fileIDs_[newpath] = fileId;
 			return true;
 		}
 
@@ -1179,11 +1199,11 @@ bool PFMLayer::renameFileID(int64_t fileId, const std::string &newpath)
 
 bool PFMLayer::deleteFileID(int64_t fileId)
 {
-	std::list< FileID >::iterator iter = fileIDs_.begin();
+	FileIDMap::iterator iter = fileIDs_.begin();
 	while(iter != fileIDs_.end())
 	{
-		FileID *pCur = &(*iter);
-		if(pCur->fileID_ == fileId)
+		int64_t curFileId = iter->second;
+		if(curFileId == fileId)
 		{
 			fileIDs_.erase(iter);
 			return true;
@@ -1197,52 +1217,32 @@ bool PFMLayer::deleteFileID(int64_t fileId)
 
 PFMLayer::OpenFile *PFMLayer::getOpenFile(int64_t openId)
 {
-	PFMLayer::OpenFile *pOpenFile = NULL;
-
-	std::list< OpenFile >::iterator iter = openFiles_.begin();
-	while(iter != openFiles_.end())
-	{
-		OpenFile &cur = *iter;
-		if(cur.openId_ == openId)
-		{
-			return &cur;
-		}
-
-		iter++;
-	}
+	OpenFileMapType::iterator iter = openFiles_.find(openId);
+	if(iter != openFiles_.end())
+		return &(iter->second);
 
 	return NULL;
 }
 
 PFMLayer::OpenFile *PFMLayer::findOpenFileByName(const std::string &path)
 {
-	PFMLayer::OpenFile *pOpenFile = NULL;
-
-	std::list< OpenFile >::iterator iter = openFiles_.begin();
-	while(iter != openFiles_.end())
+	OpenIdMapType::iterator iter = openIdMap_.find(path);
+	if(iter != openIdMap_.end())
 	{
-		OpenFile &cur = *iter;
-		if(fs_layer::is_same_path(path,
-				cur.pathName_))
-		{
-			return &cur;
-		}
-
-		iter++;
+		return getOpenFile(iter->second);
 	}
-
 	return NULL;
 }
 
 int64_t PFMLayer::createFileId(const std::string &fn)
 {
-	FileID *pFileID = getFileID(fn);
-	if(pFileID == NULL)
+	int64_t fileId = getFileID(fn);
+	if(fileId < 0)	// not found
 	{
 		return addFileID(fn);
 	}
 
-	return pFileID->fileID_;
+	return fileId;
 }
 
 void PFMLayer::createEndName(wchar_t** endName, const char *fullPathName)
@@ -1323,7 +1323,9 @@ int PFMLayer::createOp(const std::string &path, int8_t createFileType, uint8_t c
 #endif
 			accessLevel = pfmAccessLevelWriteData;
 
-
+			// Before actually creating the file, delete entry in fileStatCache with same name
+			std::string cipherPath = rootFS_->root->cipherPath(path.c_str());
+			fileStatCache_.forgetCachedStat( cipherPath.c_str() );
 
 
 			res = fileNodeNew->mknod( mode, 0 );
@@ -1365,7 +1367,7 @@ int PFMLayer::createOp(const std::string &path, int8_t createFileType, uint8_t c
 			of.writeTime_ = openAttribs->attribs.writeTime;
 			of.changeTime_ = openAttribs->attribs.changeTime;
 
-			openFiles_.push_back(of);
+			addOpenFile(of);
 
 			// Apply writeTime
 			struct fs_layer::timeval_fs tm[2];
@@ -1392,6 +1394,11 @@ int PFMLayer::createOp(const std::string &path, int8_t createFileType, uint8_t c
 					accessLevel = pfmAccessLevelWriteData;
 				}
 			}
+
+			// Before actually creating the folder, delete entry in fileStatCache with same name
+			std::string cipherPath = rootFS_->root->cipherPath(path.c_str());
+			fileStatCache_.forgetCachedStat( cipherPath.c_str() );
+
 			rootFS_->root->mkdir( path.c_str(), mode);
 
 			OpenFile of;
@@ -1422,10 +1429,9 @@ int PFMLayer::createOp(const std::string &path, int8_t createFileType, uint8_t c
 			of.writeTime_ = openAttribs->attribs.writeTime;
 			of.changeTime_ = openAttribs->attribs.changeTime;
 
-			openFiles_.push_back(of);
+			addOpenFile(of);
 
 			// Apply writeTime
-			std::string cipherPath = rootFS_->root->cipherPath(path.c_str());
 			struct fs_layer::timeval_fs tm[2];
 			tm[0].tv_sec = FileTimeToUnixTime(writeTime);
 			tm[0].tv_usec = 0;
@@ -1457,6 +1463,11 @@ int PFMLayer::renameOp(PFMLayer::OpenFile *pOpenFile, const std::string &newPath
 			reopen = true;
 			pOpenFile->fileNode_.reset();
 		}
+		
+		std::string oldCipherPath = rootFS_->root->cipherPath(pOpenFile->pathName_.c_str());
+		fileStatCache_.forgetCachedStat( oldCipherPath.c_str() );
+		std::string newCipherPath = rootFS_->root->cipherPath(newPath.c_str());
+		fileStatCache_.forgetCachedStat( newCipherPath.c_str() );
 
 		// Apply name change (works for folders and for files)
 		int res = rootFS_->root->rename( pOpenFile->pathName_.c_str(), newPath.c_str() );
@@ -1470,9 +1481,11 @@ int PFMLayer::renameOp(PFMLayer::OpenFile *pOpenFile, const std::string &newPath
 				return pfmErrorNotAFolder;
 			else return pfmErrorInvalid;
 		}
-		pOpenFile->pathName_ = newPath;
+
+		if(!renameOpenFile(pOpenFile, newPath))
+			return pfmErrorInvalid;
 		if(!renameFileID(pOpenFile->fileId_, newPath))
-			pfmErrorInvalid;
+			return pfmErrorInvalid;
 
 		if(reopen)
 		{
@@ -1592,7 +1605,7 @@ int PFMLayer::openFileOp(boost::shared_ptr<FileNode> fileNode, int fd, PfmOpenAt
 
 	try
 	{
-		int err = fileNode->getAttr(&buf);
+		int err = fileNode->getAttr(&buf, &fileStatCache_);
 		if(err != 0)
 			return pfmErrorFailed;
 	}
@@ -1642,7 +1655,7 @@ int PFMLayer::openFileOp(boost::shared_ptr<FileNode> fileNode, int fd, PfmOpenAt
 	of.writeTime_ = openAttribs->attribs.writeTime;
 	of.changeTime_ = openAttribs->attribs.changeTime;
 
-	openFiles_.push_back(of);
+	addOpenFile(of);
 
 	return 0;
 }
@@ -1655,7 +1668,7 @@ int PFMLayer::openDirOp(PfmOpenAttribs *openAttribs, int64_t newExistingOpenId,
 	try
 	{
 		std::string cipherPath = rootFS_->root->cipherPath(path.c_str());
-		int statOk = fs_layer::stat(cipherPath.c_str(), &buf);
+		int statOk = fileStatCache_.stat(cipherPath.c_str(), &buf);
 		if(statOk < 0)
 			return pfmErrorInvalid;
 	}
@@ -1700,7 +1713,7 @@ int PFMLayer::openDirOp(PfmOpenAttribs *openAttribs, int64_t newExistingOpenId,
 	of.writeTime_ = openAttribs->attribs.writeTime;
 	of.changeTime_ = openAttribs->attribs.changeTime;
 
-	openFiles_.push_back(of);
+	addOpenFile(of);
 
 	return 0;
 }
@@ -1837,10 +1850,10 @@ void PFMLayer::printOpenFiles(const char *msg)
 	std::cout << msg << ": List of open files" << std::endl;
 #endif
 	int i = 0;
-	std::list< OpenFile >::iterator iter = openFiles_.begin();
+	OpenFileMapType::iterator iter = openFiles_.begin();
 	while(iter != openFiles_.end())
 	{
-		OpenFile &cur = *iter;
+		OpenFile &cur = iter->second;
 		
 #if defined(EFS_WIN32)
 		std::ostringstream ostr;
@@ -1860,3 +1873,20 @@ void PFMLayer::printOpenFiles(const char *msg)
 	}
 }
 
+void PFMLayer::addOpenFile(const OpenFile &of)
+{
+	openFiles_[of.openId_] = of;
+	openIdMap_[of.pathName_] = of.openId_;
+}
+
+bool PFMLayer::renameOpenFile(OpenFile *pOpenFile, const std::string &newPath)
+{
+	OpenIdMapType::iterator iter = openIdMap_.find(pOpenFile->pathName_);
+	if(iter == openIdMap_.end())
+		return false;
+	openIdMap_.erase(iter);	// Erase old pathname from openIdMap_
+	pOpenFile->pathName_ = newPath;
+	openIdMap_[newPath] = pOpenFile->openId_;
+
+	return true;
+}

@@ -154,9 +154,9 @@ bool CipherFileIO::setIV( uint64_t iv )
     return base->setIV( iv );
 }
 
-int CipherFileIO::getAttr( efs_stat *stbuf ) const
+int CipherFileIO::getAttr( efs_stat *stbuf, void *statCache ) const
 {
-    int res = base->getAttr( stbuf );
+    int res = base->getAttr( stbuf, statCache );
     // adjust size if we have a file header
     if((res == 0) && haveHeader && 
 	    S_ISREG(stbuf->st_mode) && (stbuf->st_size > 0))

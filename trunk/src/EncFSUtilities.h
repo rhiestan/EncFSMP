@@ -27,6 +27,7 @@ public:
 	virtual ~EncFSUtilities();
 
 	static bool createEncFS(const wxString &encFSPath, const wxString &password,
+		const wxString &externalConfigFileName, bool useExternalConfigFile,
 		const wxString &cipherAlgorithm, long cipherKeySize, long cipherBlockSize,
 		const wxString &nameEncoding, long keyDerivationDuration,
 		bool perBlockHMAC, bool uniqueIV, bool chainedIV, bool externalIV);
@@ -41,16 +42,21 @@ public:
 		bool perBlockHMAC, uniqueIV, chainedIV, externalIV, allowHoles;
 	};
 
-	static bool getEncFSInfo(const wxString &encFSPath, EncFSInfo &info);
+	static bool getEncFSInfo(const wxString &encFSPath, const wxString &externalConfigFileName,
+		bool useExternalConfigFile, EncFSInfo &info);
 
 	static bool changePassword(const wxString &encFSPath,
+		const wxString &externalConfigFileName, bool useExternalConfigFile,
 		const wxString &oldPassword, const wxString &newPassword,
 		wxString &errorMsg);
 
 	static bool exportEncFS(const wxString &encFSPath,
+		const wxString &externalConfigFileName, bool useExternalConfigFile,
 		const wxString &password, const wxString &exportPath, wxString &errorMsg);
 
 	static std::string wxStringToEncFSPath(const wxString &path);
+
+	static std::string wxStringToEncFSFile(const wxString &fn);
 };
 
 #endif

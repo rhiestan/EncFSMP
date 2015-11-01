@@ -391,6 +391,7 @@ void EncFSMPMainFrame::OnExportMenuItem( wxCommandEvent& event )
 			wxWindowDisabler disableAll;
 			wxBusyInfo wait(wxT("Exporting EncFS files..."));
 			isOK = EncFSUtilities::exportEncFS(pMountEntry->encFSPath_,
+				pMountEntry->externalConfigFileName_, pMountEntry->useExternalConfigFile_,
 				password, exportPath, errorMsg);
 		}
 		if(isOK)
@@ -484,7 +485,8 @@ void EncFSMPMainFrame::OnCreateMountButton( wxCommandEvent& event )
 	if(dlg.ShowModal() == wxID_OK)
 	{
 		if(!EncFSUtilities::createEncFS(dlg.getEncFSPath(),
-			dlg.password_, dlg.getCipherAlgorithm(), dlg.getCipherKeySize(),
+			dlg.password_, dlg.getExternalConfigFileName(), dlg.getUseExternalConfigFile(),
+			dlg.getCipherAlgorithm(), dlg.getCipherKeySize(),
 			dlg.getCipherBlockSize(), dlg.getNameEncoding(),
 			dlg.getKeyDerivationDuration(), dlg.perBlockHMAC_,
 			dlg.uniqueIV_, dlg.chainedIV_, dlg.externalIV_))
@@ -497,8 +499,10 @@ void EncFSMPMainFrame::OnCreateMountButton( wxCommandEvent& event )
 		wxString password;
 		if(dlg.storePassword_)
 			password = dlg.password_;
-		mountList_.addMount(dlg.mountName_, dlg.getEncFSPath(), dlg.getDriveLetter(),
-			password, dlg.worldWritable_, dlg.getIsLocalDrive(), false);
+		mountList_.addMount(dlg.mountName_, dlg.getEncFSPath(),
+			dlg.getExternalConfigFileName(), dlg.getDriveLetter(),
+			password, dlg.getUseExternalConfigFile(), dlg.getCachingEnabled(),
+			dlg.worldWritable_, dlg.getIsLocalDrive(), false);
 
 		mountList_.storeToConfig();
 
@@ -515,7 +519,8 @@ void EncFSMPMainFrame::OnOpenExistingEncFSButton( wxCommandEvent& event )
 	{
 		// Check whether path is EncFS path
 		EncFSUtilities::EncFSInfo info;
-		bool encFSFound = EncFSUtilities::getEncFSInfo(dlg.getEncFSPath(), info);
+		bool encFSFound = EncFSUtilities::getEncFSInfo(dlg.getEncFSPath(),
+			dlg.getExternalConfigFileName(), dlg.getUseExternalConfigFile(), info);
 		if(!encFSFound)
 		{
 			wxString msg(wxT("No supported encrypted filesystem found.\n"));
@@ -529,7 +534,9 @@ void EncFSMPMainFrame::OnOpenExistingEncFSButton( wxCommandEvent& event )
 			password = dlg.password_;
 
 		mountList_.addMount(dlg.mountName_, dlg.getEncFSPath(),
+			dlg.getExternalConfigFileName(),
 			wxString(dlg.getDriveLetter()), password,
+			dlg.getUseExternalConfigFile(), dlg.getCachingEnabled(),
 			dlg.worldWritable_, dlg.getIsLocalDrive(), false);
 
 		mountList_.storeToConfig();
@@ -655,8 +662,10 @@ void EncFSMPMainFrame::OnMountButton( wxCommandEvent& event )
 
 			PFMHandlerThread *pPFMHandlerThread = new PFMHandlerThread();
 			pPFMHandlerThread->setParameters(pMountEntry->name_,
-				pMountEntry->encFSPath_, pMountEntry->driveLetter_,
-				password, isWorldWritable, pMountEntry->isLocalDrive_, false);
+				pMountEntry->encFSPath_, pMountEntry->externalConfigFileName_,
+				pMountEntry->driveLetter_, password,
+				pMountEntry->useExternalConfigFile_, pMountEntry->enableCaching_,
+				isWorldWritable, pMountEntry->isLocalDrive_, false);
 
 			pPFMHandlerThread->Create();
 			pPFMHandlerThread->Run();
@@ -697,9 +706,11 @@ void EncFSMPMainFrame::OnEditButton( wxCommandEvent& event )
 		OpenExistingFSDialog dlg(this);
 		dlg.setMountList(&mountList_);
 		dlg.setEditMode(pMountEntry->name_,
-			pMountEntry->encFSPath_, pMountEntry->driveLetter_[0],
-			pMountEntry->isLocalDrive_,
-			pMountEntry->password_, pMountEntry->isWorldWritable_);
+			pMountEntry->encFSPath_,
+			pMountEntry->useExternalConfigFile_, pMountEntry->externalConfigFileName_,
+			pMountEntry->driveLetter_[0], pMountEntry->isLocalDrive_,
+			pMountEntry->password_, pMountEntry->isWorldWritable_,
+			pMountEntry->enableCaching_);
 		if(dlg.ShowModal() == wxID_OK)
 		{
 			wxString password;
@@ -710,6 +721,9 @@ void EncFSMPMainFrame::OnEditButton( wxCommandEvent& event )
 
 			pMountEntry->driveLetter_ = wxString(dlg.getDriveLetter());
 			pMountEntry->password_ = password;
+			pMountEntry->useExternalConfigFile_ = dlg.getUseExternalConfigFile();
+			pMountEntry->externalConfigFileName_ = dlg.getExternalConfigFileName();
+			pMountEntry->enableCaching_ = dlg.getCachingEnabled();
 			pMountEntry->isLocalDrive_ = dlg.getIsLocalDrive();
 			pMountEntry->isWorldWritable_ = dlg.worldWritable_;
 
@@ -766,7 +780,8 @@ void EncFSMPMainFrame::OnInfoButton( wxCommandEvent& event )
 	{
 		wxString path = pMountEntry->encFSPath_;
 		EncFSUtilities::EncFSInfo info;
-		bool retVal = EncFSUtilities::getEncFSInfo(path, info);
+		bool retVal = EncFSUtilities::getEncFSInfo(path,
+			pMountEntry->externalConfigFileName_, pMountEntry->useExternalConfigFile_, info);
 		if(retVal)
 		{
 			ShowEncFSInfoDialog dlg(this);
@@ -809,8 +824,9 @@ void EncFSMPMainFrame::OnChangePasswordButton( wxCommandEvent& event )
 		if(dlg.ShowModal() == wxID_OK)
 		{
 			wxString errorMsg;
-			bool isOK = EncFSUtilities::changePassword(path, dlg.oldPassword_,
-				dlg.newPassword_, errorMsg);
+			bool isOK = EncFSUtilities::changePassword(path,
+				pMountEntry->externalConfigFileName_, pMountEntry->useExternalConfigFile_,
+				dlg.oldPassword_, dlg.newPassword_, errorMsg);
 			if(isOK)
 			{
 				if(dlg.storeNewPassword_)
@@ -1014,8 +1030,10 @@ void EncFSMPMainFrame::OnEncFSCommand( wxCommandEvent &event )
 				bool isWorldWritable = pMountEntry->isWorldWritable_;
 				PFMHandlerThread *pPFMHandlerThread = new PFMHandlerThread();
 				pPFMHandlerThread->setParameters(pMountEntry->name_,
-					pMountEntry->encFSPath_, pMountEntry->driveLetter_,
-					password, isWorldWritable, pMountEntry->isLocalDrive_, false);
+					pMountEntry->encFSPath_, pMountEntry->externalConfigFileName_,
+					pMountEntry->driveLetter_, password,
+					pMountEntry->useExternalConfigFile_, pMountEntry->enableCaching_,
+					isWorldWritable, pMountEntry->isLocalDrive_, false);
 
 				pPFMHandlerThread->Create();
 				pPFMHandlerThread->Run();
