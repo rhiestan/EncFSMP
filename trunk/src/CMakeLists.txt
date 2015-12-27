@@ -211,6 +211,9 @@ message("wxWidgets_INCLUDE_DIRS = ${wxWidgets_INCLUDE_DIRS}")
 message("wxWidgets_LIBRARIES = ${wxWidgets_LIBRARIES}")
 INCLUDE_DIRECTORIES(${wxWidgets_INCLUDE_DIRS})
 
+# Google Test
+INCLUDE_DIRECTORIES(${GOOGLE_TEST_INCLUDE})
+
 
 message("OPENSSL_LIBRARIES = ${OPENSSL_LIBRARIES}")
 
@@ -338,13 +341,13 @@ IF(CMAKE_COMPILER_IS_GNUCC)
 
 ENDIF(CMAKE_COMPILER_IS_GNUCC)
 
-SET(ALL_SRC ${ALL_SRC} EncFSMPApp.cpp fs_layer.cpp pfm_layer.cpp EncFSMPMainFrameBase.cpp
+SET(ALL_SRC ${ALL_SRC} fs_layer.cpp pfm_layer.cpp EncFSMPMainFrameBase.cpp
 	EncFSMPMainFrame.cpp PFMProxy.cpp PFMHandlerThread.cpp OpenSSLProxy.cpp
 	PFMMonitorThread.cpp OpenExistingFSDialog.cpp EncFSUtilities.cpp MountList.cpp
 	CreateNewEncFSDialog.cpp ChangePasswordDialog.cpp EncFSMPStrings.cpp
 	EncFSMPTaskBarIcon.cpp EncFSMPErrorLog.cpp EncFSMPLogger.cpp FileStatCache.cpp )
 
-SET(ALL_HEADERS ${ALL_HEADERS} EncFSMPApp.h fs_layer.h pfm_layer.h EncFSMPMainFrameBase.h
+SET(ALL_HEADERS ${ALL_HEADERS} fs_layer.h pfm_layer.h EncFSMPMainFrameBase.h
 	EncFSMPMainFrame.h CommonIncludes.h version.h PFMProxy.h PFMHandlerThread.h OpenSSLProxy.h
 	PFMMonitorThread.h OpenExistingFSDialog.h EncFSUtilities.h MountList.h
 	CreateNewEncFSDialog.h ChangePasswordDialog.h EncFSMPStrings.h
@@ -394,9 +397,32 @@ IF(DEFINED ENCFSMP_ADDITIONAL_LINK_LIBRARIES)
 	SET(EncFSMP_LINK_LIBRARIES ${EncFSMP_LINK_LIBRARIES} ${ENCFSMP_ADDITIONAL_LINK_LIBRARIES})
 ENDIF(DEFINED ENCFSMP_ADDITIONAL_LINK_LIBRARIES)
 
-ADD_EXECUTABLE(EncFSMP WIN32 MACOSX_BUNDLE ${ALL_SRC} ${ALL_HEADERS})
+ADD_EXECUTABLE(EncFSMP WIN32 MACOSX_BUNDLE ${ALL_SRC} ${ALL_HEADERS} EncFSMPApp.cpp EncFSMPApp.h )
+
+# The test program: Use "make check" to build and run it
+SET(CMAKE_CTEST_COMMAND ${CMAKE_CTEST_COMMAND} -V)
+ADD_CUSTOM_TARGET(check COMMAND ${CMAKE_CTEST_COMMAND})
+SET(ALL_TEST_SRC EncFSMPTestApp.cpp TestBigFile.cpp 
+	TestFileHelper.cpp TestReadOnlyFlag.cpp )
+SET(ALL_TEST_HEADERS EncFSMPTestApp.h TestBigFile.h TestFileHelper.h TestReadOnlyFlag.h)
+IF(WIN32)
+	LIST(APPEND ALL_TEST_SRC TestFileWin32.cpp )
+	LIST(APPEND ALL_TEST_HEADERS TestFileWin32.h )
+ENDIF(WIN32)
+ADD_EXECUTABLE(EncFSMPTest EXCLUDE_FROM_ALL ${ALL_SRC} ${ALL_HEADERS} ${ALL_TEST_SRC} ${ALL_TEST_HEADERS} )
 
 TARGET_LINK_LIBRARIES(EncFSMP ${EncFSMP_LINK_LIBRARIES})
+TARGET_LINK_LIBRARIES(EncFSMPTest ${EncFSMP_LINK_LIBRARIES} ${GOOGLE_TEST_LIBRARY})
+
+# For make-based builds, defines make target named test.
+# For Visual Studio builds, defines Visual Studio project named RUN_TESTS.
+ENABLE_TESTING()
+ADD_TEST(
+    NAME EncFSMPTest
+    COMMAND EncFSMPTest "Z:\\"
+)
+ADD_DEPENDENCIES(check EncFSMPTest)
+
 
 IF(APPLE)
 	# configure CMake to use a custom Info.plist
@@ -438,7 +464,7 @@ IF(APPLE)
 		COMMAND osacompile -o "${CMAKE_BINARY_DIR}/Uninstall PFM.app" "${CMAKE_SOURCE_DIR}/install/Uninstall PFM.scpt")
 	ADD_CUSTOM_TARGET(Uninstall_PFM ALL DEPENDS "${CMAKE_BINARY_DIR}/Uninstall PFM.app")
 
-	INSTALL(PROGRAMS ${CMAKE_SOURCE_DIR}/install/res/pfm-178-encfsmp-mac.run DESTINATION pfm)
+	INSTALL(PROGRAMS ${CMAKE_SOURCE_DIR}/install/res/pfm-180-encfsmp-mac.run DESTINATION pfm)
 	INSTALL(DIRECTORY "${CMAKE_BINARY_DIR}/Install PFM.app" DESTINATION "." USE_SOURCE_PERMISSIONS)
 	INSTALL(DIRECTORY "${CMAKE_BINARY_DIR}/Uninstall PFM.app" DESTINATION "." USE_SOURCE_PERMISSIONS)
 ENDIF(APPLE)

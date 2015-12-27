@@ -218,12 +218,12 @@ void CCALL PFMLayer::ReleaseName(wchar_t* name)
 
 int64_t UnixTimeToFileTime(time_t t)
 {
-	return (t * 10000000L) + 116444736000000000L;
+	return (static_cast<int64_t>(t) * 10000000LL) + 116444736000000000LL;
 }
 
 long FileTimeToUnixTime(int64_t t)
 {
-	return static_cast<long>((t - 116444736000000000L) / 10000000L);
+	return static_cast<long>((t - 116444736000000000LL) / 10000000LL);
 }
 
 int/*error*/ CCALL PFMLayer::Open(const PfmNamePart* nameParts, size_t namePartCount,
