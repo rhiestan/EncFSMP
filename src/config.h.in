@@ -321,7 +321,7 @@ typedef unsigned int uid_t;
 
 #endif
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && (_MSC_VER < 1900)
 struct timespec
 {
 	time_t tv_sec;				/* Seconds.  */

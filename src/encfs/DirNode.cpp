@@ -204,7 +204,7 @@ public:
 
     operator bool () const
     {
-	return renameList;
+	return (bool)renameList;
     }
 
     bool apply();
