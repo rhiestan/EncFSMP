@@ -811,13 +811,23 @@ int/*error*/ CCALL PFMLayer::List(int64_t openId,int64_t listId,PfmMarshallerLis
 			boost::shared_ptr<DirTraverse> pDirTTemp ( new DirTraverse(dirT) );
 			fl.pDirT_ = pDirTTemp;
 			pOpenFile->fileLists_.push_back(fl);
-			pFileList = &fl;
+			pFileList = &(pOpenFile->fileLists_.back());
 		}
 		catch( rlog::Error &err )
 		{
 			reportEncFSMPErr(L"Could not open directory", pOpenFile->pathName_, err);
 			return pfmErrorFailed;
 		}
+	}
+
+	// Process result from previous call
+	if(pFileList->hasPreviousResult_)
+	{
+		uint8_t wasAdded = 1;
+		listResult->Add8(&(pFileList->prevAttribs_), pFileList->prevName_.c_str(), &wasAdded);
+
+		if(wasAdded)
+			pFileList->hasPreviousResult_ = false;
 	}
 
 	bool doCont = true;
@@ -852,7 +862,7 @@ int/*error*/ CCALL PFMLayer::List(int64_t openId,int64_t listId,PfmMarshallerLis
 
 						if( !fileStatCache_.stat(cpath.c_str(), &buf) )		//fs_layer::lstat( cpath.c_str(), &buf ))
 						{
-							uint8_t needMore = 1;
+							uint8_t wasAdded = 1;
 							PfmAttribs attribs;
 							bool skipThisFile = false;
 
@@ -924,10 +934,17 @@ int/*error*/ CCALL PFMLayer::List(int64_t openId,int64_t listId,PfmMarshallerLis
 							attribs.changeTime = UnixTimeToFileTime(buf.st_mtime);
 
 							if(!skipThisFile)
-								listResult->Add8(&attribs, name.c_str(), &needMore);
+								listResult->Add8(&attribs, name.c_str(), &wasAdded);
 
-							if(!needMore)
+							if(!wasAdded)
+							{
 								doCont = false;
+
+								// Save current result for later
+								pFileList->hasPreviousResult_ = true;
+								pFileList->prevAttribs_ = attribs;
+								pFileList->prevName_ = name;
+							}
 						}
 						else
 						{
@@ -1725,9 +1742,9 @@ int PFMLayer::makeOpenFileFlags(PT_INT8 accessLevel)
 #endif
 
 #if defined(_WIN32)
-	int flags = O_BINARY | O_RDWR;
+	int flags = O_BINARY;
 #else
-	int flags = O_RDWR;
+	int flags = 0;
 #endif
 
 	if(accessLevel >= pfmAccessLevelWriteData)
@@ -1745,9 +1762,9 @@ int PFMLayer::makeOpenFileFlags(bool isReadOnly)
 #endif
 
 #if defined(_WIN32)
-	int flags = O_BINARY | O_RDWR;
+	int flags = O_BINARY;
 #else
-	int flags = O_RDWR;
+	int flags = 0;
 #endif
 
 	if(isReadOnly)

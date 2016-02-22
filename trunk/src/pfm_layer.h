@@ -91,13 +91,17 @@ public:
 	class FileList
 	{
 	public:
-		FileList(): listId_(0) { }
+		FileList(): listId_(0), hasPreviousResult_(false) { }
 		FileList(const FileList &o) { copy(o); }
 		virtual ~FileList() { }
 		FileList &copy(const FileList &o)
 		{
 			listId_ = o.listId_;
 			pDirT_ = o.pDirT_;
+			hasPreviousResult_ = o.hasPreviousResult_;
+			prevAttribs_ = o.prevAttribs_;
+			prevName_ = o.prevName_;
+
 			return *this;
 		}
 		FileList & operator=(const FileList & o)
@@ -107,6 +111,10 @@ public:
 
 		int64_t listId_;
 		boost::shared_ptr<DirTraverse> pDirT_;
+
+		bool hasPreviousResult_;
+		PfmAttribs prevAttribs_;
+		std::string prevName_;
 	};
 
 	/**
