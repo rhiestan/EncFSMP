@@ -1,0 +1,87 @@
+﻿Version history
+---------------
+
+Version 0.10.3, 22.02.2016:
+- Fixed bug with opening files as read-only
+- Updated OpenSSL to 1.0.2f, boost to 1.60.0
+
+
+Version 0.10.2, 07.01.2016:
+- Fixed directory listing of directories with more than 1100 entries (ticket #43)
+
+
+Version 0.10.1, 27.11.2015:
+- Date bug fixed in 32 bit version (ticket #40)
+- Updated PFM to 1.0.0.180 (fixes ticket #34)
+- Updated OpenSSL to 1.0.2e
+
+
+Version 0.10.0, 01.11.2015:
+- Added support for external encfs-configs
+- Improved speed with optional cache and better data structures
+
+
+Version 0.9.9, 02.08.2015:
+- Updated OpenSSL to 1.0.2d
+- Updated Pismo File Mount to 1.0.0.178
+
+
+Version 0.9.8, 15.06.2015:
+- Updated OpenSSL to 1.0.2c
+- Fixed bug with handling last write time, fixes ticket #25
+- Improved speed while reading directories on Windows
+- Windows: Added option to mount drives as Local or Network drives
+- Windows: Added option not to mount a new volume using a drive letter (only under C:\Volumes)
+
+
+Version 0.9.7, 08.05.2015:
+- Updated Pismo File Mount to 1.0.0.177
+- Windows: Removed "System visible" flag for mounts and "Restart as Admin" menu
+- Fixed ticket #13 and #16: Mounted Volumes are now local under Windows
+- Fixed ticket #14: Improved handling of read-only files
+- Fixed ticket #15: Dialogs now also work on high-DPI devices
+
+
+Version 0.9.6, 20.03.2015:
+- Updated OpenSSL to 1.0.2a
+- Fixed bug in acquiring a mutex in MemoryPool, see ticket #12 for details
+
+
+Version 0.9.5, 16.03.2015:
+- Support for files > 2 GB
+- Fixed possible problem in creating new directories with wrong permissions
+
+
+Version 0.9.4, 10.02.2015:
+- Updated Pismo File Mount to 1.0.0.173
+- Updated OpenSSL to 1.0.2
+- Passwords can now be saved in RAM (while EncFSMP is running)
+- Mount/unmount via command line
+- Improved speed of listing a directory
+
+
+Version 0.9.3, 19.12.2014:
+- Added possibility to disable unmount confirmation dialog on exit
+- Improved error handling, added error log window
+- Fixed bug: encfs folders in paths with Unicode characters are now supported
+- Fixed bug: Deletion of directories sometimes didn't work
+- Files with name .encfs* are hidden only in root directory
+Thanks for A. Večeřa for reporting the bugs!
+- Updated libpng to 1.6.15 and boost to 1.57.0
+
+
+Version 0.9.2, 20.10.2014:
+- Added context menu in mounts list
+- Updated wxWidgets to 3.0.2 and OpenSSL to 1.0.1j
+- Minor code changes, EncFSMP can now be compiled against wxWidgets < 2.9.0
+
+
+Version 0.9.1, 10.10.2014:
+- Fixed a problem where EncFS on Linux was not able to open EncFS folders created with EncFSMP
+- Added feature "Minimize to tray" (Windows)/"Minimize to menu icon" (Mac OS X)
+- Dialogs for creating new/opening existing EncFS folders slightly improved
+
+
+Version 0.9, 06.10.2014:
+
+Initial release (beta status)
