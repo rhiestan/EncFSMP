@@ -1,6 +1,15 @@
 ﻿Version history
 ---------------
 
+Version 0.10.3, 22.02.2016:
+- Fixed bug with opening files as read-only
+- Updated OpenSSL to 1.0.2f, boost to 1.60.0
+
+
+Version 0.10.2, 07.01.2016:
+- Fixed directory listing of directories with more than 1100 entries (ticket #43)
+
+
 Version 0.10.1, 27.11.2015:
 - Date bug fixed in 32 bit version (ticket #40)
 - Updated PFM to 1.0.0.180 (fixes ticket #34)
