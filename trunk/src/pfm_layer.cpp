@@ -1143,16 +1143,36 @@ int/*error*/ CCALL PFMLayer::Access(int64_t openId,int8_t accessLevel,PfmOpenAtt
 
 #if !defined(PFM_ACCESS_LEVEL_WORKAROUND)
 	// Check for access level and fail if source file is not writable
-	if(accessLevel >= pfmAccessLevelWriteData
-		&& pOpenFile->isReadOnly_)
-		return pfmErrorAccessDenied;
+	if(accessLevel >= pfmAccessLevelWriteData)
+	{
+		if(pOpenFile->isReadOnly_)
+			return pfmErrorAccessDenied;
+
+		if(pOpenFile->isOpenedReadOnly_)
+		{
+			// Try to reopen file with write access
+			pOpenFile->fileNode_.reset();
+
+			int res = 0;
+			pOpenFile->fileNode_ =
+				rootFS_->root->openNode(pOpenFile->pathName_.c_str(), "open", makeOpenFileFlags(accessLevel), &res);
+			if(!pOpenFile->fileNode_)
+			{
+				// Failed, try to open again for reading
+				pOpenFile->fileNode_ =
+					rootFS_->root->openNode(pOpenFile->pathName_.c_str(), "open", makeOpenFileFlags(openAttribs->accessLevel), &res);
+				return pfmErrorAccessDenied;
+			}
+			pOpenFile->isOpenedReadOnly_ = false;
+		}
+	}
 #endif
 
 	pOpenFile->sequenceId_++;
 
 	openAttribs->openId = pOpenFile->openId_;
 	openAttribs->openSequence = pOpenFile->sequenceId_;
-	openAttribs->accessLevel = (pOpenFile->isReadOnly_ ? pfmAccessLevelWriteInfo : pfmAccessLevelWriteData);
+	openAttribs->accessLevel = ((pOpenFile->isReadOnly_ || pOpenFile->isOpenedReadOnly_) ? pfmAccessLevelDelete : pfmAccessLevelWriteData);
 
 	if(pOpenFile->isFile_)
 		openAttribs->attribs.fileType = pfmFileTypeFile;
@@ -1361,7 +1381,8 @@ int PFMLayer::createOp(const std::string &path, int8_t createFileType, uint8_t c
 			of.sequenceId_ = 1;
 			of.fd_ = res;
 			of.pathName_ = path;
-			of.isReadOnly_ = (accessLevel == pfmAccessLevelWriteInfo);
+			of.isOpenedReadOnly_ = (accessLevel < pfmAccessLevelWriteData);
+			of.isReadOnly_ = false;
 			of.fileId_ = createFileId(path);
 
 			openAttribs->openId = newCreateOpenId;
@@ -1423,7 +1444,8 @@ int PFMLayer::createOp(const std::string &path, int8_t createFileType, uint8_t c
 			of.openId_ = newCreateOpenId;
 			of.sequenceId_ = 1;
 			of.pathName_ = path;
-			of.isReadOnly_ = (accessLevel == pfmAccessLevelWriteInfo);
+			of.isOpenedReadOnly_ = (accessLevel < pfmAccessLevelWriteData);
+			of.isReadOnly_ = false;
 			of.fileId_ = createFileId(path);
 
 			openAttribs->openId = newCreateOpenId;
@@ -1470,7 +1492,7 @@ int PFMLayer::createOp(const std::string &path, int8_t createFileType, uint8_t c
 
 int PFMLayer::renameOp(PFMLayer::OpenFile *pOpenFile, const std::string &newPath)
 {
-	int openFlags = makeOpenFileFlags(pOpenFile->isReadOnly_);
+	int openFlags = makeOpenFileFlags(pOpenFile->isReadOnly_ || pOpenFile->isOpenedReadOnly_);
 
 	try
 	{
@@ -1593,7 +1615,7 @@ int PFMLayer::deleteOp(PFMLayer::OpenFile *pOpenFile)
 void PFMLayer::openExisting(PFMLayer::OpenFile *pOpenFile, PfmOpenAttribs *openAttribs,
 	PT_UINT8 accessLevel)
 {
-	accessLevel = determineAccessLevel(pOpenFile->isReadOnly_, accessLevel);
+	accessLevel = determineAccessLevel(pOpenFile->isReadOnly_ || pOpenFile->isOpenedReadOnly_, accessLevel);
 
 	pOpenFile->sequenceId_++;
 
@@ -1641,9 +1663,10 @@ int PFMLayer::openFileOp(boost::shared_ptr<FileNode> fileNode, int fd, PfmOpenAt
 	of.fd_ = fd;
 	of.pathName_ = path;
 	of.isReadOnly_ = ((buf.st_mode & S_IWUSR) == 0);
+	of.isOpenedReadOnly_ = (accessLevel < pfmAccessLevelWriteData);
 	of.fileId_ = createFileId(path);
 
-	accessLevel = determineAccessLevel(of.isReadOnly_, accessLevel);
+	accessLevel = determineAccessLevel(of.isReadOnly_ || of.isOpenedReadOnly_, accessLevel);
 
 	openAttribs->openId = newExistingOpenId;
 	openAttribs->openSequence = 1;
@@ -1701,9 +1724,10 @@ int PFMLayer::openDirOp(PfmOpenAttribs *openAttribs, int64_t newExistingOpenId,
 	of.sequenceId_ = 1;
 	of.pathName_ = path;
 	of.isReadOnly_ = ((buf.st_mode & S_IWUSR) == 0);
+	of.isOpenedReadOnly_ = (accessLevel < pfmAccessLevelWriteData);
 	of.fileId_ = createFileId(path);
 
-	accessLevel = determineAccessLevel(of.isReadOnly_, accessLevel);
+	accessLevel = determineAccessLevel(of.isReadOnly_ || of.isOpenedReadOnly_, accessLevel);
 
 	openAttribs->openId = newExistingOpenId;
 	openAttribs->openSequence = 1;
