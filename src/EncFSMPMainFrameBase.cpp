@@ -109,23 +109,53 @@ EncFSMPMainFrameBase::EncFSMPMainFrameBase( wxWindow* parent, wxWindowID id, con
 	wxGridSizer* gSizer1;
 	gSizer1 = new wxGridSizer( 2, 3, 0, 0 );
 	
+	wxBoxSizer* bSizer17;
+	bSizer17 = new wxBoxSizer( wxVERTICAL );
+	
 	pMountButton_ = new wxButton( pMainPanel_, ID_MOUNTBUTTON, wxT("Mount"), wxDefaultPosition, wxDefaultSize, 0 );
-	gSizer1->Add( pMountButton_, 0, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	bSizer17->Add( pMountButton_, 1, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	
+	gSizer1->Add( bSizer17, 1, wxEXPAND, 5 );
+	
+	wxBoxSizer* bSizer18;
+	bSizer18 = new wxBoxSizer( wxVERTICAL );
 	
 	pRemoveButton_ = new wxButton( pMainPanel_, ID_REMOVEBUTTON, wxT("Remove"), wxDefaultPosition, wxDefaultSize, 0 );
-	gSizer1->Add( pRemoveButton_, 1, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	bSizer18->Add( pRemoveButton_, 1, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	
+	gSizer1->Add( bSizer18, 1, wxEXPAND, 5 );
+	
+	wxBoxSizer* bSizer19;
+	bSizer19 = new wxBoxSizer( wxVERTICAL );
 	
 	pEditButton_ = new wxButton( pMainPanel_, ID_EDITBUTTON, wxT("Edit"), wxDefaultPosition, wxDefaultSize, 0 );
-	gSizer1->Add( pEditButton_, 1, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	bSizer19->Add( pEditButton_, 1, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	
+	gSizer1->Add( bSizer19, 1, wxEXPAND, 5 );
+	
+	wxBoxSizer* bSizer20;
+	bSizer20 = new wxBoxSizer( wxVERTICAL );
 	
 	pBrowseButton_ = new wxButton( pMainPanel_, ID_BROWSEBUTTON, wxT("Browse"), wxDefaultPosition, wxDefaultSize, 0 );
-	gSizer1->Add( pBrowseButton_, 1, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	bSizer20->Add( pBrowseButton_, 1, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	
+	gSizer1->Add( bSizer20, 1, wxEXPAND, 5 );
+	
+	wxBoxSizer* bSizer21;
+	bSizer21 = new wxBoxSizer( wxVERTICAL );
 	
 	pInfoButton_ = new wxButton( pMainPanel_, ID_INFOBUTTON, wxT("Show Info"), wxDefaultPosition, wxDefaultSize, 0 );
-	gSizer1->Add( pInfoButton_, 1, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	bSizer21->Add( pInfoButton_, 1, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	
+	gSizer1->Add( bSizer21, 1, wxEXPAND, 5 );
+	
+	wxBoxSizer* bSizer22;
+	bSizer22 = new wxBoxSizer( wxVERTICAL );
 	
 	pChangePasswordButton_ = new wxButton( pMainPanel_, ID_CHANGEPASSWORDBUTTON, wxT("Change password"), wxDefaultPosition, wxDefaultSize, 0 );
-	gSizer1->Add( pChangePasswordButton_, 1, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	bSizer22->Add( pChangePasswordButton_, 1, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	
+	gSizer1->Add( bSizer22, 1, wxEXPAND, 5 );
 	
 	sbSizer1->Add( gSizer1, 0, wxEXPAND, 3 );
 	

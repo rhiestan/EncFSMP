@@ -124,8 +124,8 @@ public:
 	{
 	public:
 		OpenFile() : openId_(0), sequenceId_(0), fd_(-1), isFile_(true), fileId_(0),
-			isDeleted_(false), isReadOnly_(false), fileFlags_(0), fileSize_(0), createTime_(0),
-			accessTime_(0), writeTime_(0), changeTime_(0)
+			isDeleted_(false), isReadOnly_(false), isOpenedReadOnly_(false), fileFlags_(0),
+			fileSize_(0), createTime_(0), accessTime_(0), writeTime_(0), changeTime_(0)
 		{ }
 		OpenFile(const OpenFile &o) { copy(o); }
 		virtual ~OpenFile() { }
@@ -140,6 +140,7 @@ public:
 			fileId_ = o.fileId_;
 			pathName_ = o.pathName_;
 			isReadOnly_ = o.isReadOnly_;
+			isOpenedReadOnly_ = o.isOpenedReadOnly_;
 			fileFlags_ = o.fileFlags_;
 			fileSize_ = o.fileSize_;
 			createTime_ = o.createTime_;
@@ -159,7 +160,8 @@ public:
 		bool isDeleted_;
 		int64_t fileId_;
 		boost::shared_ptr<FileNode> fileNode_;	// For files
-		bool isReadOnly_;
+		bool isReadOnly_;						// File has Read-only bit set
+		bool isOpenedReadOnly_;					// File was opened read-only
 		PT_UINT8 fileFlags_;
 		PT_UINT64 fileSize_;
 		PT_INT64 createTime_;
