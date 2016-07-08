@@ -158,11 +158,11 @@ Section "Pismo File Mount" Section_PFM
 	
 	SetOutPath $TEMP
 	
-	IfFileExists "$TEMP\pfm-181-encfsmp-win.exe" ErrorPFMFileExists
+	IfFileExists "$TEMP\pfm-183-encfsmp-win.exe" ErrorPFMFileExists
 	DetailPrint "Installing Pismo File Mount"
-	File "res\pfm-181-encfsmp-win.exe"
-	nsExec::ExecToLog '"$TEMP\pfm-181-encfsmp-win.exe" install'
-	Delete "$TEMP\pfm-181-encfsmp-win.exe"
+	File "res\pfm-183-encfsmp-win.exe"
+	nsExec::ExecToLog '"$TEMP\pfm-183-encfsmp-win.exe" install'
+	Delete "$TEMP\pfm-183-encfsmp-win.exe"
 
 	Return
 

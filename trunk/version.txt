@@ -1,6 +1,12 @@
 ﻿Version history
 ---------------
 
+Version 0.10.5, 08.07.2016:
+- Implemented pattern to upgrade from opening a file read-only to read-and-write (should fix bugs with seemingly read-only files)
+- Updated OpenSSL to 1.0.2h, boost to 1.61.0. OpenSSL is now compiled to use assembly language and AES instructions, if present
+- Updated PFM to 1.0.0.183, using new API
+
+
 Version 0.10.4, 17.04.2016:
 - Fixed another bug with read-only files, fixes error reports like "...RawFileIO.cpp:257 -- true == canWrite"
 - Properly implemented Access method, should fix ticket #55 (and maybe other problems on OS X)

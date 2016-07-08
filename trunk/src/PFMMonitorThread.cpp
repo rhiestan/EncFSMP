@@ -30,9 +30,10 @@
 #	endif
 #endif
 
+#include <stdint.h>
+
 // Pismo File Mount
 #include "pfmapi.h"
-#include "pfmmarshaller.h"
 
 PFMMonitorThread::PFMMonitorThread()
 	: wxThread(wxTHREAD_JOINABLE),
@@ -52,7 +53,7 @@ bool PFMMonitorThread::startThread()
 		return false;
 	PfmApi *pfmApi = PFMProxy::getInstance().getPfmApi();
 	pfmMonitor_ = NULL;
-	pfmApi->Monitor(&pfmMonitor_);
+	pfmApi->MountMonitorFactory(&pfmMonitor_);
 
 	wxThreadError err = this->Create();
 	if(err != wxTHREAD_NO_ERROR)

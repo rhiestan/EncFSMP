@@ -402,9 +402,9 @@ ADD_EXECUTABLE(EncFSMP WIN32 MACOSX_BUNDLE ${ALL_SRC} ${ALL_HEADERS} EncFSMPApp.
 # The test program: Use "make check" to build and run it
 SET(CMAKE_CTEST_COMMAND ${CMAKE_CTEST_COMMAND} -V)
 ADD_CUSTOM_TARGET(check COMMAND ${CMAKE_CTEST_COMMAND})
-SET(ALL_TEST_SRC EncFSMPTestApp.cpp TestBigFile.cpp 
+SET(ALL_TEST_SRC EncFSMPTestApp.cpp TestBigFile.cpp TestOpenFileTwice.cpp
 	TestFileHelper.cpp TestReadOnlyFlag.cpp )
-SET(ALL_TEST_HEADERS EncFSMPTestApp.h TestBigFile.h TestFileHelper.h TestReadOnlyFlag.h)
+SET(ALL_TEST_HEADERS EncFSMPTestApp.h TestBigFile.h TestOpenFileTwice.h TestFileHelper.h TestReadOnlyFlag.h)
 IF(WIN32)
 	LIST(APPEND ALL_TEST_SRC TestFileWin32.cpp )
 	LIST(APPEND ALL_TEST_HEADERS TestFileWin32.h )
@@ -464,7 +464,7 @@ IF(APPLE)
 		COMMAND osacompile -o "${CMAKE_BINARY_DIR}/Uninstall PFM.app" "${CMAKE_SOURCE_DIR}/install/Uninstall PFM.scpt")
 	ADD_CUSTOM_TARGET(Uninstall_PFM ALL DEPENDS "${CMAKE_BINARY_DIR}/Uninstall PFM.app")
 
-	INSTALL(PROGRAMS ${CMAKE_SOURCE_DIR}/install/res/pfm-181-encfsmp-mac.run DESTINATION pfm)
+	INSTALL(PROGRAMS ${CMAKE_SOURCE_DIR}/install/res/pfm-183-encfsmp-mac.run DESTINATION pfm)
 	INSTALL(DIRECTORY "${CMAKE_BINARY_DIR}/Install PFM.app" DESTINATION "." USE_SOURCE_PERMISSIONS)
 	INSTALL(DIRECTORY "${CMAKE_BINARY_DIR}/Uninstall PFM.app" DESTINATION "." USE_SOURCE_PERMISSIONS)
 ENDIF(APPLE)
