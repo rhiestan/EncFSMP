@@ -26,6 +26,7 @@ class DirTraverse;
 
 #include <list>
 #include <map>
+#include <stdint.h>
 
 #include "FileStatCache.h"
 
@@ -40,7 +41,6 @@ class DirTraverse;
 
 // Pismo File Mount
 #include "pfmapi.h"
-#include "pfmmarshaller.h"
 
 // libencfs
 #include "FileUtils.h"
@@ -55,7 +55,7 @@ class DirTraverse;
 #define CCALL
 #endif
 
-class PFMLayer: public PfmFormatterOps
+class PFMLayer: public PfmFormatterDispatch
 {
 public:
 	PFMLayer();
@@ -65,25 +65,26 @@ public:
 		wchar_t driveLetter, bool useCaching, bool worldWrite, bool localDrive, 
 		bool startBrowser, std::ostream &ostr);
 
-	// PfmFormatterOps
-	void CCALL ReleaseName(wchar_t* name);
-	int/*error*/ CCALL Open(const PfmNamePart* nameParts,size_t namePartCount,int8_t createFileType,uint8_t createFileFlags,int64_t writeTime,int64_t newCreateOpenId,int8_t existingAccessLevel,int64_t newExistingOpenId,uint8_t/*bool*/ * existed,PfmOpenAttribs* openAttribs,int64_t* parentFileId,wchar_t** endName);
-	int/*error*/ CCALL Replace(int64_t targetOpenId,int64_t targetParentFileId,const PfmNamePart* targetEndName,uint8_t createFileFlags,int64_t writeTime,int64_t newCreateOpenId,PfmOpenAttribs* openAttribs);
-	int/*error*/ CCALL Move(int64_t sourceOpenId,int64_t sourceParentFileId,const PfmNamePart* sourceEndName,const PfmNamePart* targetNameParts,size_t targetNamePartCount,uint8_t/*bool*/ deleteSource,int64_t writeTime,int8_t existingAccessLevel,int64_t newExistingOpenId,uint8_t/*bool*/ * existed,PfmOpenAttribs* openAttribs,int64_t* parentFileId,wchar_t** endName);
-	int/*error*/ CCALL MoveReplace(int64_t sourceOpenId,int64_t sourceParentFileId,const PfmNamePart* sourceEndName,int64_t targetOpenId,int64_t targetParentFileId,const PfmNamePart* targetEndName,uint8_t/*bool*/ deleteSource,int64_t writeTime);
-	int/*error*/ CCALL Delete(int64_t openId,int64_t parentFileId,const PfmNamePart* endName,int64_t writeTime);
-	int/*error*/ CCALL Close(int64_t openId,int64_t openSequence);
-	int/*error*/ CCALL FlushFile(int64_t openId,uint8_t flushFlags,uint8_t fileFlags,uint8_t color,int64_t createTime,int64_t accessTime,int64_t writeTime,int64_t changeTime,PfmOpenAttribs* openAttribs);
-	int/*error*/ CCALL List(int64_t openId,int64_t listId,PfmMarshallerListResult* listResult);
-	int/*error*/ CCALL ListEnd(int64_t openId,int64_t listId);
-	int/*error*/ CCALL Read(int64_t openId,uint64_t fileOffset,void* data,size_t requestedSize,size_t* outActualSize);
-	int/*error*/ CCALL Write(int64_t openId,uint64_t fileOffset,const void* data,size_t requestedSize,size_t* outActualSize);
-	int/*error*/ CCALL SetSize(int64_t openId,uint64_t fileSize);
-	int/*error*/ CCALL Capacity(uint64_t* totalCapacity,uint64_t* availableCapacity);
-	int/*error*/ CCALL FlushMedia(uint8_t/*bool*/ * mediaClean);
-	int/*error*/ CCALL Control(int64_t openId,int8_t accessLevel,int controlCode,const void* input,size_t inputSize,void* output,size_t maxOutputSize,size_t* outputSize);
-	int/*error*/ CCALL MediaInfo(int64_t openId,PfmMediaInfo* mediaInfo,wchar_t** mediaLabel);
-	int/*error*/ CCALL Access(int64_t openId,int8_t accessLevel,PfmOpenAttribs* openAttribs);
+	// PfmFormatterDispatch
+	void CCALL Open(PfmMarshallerOpenOp* op, void* formatterUse);
+	void CCALL Replace(PfmMarshallerReplaceOp* op, void* formatterUse);
+	void CCALL Move(PfmMarshallerMoveOp* op, void* formatterUse);
+	void CCALL MoveReplace(PfmMarshallerMoveReplaceOp* op, void* formatterUse);
+	void CCALL Delete(PfmMarshallerDeleteOp* op, void* formatterUse);
+	void CCALL Close(PfmMarshallerCloseOp* op, void* formatterUse);
+	void CCALL FlushFile(PfmMarshallerFlushFileOp* op, void* formatterUse);
+	void CCALL List(PfmMarshallerListOp* op, void* formatterUse);
+	void CCALL ListEnd(PfmMarshallerListEndOp* op, void* formatterUse);
+	void CCALL Read(PfmMarshallerReadOp* op, void* formatterUse);
+	void CCALL Write(PfmMarshallerWriteOp* op, void* formatterUse);
+	void CCALL SetSize(PfmMarshallerSetSizeOp* op, void* formatterUse);
+	void CCALL Capacity(PfmMarshallerCapacityOp* op, void* formatterUse);
+	void CCALL FlushMedia(PfmMarshallerFlushMediaOp* op, void* formatterUse);
+	void CCALL Control(PfmMarshallerControlOp* op, void* formatterUse);
+	void CCALL MediaInfo(PfmMarshallerMediaInfoOp* op, void* formatterUse);
+	void CCALL Access(PfmMarshallerAccessOp* op, void* formatterUse);
+	void CCALL ReadXattr(PfmMarshallerReadXattrOp* op, void* formatterUse);
+	void CCALL WriteXattr(PfmMarshallerWriteXattrOp* op, void* formatterUse);
 
 	/**
 	 * Class to hold information about a file list operation.
@@ -180,7 +181,7 @@ public:
 	OpenFile *getOpenFile(int64_t openId);
 	OpenFile *findOpenFileByName(const std::string &path);
 	int64_t createFileId(const std::string &fn);
-	static void createEndName(wchar_t** endName, const char *fullPathName);
+	static void createEndName(std::wstring &endName, const char *fullPathName);
 
 	int createOp(const std::string &path, int8_t createFileType, uint8_t createFileFlags,
 		int64_t writeTime, int64_t newCreateOpenId,PfmOpenAttribs* openAttribs);

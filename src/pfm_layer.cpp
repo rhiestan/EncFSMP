@@ -51,6 +51,10 @@
 
 //#define PFM_ACCESS_LEVEL_WORKAROUND 1
 
+static PfmOpenAttribs zeroOpenAttribs = {};
+static PfmAttribs zeroAttribs = {};
+static PfmMediaInfo zeroMediaInfo = {};
+
 PFMLayer::PFMLayer() :
 	marshaller(NULL),
 	newFileID_(1)
@@ -116,11 +120,11 @@ void PFMLayer::startFS(RootPtr rootFS, const wchar_t *mountDir, PfmApi *pfmApi,
 	// The following code is copied mostly from the Pismo File Mount's example code tempfs.cpp
 	int error = 0;
 	PfmMount* mount = 0;
-	FD_T toFormatterRead = FD_INVALID;
-	FD_T fromFormatterWrite = FD_INVALID;
 	PfmMountCreateParams mcp;
+	PfmMarshallerServeParams msp;
 
-	PfmMountCreateParams_Init(&mcp);
+	msp.dispatch = this;
+
 	mcp.mountSourceName = mountDir;
 	mcp.mountFlags |= pfmMountFlagUncOnly | pfmMountFlagUnmountOnRelease;	// | pfmMountFlagWorldOwned;
 	if(localDrive)
@@ -140,10 +144,10 @@ void PFMLayer::startFS(RootPtr rootFS, const wchar_t *mountDir, PfmApi *pfmApi,
 		return;
 	}
 
-	error = create_pipe(&toFormatterRead,&mcp.toFormatterWrite);
+	error = create_pipe(&msp.toFormatterRead,&mcp.toFormatterWrite);
 	if(!error)
 	{
-		error = create_pipe(&mcp.fromFormatterRead,&fromFormatterWrite);
+		error = create_pipe(&mcp.fromFormatterRead,&msp.fromFormatterWrite);
 	}
 	if(error)
 	{
@@ -176,25 +180,11 @@ void PFMLayer::startFS(RootPtr rootFS, const wchar_t *mountDir, PfmApi *pfmApi,
 	// The marshaller serve function will return at unmount or
 	// if driver disconnects.
 	int volumeFlags = pfmVolumeFlagCaseSensitive;	//pfmVolumeFlagEncrypted | pfmVolumeFlagCaseSensitive;
-	int retVal = marshaller->ServeReadWrite(this, volumeFlags, EncFSMPStrings::formatterName8_.c_str(), toFormatterRead, fromFormatterWrite);
-
-#if defined(_WIN32)
-	if(retVal > 0 && retVal != 109)
-	{
-		char *err;
-		if (FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-			NULL,
-			retVal,
-			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // default language
-			(LPSTR) &err,
-			0,
-			NULL))
-		{
-			ostr << "Error: " << retVal << ": " << err;
-			LocalFree(err);
-		}
-	}
-#endif
+	//int retVal = marshaller->ServeReadWrite(this, volumeFlags, EncFSMPStrings::formatterName8_.c_str(), toFormatterRead, fromFormatterWrite);
+	
+	msp.formatterName = EncFSMPStrings::formatterName8_.c_str();
+	msp.volumeFlags |= volumeFlags;
+	marshaller->ServeDispatch(&msp);
 
 	if(mount)
 		mount->Release();
@@ -205,14 +195,8 @@ void PFMLayer::startFS(RootPtr rootFS, const wchar_t *mountDir, PfmApi *pfmApi,
 		marshaller = 0;
 	}
 
-	close_fd(toFormatterRead);
-	close_fd(fromFormatterWrite);
-}
-
-
-void CCALL PFMLayer::ReleaseName(wchar_t* name)
-{
-	delete [] name;
+	close_fd(msp.toFormatterRead);
+	close_fd(msp.fromFormatterWrite);
 }
 
 
@@ -226,437 +210,541 @@ long FileTimeToUnixTime(int64_t t)
 	return static_cast<long>((t - 116444736000000000LL) / 10000000LL);
 }
 
-int/*error*/ CCALL PFMLayer::Open(const PfmNamePart* nameParts, size_t namePartCount,
-	int8_t createFileType, uint8_t createFileFlags, int64_t writeTime,
-	int64_t newCreateOpenId, int8_t existingAccessLevel, int64_t newExistingOpenId,
-	uint8_t/*bool*/ * existed, PfmOpenAttribs* openAttribs, int64_t* parentFileId,
-	wchar_t** endName)
+void CCALL PFMLayer::Open(PfmMarshallerOpenOp* op, void* formatterUse)
 {
+	int perr = 0;
+
 	if(!rootFS_)
-		return pfmErrorFailed;
+		perr = pfmErrorFailed;
 
-	// Construct name
-	std::string path("/"), parentFolder;		// In UTF-8 encoding
-	for(size_t i = 0; i < namePartCount; i++)
+	const PfmNamePart* nameParts = op->NameParts();
+	size_t namePartCount = op->NamePartCount();
+	int8_t createFileType = op->CreateFileType();
+	int8_t createFileFlags = op->CreateFileFlags();
+	int64_t writeTime = op->WriteTime();
+	int64_t newCreateOpenId = op->NewCreateOpenId();
+	int64_t newExistingOpenId = op->NewExistingOpenId();
+	int8_t existingAccessLevel = op->ExistingAccessLevel();
+	bool existed = false;
+	PfmOpenAttribs openAttribs = zeroOpenAttribs;
+	int64_t parentFileId = 0;
+	std::wstring endName;
+
+	if(perr == 0)
 	{
-		parentFolder = path;
+		// Construct name
+		std::string path("/"), parentFolder;		// In UTF-8 encoding
+		for(size_t i = 0; i < namePartCount; i++)
+		{
+			parentFolder = path;
 
-		path = fs_layer::concat_path(path, nameParts[i].name8, true);
+			path = fs_layer::concat_path(path, nameParts[i].name8, true);
+		}
+
+		// Check whether parent folder exists
+
+		// Root folder always exists
+		if(parentFolder.empty())
+		{
+			parentFileId = 0;	// Special fileId for "parent" of root
+		}
+		else if(parentFolder == "/")
+		{
+			parentFileId = createFileId(parentFolder);
+		}
+		else
+		{
+			// Look in open files
+			bool parentFolderFound = false;
+			OpenFile *pParentOpenFile = findOpenFileByName(parentFolder);
+			if(pParentOpenFile != NULL
+				&& !pParentOpenFile->isFile_)
+			{
+				parentFolderFound = true;
+				parentFileId = pParentOpenFile->fileId_;
+			}
+
+			if(!parentFolderFound)
+			{
+				// Not found in open files, look on file system
+				std::string cipherPath = rootFS_->root->cipherPath(parentFolder.c_str());
+				efs_stat stat;
+				int ret = fileStatCache_.stat(cipherPath.c_str(), &stat);
+				if(ret != 0)
+					perr = pfmErrorParentNotFound;
+				if((perr == 0) && ((stat.st_mode & S_IFDIR) == 0))	// Check whether it is a directory
+					perr = pfmErrorParentNotFound;
+
+				if(perr == 0)
+					parentFileId = createFileId(parentFolder);
+
+			}
+		}
+
+		if(perr == 0)
+		{
+			// Check whether file is opened already
+			OpenFile *pOpenFile = findOpenFileByName(path);
+			if(pOpenFile != NULL)
+			{
+				if(pOpenFile->isDeleted_)
+				{
+					// Found the file, but it is marked as deleted
+
+					// From doc: If the indicated file does not exist and the newCreateOpenId parameter is zero then the formatter should return pfmErrorNotFound
+					if(newCreateOpenId == 0
+						|| createFileType == pfmFileTypeNone)
+						perr = pfmErrorNotFound;
+					else
+						perr = pfmErrorDeleted;			// We can't create a file with the same name as a deleted file
+				}
+				else
+				{
+					// Check for increase in access level for files
+
+					if(existingAccessLevel >= pfmAccessLevelWriteData
+						&& pOpenFile->isFile_)
+					{
+						// Check for access level and fail if source file is not writable
+						if(pOpenFile->isReadOnly_)
+							perr = pfmErrorAccessDenied;
+						else if(pOpenFile->isOpenedReadOnly_)
+						{
+							// Try to reopen file with write access
+							pOpenFile->fileNode_.reset();
+
+							int res = 0;
+							int8_t accessLevel = determineAccessLevel(pOpenFile->isReadOnly_, existingAccessLevel);
+							pOpenFile->fileNode_ =
+								rootFS_->root->openNode(pOpenFile->pathName_.c_str(), "open", makeOpenFileFlags(static_cast<PT_INT8>(accessLevel)), &res);
+							if(!pOpenFile->fileNode_)
+							{
+								// Failed, try to open again for reading
+								pOpenFile->fileNode_ =
+									rootFS_->root->openNode(pOpenFile->pathName_.c_str(), "open", makeOpenFileFlags(pfmAccessLevelReadData), &res);
+								perr = pfmErrorAccessDenied;
+							}
+							if(perr == 0)
+								pOpenFile->isOpenedReadOnly_ = false;
+						}
+					}
+
+					openExisting(pOpenFile, &openAttribs, existingAccessLevel);
+
+					createEndName(endName, pOpenFile->pathName_.c_str());
+					existed = true;
+				}
+
+				// Return here
+				op->Complete(perr, existed, &openAttribs, parentFileId, endName.c_str(), 0, 0, 0, 0);
+				return;
+			}
+		}
+		// Check whether path is a directory or a file
+		bool isDir = false;
+		{
+			std::string cipherPath = rootFS_->root->cipherPath(path.c_str());
+			efs_stat stat;
+			int ret = fileStatCache_.stat(cipherPath.c_str(), &stat);
+			if(ret == 0
+				&& (stat.st_mode & S_IFDIR))	// Check whether it is a directory
+				isDir = true;
+		}
+
+		// Check whether file exists
+		if(!isDir)
+		{
+			int res = 0;
+
+			try
+			{
+				boost::shared_ptr<FileNode> fileNode =
+					rootFS_->root->openNode(path.c_str(), "open", makeOpenFileFlags(existingAccessLevel), &res);
+
+				if(fileNode)
+				{
+					perr = openFileOp(fileNode, res, &openAttribs, newExistingOpenId, existingAccessLevel, path);
+					if(perr == 0)
+					{
+						createEndName(endName, path.c_str());
+						existed = true;
+					}
+				}
+				else
+				{
+					// File or directory did not yet exist
+					existed = false;
+
+					// From doc: If the indicated file does not exist and the newCreateOpenId parameter is zero then the formatter should return pfmErrorNotFound
+					if(newCreateOpenId == 0
+						|| createFileType == pfmFileTypeNone)
+					{
+						res = std::abs(res);
+						if(errno == EACCES)
+							perr = pfmErrorAccessDenied;
+						else if(errno == EISDIR)
+							perr = pfmErrorNotAFile;
+						else if(errno == ENOENT)
+							perr = pfmErrorNotFound;
+						else perr = pfmErrorInvalid;
+					}
+
+					if(perr == 0)
+					{
+						// Create new file
+						perr = createOp(path, createFileType, createFileFlags, writeTime, newCreateOpenId, &openAttribs);
+
+						if(perr == 0)
+							createEndName(endName, path.c_str());
+					}
+				}
+			}
+			catch(rlog::Error &err)
+			{
+				reportEncFSMPErr(L"Open failed", path, err);
+			}
+		}
+		else
+		{
+			// Directory exists, "open" it
+			perr = openDirOp(&openAttribs, newExistingOpenId, existingAccessLevel, path);
+
+			if(perr == 0)
+			{
+				createEndName(endName, path.c_str());
+				existed = true;
+			}
+		}
 	}
 
-	// Check whether parent folder exists
+	op->Complete(perr, existed, &openAttribs, parentFileId, endName.c_str(), 0, 0, 0, 0);
+}
 
-	// Root folder always exists
-	if(parentFolder.empty())
+void CCALL PFMLayer::Replace(PfmMarshallerReplaceOp* op, void* formatterUse)
+{
+	int64_t targetOpenId = op->TargetOpenId();
+	int64_t targetParentFileId = op->TargetParentFileId();
+	const PfmNamePart* targetEndName = op->TargetEndName();
+	uint8_t createFileFlags = op->CreateFileFlags();
+	int64_t writeTime = op->WriteTime();
+	int64_t newCreateOpenId = op->NewCreateOpenId();
+	int perr = 0;
+	PfmOpenAttribs openAttribs = zeroOpenAttribs;
+
+	OpenFile *pOpenFile = getOpenFile(targetOpenId);
+	if(pOpenFile == NULL)
+		perr = pfmErrorFailed;
+
+	// We do not support Replace for folders
+	if((perr == 0) && (!pOpenFile->isFile_))
+		perr = pfmErrorInvalid;
+
+	if((perr == 0) && (pOpenFile->isDeleted_))
+		perr = pfmErrorDeleted;
+
+	if(perr == 0)
 	{
-		if(parentFileId != NULL)
-			(*parentFileId) = 0;	// Special fileId for "parent" of root
+		// The documentation of PFM states that the new file should be created with the same name
+		// as the existing one, then the old file should be deleted. Deletion under PFM means
+		// that only the directory entry is deleted, but not the file itself. The file is physically
+		// deleted only when it is closed.
+		// Since here deletion is implemented by only setting the flag isDeleted, this would
+		// mean that two files have the same name until the old one gets deleted. This obviously doesn't
+		// work.
+		// Workaround: Rename the old file, mark it as deleted, then create the new file
+
+		std::string oldPath = pOpenFile->pathName_;
+
+		perr = deleteOp(pOpenFile);
+
+		if(perr == 0)
+		{
+			// Create new file
+			int createFileType = (pOpenFile->isFile_ ? pfmFileTypeFile : pfmFileTypeFolder);
+			perr = createOp(oldPath, createFileType, createFileFlags, writeTime, newCreateOpenId, &openAttribs);
+		}
 	}
-	else if(parentFolder == "/")
+
+	op->Complete(perr, &openAttribs, 0);
+}
+
+void CCALL PFMLayer::Move(PfmMarshallerMoveOp* op, void* formatterUse)
+{
+	int64_t sourceOpenId = op->SourceOpenId();
+	int64_t sourceParentFileId = op->SourceParentFileId();
+	const PfmNamePart* sourceEndName = op->SourceEndName();
+	const PfmNamePart* targetNameParts = op->TargetNameParts();
+	size_t targetNamePartCount = op->TargetNamePartCount();
+	bool deleteSource = !!op->DeleteSource();
+	int64_t writeTime = op->WriteTime();
+	int8_t existingAccessLevel = op->ExistingAccessLevel();
+	int64_t newExistingOpenId = op->NewExistingOpenId();
+	int perr = 0;
+	bool existed = false;
+	PfmOpenAttribs openAttribs = zeroOpenAttribs;
+	int64_t parentFileId = 0;
+	std::wstring endName;
+
+	OpenFile *pOpenFile = getOpenFile(sourceOpenId);
+	if(pOpenFile == NULL)
+		perr = pfmErrorFailed;
+
+	// if pOpenFile is root, fail
+	if((perr == 0) && (fs_layer::is_same_path(pOpenFile->pathName_, "")
+		|| fs_layer::is_same_path(pOpenFile->pathName_, "/")))
+		perr = pfmErrorAccessDenied;
+
+	if(perr == 0)
 	{
-		if(parentFileId != NULL)
-			(*parentFileId) = createFileId(parentFolder);
-	}
-	else
-	{
-		// Look in open files
+		// Construct name
+		std::string path("/"), parentFolder;		// In UTF-8 encoding
+		for(size_t i = 0; i < targetNamePartCount; i++)
+		{
+			parentFolder = path;
+
+			path = fs_layer::concat_path(path, targetNameParts[i].name8, true);
+		}
+
+		// Check whether parent folder exists
+		// First, look in open files
 		bool parentFolderFound = false;
 		OpenFile *pParentOpenFile = findOpenFileByName(parentFolder);
 		if(pParentOpenFile != NULL
 			&& !pParentOpenFile->isFile_)
 		{
 			parentFolderFound = true;
-			if(parentFileId != NULL)
-				(*parentFileId) = pParentOpenFile->fileId_;
+			parentFileId = pParentOpenFile->fileId_;
 		}
 
 		if(!parentFolderFound)
 		{
-			// Not found in open files, look on file system
-			std::string cipherPath = rootFS_->root->cipherPath(parentFolder.c_str());
-			efs_stat stat;
-			int ret = fileStatCache_.stat(cipherPath.c_str(), &stat);
-			if(ret != 0)
-				return pfmErrorParentNotFound;
-			if((stat.st_mode & S_IFDIR) == 0)	// Check whether it is a directory
-				return pfmErrorParentNotFound;
+			try
+			{
+				// Not found in open files, look on file system
+				DirTraverse dirTParent = rootFS_->root->openDir(parentFolder.c_str());
+				// If not, return pfmErrorParentNotFound
+				if(!dirTParent.valid())
+					perr = pfmErrorParentNotFound;
+			}
+			catch(rlog::Error &err)
+			{
+				// Not an error
+				perr = pfmErrorParentNotFound;
+			}
 
-			if(parentFileId != NULL)
-				(*parentFileId) = createFileId(parentFolder);
-
+			if(perr == 0)
+				parentFileId = createFileId(parentFolder);
 		}
-	}
 
-	int retVal = pfmErrorNotFound;
+		if(perr == 0
+			&& deleteSource == 0
+			&& !pOpenFile->isDeleted_)
+		{
+			// Request to make a hard link: We do not support links
+			perr = pfmErrorInvalid;
+		}
 
-	// Check whether file is opened already
-	OpenFile *pOpenFile = findOpenFileByName(path);
-	if(pOpenFile != NULL)
-	{
 		if(pOpenFile->isDeleted_)
 		{
-			// Found the file, but it is marked as deleted
+			// Undelete
+			pOpenFile->isDeleted_ = false;
 
-			// From doc: If the indicated file does not exist and the newCreateOpenId parameter is zero then the formatter should return pfmErrorNotFound
-			if(newCreateOpenId == 0
-				|| createFileType == pfmFileTypeNone)
-				return pfmErrorNotFound;
+			// TODO: Check whether target file already exists
 
-			// We can't create a file with the same name as a deleted file
-			return pfmErrorDeleted;
+			// Apply name change
+			perr = renameOp(pOpenFile, path);
 		}
-		else
+
+		if(perr == 0)
 		{
-			openExisting(pOpenFile, openAttribs, existingAccessLevel);
+			// === Check whether target file already exists
 
-			createEndName(endName, pOpenFile->pathName_.c_str());
-			*existed = true;
-
-			return 0;
-		}
-	}
-
-	// Check whether path is a directory or a file
-	bool isDir = false;
-	{
-		std::string cipherPath = rootFS_->root->cipherPath(path.c_str());
-		efs_stat stat;
-		int ret = fileStatCache_.stat(cipherPath.c_str(), &stat);
-		if(ret == 0
-			&& (stat.st_mode & S_IFDIR))	// Check whether it is a directory
-			isDir = true;
-	}
-
-	// Check whether file exists
-	if(!isDir)
-	{
-		int res = 0;
-
-		try
-		{
-			boost::shared_ptr<FileNode> fileNode = 
-				rootFS_->root->openNode( path.c_str(), "open", makeOpenFileFlags(existingAccessLevel), &res );
-
-			if(fileNode)
+			// Check whether target file is opened already
+			OpenFile *pOpenFileTarget = findOpenFileByName(path);
+			if(pOpenFileTarget != NULL)
 			{
-				retVal = openFileOp(fileNode, res, openAttribs, newExistingOpenId, existingAccessLevel, path);
-				if(retVal != 0)
-					return retVal;
-
-				createEndName(endName, path.c_str());
-				*existed = true;
-			}
-			else
-			{
-				// File or directory did not yet exist
-				*existed = false;
-
-				// From doc: If the indicated file does not exist and the newCreateOpenId parameter is zero then the formatter should return pfmErrorNotFound
-				if(newCreateOpenId == 0
-					|| createFileType == pfmFileTypeNone)
+				if(pOpenFileTarget->isDeleted_)
 				{
-					res = std::abs(res);
-					if(errno == EACCES)
-						return pfmErrorAccessDenied;
-					else if(errno == EISDIR)
-						return pfmErrorNotAFile;
-					else if(errno == ENOENT)
-						return pfmErrorNotFound;
-					else return pfmErrorInvalid;
+					// Found the file, but it is marked as deleted
+					// This is (should be) extremely improbable, but should lead to an error.
+					perr = pfmErrorInvalid;
 				}
+				else
+				{
+					openExisting(pOpenFileTarget, &openAttribs, existingAccessLevel);
 
-				// Create new file
-				retVal = createOp(path, createFileType, createFileFlags, writeTime, newCreateOpenId, openAttribs);
-				if(retVal != 0)
-					return retVal;
+					createEndName(endName, path.c_str());
 
-				createEndName(endName, path.c_str());
+					existed = true;
+
+					op->Complete(perr, existed, &openAttribs, parentFileId, endName.c_str(), 0, 0, 0, 0);
+					return;
+				}
 			}
-		}
-		catch( rlog::Error &err )
-		{
-			reportEncFSMPErr(L"Open failed", path, err);
-		}
-	}
-	else
-	{
-		// Directory exists, "open" it
-		retVal = openDirOp(openAttribs, newExistingOpenId, existingAccessLevel, path);
-		if(retVal != 0)
-			return retVal;
 
-		createEndName(endName, path.c_str());
-		*existed = true;
-	}
-
-	return retVal;
-}
-
-int/*error*/ CCALL PFMLayer::Replace(int64_t targetOpenId,int64_t targetParentFileId,
-	const PfmNamePart* targetEndName, uint8_t createFileFlags,
-	int64_t writeTime, int64_t newCreateOpenId, PfmOpenAttribs* openAttribs)
-{
-	OpenFile *pOpenFile = getOpenFile(targetOpenId);
-	if(pOpenFile == NULL)
-		return pfmErrorFailed;
-
-	// We do not support Replace for folders
-	if(!pOpenFile->isFile_)
-		return pfmErrorInvalid;
-
-	if(pOpenFile->isDeleted_)
-		return pfmErrorDeleted;
-
-	// The documentation of PFM states that the new file should be created with the same name
-	// as the existing one, then the old file should be deleted. Deletion under PFM means
-	// that only the directory entry is deleted, but not the file itself. The file is physically
-	// deleted only when it is closed.
-	// Since here deletion is implemented by only setting the flag isDeleted, this would
-	// mean that two files have the same name until the old one gets deleted. This obviously doesn't
-	// work.
-	// Workaround: Rename the old file, mark it as deleted, then create the new file
-
-	std::string oldPath = pOpenFile->pathName_;
-
-	int retVal = deleteOp(pOpenFile);
-
-	// Create new file
-	int createFileType = (pOpenFile->isFile_ ? pfmFileTypeFile : pfmFileTypeFolder);
-	retVal = createOp(oldPath, createFileType, createFileFlags, writeTime, newCreateOpenId, openAttribs);
-
-	return retVal;
-}
-
-int/*error*/ CCALL PFMLayer::Move(int64_t sourceOpenId, int64_t sourceParentFileId,
-	const PfmNamePart* sourceEndName,
-	const PfmNamePart* targetNameParts, size_t targetNamePartCount,
-	uint8_t/*bool*/ deleteSource, int64_t writeTime, int8_t existingAccessLevel,
-	int64_t newExistingOpenId, uint8_t/*bool*/ * existed, PfmOpenAttribs* openAttribs,
-	int64_t* parentFileId, wchar_t** endName)
-{
-	OpenFile *pOpenFile = getOpenFile(sourceOpenId);
-	if(pOpenFile == NULL)
-		return pfmErrorFailed;
-
-	// if pOpenFile is root, fail
-	if(fs_layer::is_same_path(pOpenFile->pathName_, "")
-		|| fs_layer::is_same_path(pOpenFile->pathName_, "/"))
-		return pfmErrorAccessDenied;
-
-	// Construct name
-	std::string path("/"), parentFolder;		// In UTF-8 encoding
-	for(size_t i = 0; i < targetNamePartCount; i++)
-	{
-		parentFolder = path;
-
-		path = fs_layer::concat_path(path, targetNameParts[i].name8, true);
-	}
-
-	// Check whether parent folder exists
-	// First, look in open files
-	bool parentFolderFound = false;
-	OpenFile *pParentOpenFile = findOpenFileByName(parentFolder);
-	if(pParentOpenFile != NULL
-		&& !pParentOpenFile->isFile_)
-	{
-		parentFolderFound = true;
-		if(parentFileId != NULL)
-			(*parentFileId) = pParentOpenFile->fileId_;
-	}
-
-	if(!parentFolderFound)
-	{
-		try
-		{
-			// Not found in open files, look on file system
-			DirTraverse dirTParent = rootFS_->root->openDir(parentFolder.c_str());
-			// If not, return pfmErrorParentNotFound
-			if(!dirTParent.valid())
-				return pfmErrorParentNotFound;
-		}
-		catch( rlog::Error &err )
-		{
-			// Not an error
-			return pfmErrorParentNotFound;
-		}
-
-		if(parentFileId != NULL)
-			(*parentFileId) = createFileId(parentFolder);
-	}
-
-	if(deleteSource == 0
-		&& !pOpenFile->isDeleted_)
-	{
-		// Request to make a hard link: We do not support links
-		return pfmErrorInvalid;
-	}
-
-	if(pOpenFile->isDeleted_)
-	{
-		// Undelete
-		pOpenFile->isDeleted_ = false;
-
-		// TODO: Check whether target file already exists
-
-		// Apply name change
-		return renameOp(pOpenFile, path);
-	}
-
-	int retVal = 0;
-
-	// === Check whether target file already exists
-
-	// Check whether target file is opened already
-	OpenFile *pOpenFileTarget = findOpenFileByName(path);
-	if(pOpenFileTarget != NULL)
-	{
-		if(pOpenFileTarget->isDeleted_)
-		{
-			// Found the file, but it is marked as deleted
-			// This is (should be) extremely improbable, but should lead to an error.
-			return pfmErrorInvalid;
-		}
-		else
-		{
-			openExisting(pOpenFileTarget, openAttribs, existingAccessLevel);
-
-			createEndName(endName, path.c_str());
-
-			*existed = true;
-
-			return 0;
-		}
-	}
-
-	// Check whether (target) path is a directory or a file
-	bool isDir = false;
-	{
-		try
-		{
-			DirTraverse dirT = rootFS_->root->openDir(path.c_str());
-			if(dirT.valid())
-				isDir = true;
-		}
-		catch( rlog::Error &err )
-		{
-			// Not an error
-		}
-	}
-
-	if(!isDir)
-	{
-		try
-		{
-			int res = 0;
-			boost::shared_ptr<FileNode> fileNode = 
-				rootFS_->root->openNode( path.c_str(), "open", makeOpenFileFlags(existingAccessLevel), &res );
-
-			if(fileNode)
+			// Check whether (target) path is a directory or a file
+			bool isDir = false;
 			{
-				// Target file already exists. Perform open
-				retVal = openFileOp(fileNode, res, openAttribs, newExistingOpenId, existingAccessLevel, path);
-				if(retVal != 0)
-					return retVal;
+				try
+				{
+					DirTraverse dirT = rootFS_->root->openDir(path.c_str());
+					if(dirT.valid())
+						isDir = true;
+				}
+				catch(rlog::Error &err)
+				{
+					// Not an error
+				}
+			}
 
-				createEndName(endName, path.c_str());
-				*existed = true;
+			if(!isDir)
+			{
+				try
+				{
+					int res = 0;
+					boost::shared_ptr<FileNode> fileNode =
+						rootFS_->root->openNode(path.c_str(), "open", makeOpenFileFlags(existingAccessLevel), &res);
+
+					if(fileNode)
+					{
+						// Target file already exists. Perform open
+						perr = openFileOp(fileNode, res, &openAttribs, newExistingOpenId, existingAccessLevel, path);
+
+						if(perr == 0)
+						{
+							createEndName(endName, path.c_str());
+							existed = true;
+						}
+					}
+					else
+					{
+						// File or directory did not yet exist
+						existed = false;
+
+						perr = renameOp(pOpenFile, path);
+
+						if(perr == 0)
+						{
+							openExisting(pOpenFile, &openAttribs, pfmAccessLevelWriteData);
+
+							createEndName(endName, path.c_str());
+						}
+					}
+				}
+				catch(rlog::Error &err)
+				{
+					reportEncFSMPErr(L"File not found in move operation", path, err);
+					perr = pfmErrorFailed;
+				}
 			}
 			else
 			{
-				// File or directory did not yet exist
-				*existed = false;
+				// Directory exists, "open" it
+				perr = openDirOp(&openAttribs, newExistingOpenId, existingAccessLevel, path);
 
-				int retVal = renameOp(pOpenFile, path);
-				if(retVal != 0)
-					return retVal;
-
-				openExisting(pOpenFile, openAttribs, pfmAccessLevelWriteData);
-
-				createEndName(endName, path.c_str());
-				retVal = 0;
+				if(perr == 0)
+				{
+					createEndName(endName, path.c_str());
+					existed = true;
+				}
 			}
 		}
-		catch( rlog::Error &err )
-		{
-			reportEncFSMPErr(L"File not found in move operation", path, err);
-			retVal = pfmErrorFailed;
-		}
 	}
-	else
-	{
-		// Directory exists, "open" it
-		retVal = openDirOp(openAttribs, newExistingOpenId, existingAccessLevel, path);
-		if(retVal != 0)
-			return retVal;
-
-		createEndName(endName, path.c_str());
-		*existed = true;
-	}
-
-	return retVal;
+	op->Complete(perr, existed, &openAttribs, parentFileId, endName.c_str(), 0, 0, 0, 0);
 }
 
-int/*error*/ CCALL PFMLayer::MoveReplace(int64_t sourceOpenId, int64_t sourceParentFileId,
-	const PfmNamePart* sourceEndName, int64_t targetOpenId,
-	int64_t targetParentFileId, const PfmNamePart* targetEndName,
-	uint8_t/*bool*/ deleteSource, int64_t writeTime)
+void CCALL PFMLayer::MoveReplace(PfmMarshallerMoveReplaceOp* op, void* formatterUse)
 {
+	int64_t sourceOpenId = op->SourceOpenId();
+	int64_t sourceParentFileId = op->SourceParentFileId();
+	const PfmNamePart* sourceEndName = op->SourceEndName();
+	int64_t targetOpenId = op->TargetOpenId();
+	int64_t targetParentFileId = op->TargetParentFileId();
+	const PfmNamePart* targetEndName = op->TargetEndName();
+	uint8_t/*bool*/ deleteSource = op->DeleteSource();
+	int64_t writeTime = op->WriteTime();
+	int perr = 0;
+
 	OpenFile *pSourceOpenFile = getOpenFile(sourceOpenId);
 	if(pSourceOpenFile == NULL)
-		return pfmErrorFailed;
+		perr = pfmErrorFailed;
 
-	OpenFile *pTargetOpenFile = getOpenFile(targetOpenId);
-	if(pTargetOpenFile == NULL)
-		return pfmErrorFailed;
+	OpenFile *pTargetOpenFile = NULL;
+	if(perr == 0)
+	{
+		pTargetOpenFile = getOpenFile(targetOpenId);
+		if(pTargetOpenFile == NULL)
+			perr = pfmErrorFailed;
+	}
 
-	if(pSourceOpenFile == pTargetOpenFile)
-		return pfmErrorInvalid;
+	if(perr == 0)
+	{
+		if(pSourceOpenFile == pTargetOpenFile)
+			perr = pfmErrorInvalid;
+	}
 
 	// if pTargetOpenFile is root, fail
-	if(fs_layer::is_same_path(pTargetOpenFile->pathName_, "")
-		|| fs_layer::is_same_path(pTargetOpenFile->pathName_, "/"))
-		return pfmErrorAccessDenied;
+	if((perr == 0) &&
+		(fs_layer::is_same_path(pTargetOpenFile->pathName_, "")
+		|| fs_layer::is_same_path(pTargetOpenFile->pathName_, "/")))
+		perr = pfmErrorAccessDenied;
 
-	if(pTargetOpenFile->isDeleted_)
-		return pfmErrorDeleted;
+	if((perr == 0) && (pTargetOpenFile->isDeleted_))
+		perr = pfmErrorDeleted;
 
-	if(deleteSource == 0
+	if(perr == 0
+		&& deleteSource == 0
 		&& !pSourceOpenFile->isDeleted_)
 	{
 		// Request to make a hard link: We do not support links
-		return pfmErrorInvalid;
+		perr = pfmErrorInvalid;
 	}
 
 	std::string newPath = pTargetOpenFile->pathName_;
 
 	// Delete target
-	int retVal = deleteOp(pTargetOpenFile);
-	if(retVal != 0)
-		return retVal;
+	if(perr == 0)
+		perr = deleteOp(pTargetOpenFile);
 
 	// Rename source to target
-	return renameOp(pSourceOpenFile, newPath);
+	if(perr == 0)
+		perr = renameOp(pSourceOpenFile, newPath);
+
+	op->Complete(perr);
 }
 
-int/*error*/ CCALL PFMLayer::Delete(int64_t openId,int64_t parentFileId,const PfmNamePart* endName,int64_t writeTime)
+void CCALL PFMLayer::Delete(PfmMarshallerDeleteOp* op, void* formatterUse)
 {
+	int64_t openId = op->OpenId();
+	int64_t parentFileId = op->ParentFileId();
+	const PfmNamePart* endName = op->EndName();
+	int64_t writeTime = op->WriteTime();
+	int perr = 0;
+
 	OpenFile *pOpenFile = getOpenFile(openId);
 	if(pOpenFile == NULL)
-		return pfmErrorFailed;
+		perr = pfmErrorFailed;
 
 	// if pOpenFile is root, fail
-	if(fs_layer::is_same_path(pOpenFile->pathName_, "")
-		|| fs_layer::is_same_path(pOpenFile->pathName_, "/"))
-		return pfmErrorAccessDenied;
+	if((perr == 0) && (fs_layer::is_same_path(pOpenFile->pathName_, "")
+		|| fs_layer::is_same_path(pOpenFile->pathName_, "/")))
+		perr = pfmErrorAccessDenied;
 
-	if(pOpenFile->isDeleted_)
-		return pfmErrorDeleted;
+	if((perr == 0) && (pOpenFile->isDeleted_))
+		perr = pfmErrorDeleted;
 
-	return deleteOp(pOpenFile);
+	if(perr == 0)
+		perr = deleteOp(pOpenFile);
+
+	op->Complete(perr);
 }
 
-int/*error*/ CCALL PFMLayer::Close(int64_t openId,int64_t openSequence)
+void CCALL PFMLayer::Close(PfmMarshallerCloseOp* op, void* formatterUse)
 {
+	int64_t openId = op->OpenId();
+	int64_t openSequence = op->OpenSequence();
+	int perr = 0;
+
 	OpenFileMapType::iterator iter = openFiles_.find(openId);
 	if(iter != openFiles_.end())
 	{
@@ -704,85 +792,117 @@ int/*error*/ CCALL PFMLayer::Close(int64_t openId,int64_t openSequence)
 			}
 
 		}
-		return 0;
+		perr = 0;
 	}
-	return pfmErrorFailed;
+	else
+		perr = pfmErrorFailed;
+
+	op->Complete(perr);
 }
 
-int/*error*/ CCALL PFMLayer::FlushFile(int64_t openId,uint8_t flushFlags,uint8_t fileFlags,uint8_t color,int64_t createTime,int64_t accessTime,int64_t writeTime,int64_t changeTime,PfmOpenAttribs* openAttribs)
+void CCALL PFMLayer::FlushFile(PfmMarshallerFlushFileOp* op, void* formatterUse)
 {
+	int64_t openId = op->OpenId();
+	uint8_t flushFlags = op->FlushFlags();
+	uint8_t fileFlags = op->FileFlags();
+	uint8_t color = op->Color();
+	int64_t createTime = op->CreateTime();
+	int64_t accessTime = op->AccessTime();
+	int64_t writeTime = op->WriteTime();
+	int64_t changeTime = op->ChangeTime();
+	int perr = 0;
+	PfmOpenAttribs openAttribs = zeroOpenAttribs;
+
 	OpenFile *pOpenFile = getOpenFile(openId);
 	if(pOpenFile == NULL)
-		return pfmErrorFailed;
-
-	if(pOpenFile->isFile_)
+		perr = pfmErrorFailed;
+	else
 	{
-		const char *cipherName = pOpenFile->fileNode_->cipherName();
-		if(fileFlags != pfmFileFlagsInvalid)
+		if(pOpenFile->isFile_)
 		{
-			pOpenFile->fileFlags_ = fileFlags;
-
-			// Change read only flag
-			efs_stat buf;
-			if(fileStatCache_.stat(cipherName, &buf) < 0)
-				return pfmErrorFailed;
-			int mode = buf.st_mode;
-
-			if((fileFlags & pfmFileFlagReadOnly) != 0)
+			const char *cipherName = pOpenFile->fileNode_->cipherName();
+			if(fileFlags != pfmFileFlagsInvalid)
 			{
-				pOpenFile->isReadOnly_ = true;
-				mode &= ~(S_IWUSR | S_IWGRP | S_IWOTH);
-			}
-			else
-			{
-				pOpenFile->isReadOnly_ = false;
-				mode |= (S_IWUSR | S_IWGRP | S_IWOTH);
-			}
-			if(fs_layer::chmod(cipherName, mode) < 0)
-				return pfmErrorFailed;
+				pOpenFile->fileFlags_ = fileFlags;
 
-			fileStatCache_.forgetCachedStat(cipherName);
+				// Change read only flag
+				efs_stat buf;
+				if(fileStatCache_.stat(cipherName, &buf) < 0)
+					perr = pfmErrorFailed;
+				else
+				{
+					int mode = buf.st_mode;
+
+					if((fileFlags & pfmFileFlagReadOnly) != 0)
+					{
+						pOpenFile->isReadOnly_ = true;
+						mode &= ~(S_IWUSR | S_IWGRP | S_IWOTH);
+					}
+					else
+					{
+						pOpenFile->isReadOnly_ = false;
+						mode |= (S_IWUSR | S_IWGRP | S_IWOTH);
+					}
+					if(fs_layer::chmod(cipherName, mode) < 0)
+						perr = pfmErrorFailed;
+					else
+						fileStatCache_.forgetCachedStat(cipherName);
+				}
+			}
+
+			if((perr == 0) && (writeTime != pfmTimeInvalid))
+			{
+				// Apply writeTime
+				struct fs_layer::timeval_fs tm[2];
+				tm[0].tv_sec = FileTimeToUnixTime(writeTime);
+				tm[0].tv_usec = 0;
+				tm[1].tv_sec = FileTimeToUnixTime(writeTime);
+				tm[1].tv_usec = 0;
+				if(pOpenFile->fd_ < 0)
+					fs_layer::utimes(cipherName, tm);
+				else
+					fs_layer::futimes(pOpenFile->fd_, tm);
+
+				pOpenFile->accessTime_ = writeTime;
+				pOpenFile->changeTime_ = writeTime;
+				pOpenFile->writeTime_ = writeTime;
+				pOpenFile->createTime_ = writeTime;
+
+				fileStatCache_.forgetCachedStat(cipherName);
+			}
 		}
 
-		if(writeTime != pfmTimeInvalid)
-		{
-			// Apply writeTime
-			struct fs_layer::timeval_fs tm[2];
-			tm[0].tv_sec = FileTimeToUnixTime(writeTime);
-			tm[0].tv_usec = 0;
-			tm[1].tv_sec = FileTimeToUnixTime(writeTime);
-			tm[1].tv_usec = 0;
-			if(pOpenFile->fd_ < 0)
-				fs_layer::utimes(cipherName, tm);
-			else
-				fs_layer::futimes(pOpenFile->fd_, tm);
-
-			pOpenFile->accessTime_ = writeTime;
-			pOpenFile->changeTime_ = writeTime;
-			pOpenFile->writeTime_ = writeTime;
-			pOpenFile->createTime_ = writeTime;
-
-			fileStatCache_.forgetCachedStat(cipherName);
-		}
+		if((perr == 0) && (flushFlags & pfmFlushFlagOpen))
+			openExisting(pOpenFile, &openAttribs, pfmAccessLevelWriteData);
 	}
 
-	if(flushFlags & pfmFlushFlagOpen)
-		openExisting(pOpenFile, openAttribs, pfmAccessLevelWriteData);
-
-	return 0;
+	op->Complete(perr, &openAttribs, 0);
 }
 
-int/*error*/ CCALL PFMLayer::List(int64_t openId,int64_t listId,PfmMarshallerListResult* listResult)
+void CCALL PFMLayer::List(PfmMarshallerListOp* op, void* formatterUse)
 {
+	int64_t openId = op->OpenId();
+	int64_t listId = op->ListId();
+	int perr = 0;
+	bool noMore = false;
+
 	if(!rootFS_)
-		return pfmErrorFailed;
-	OpenFile *pOpenFile = getOpenFile(openId);
+		perr = pfmErrorFailed;
+	OpenFile *pOpenFile = NULL;
+	if(perr == 0)
+		pOpenFile = getOpenFile(openId);
 	if(pOpenFile == NULL)
-		return pfmErrorFailed;
-	if(pOpenFile->isFile_)
-		return pfmErrorNotAFolder;
-	if(pOpenFile->isDeleted_)
-		return pfmErrorDeleted;
+		perr = pfmErrorFailed;
+	if(perr == 0 && pOpenFile->isFile_)
+		perr = pfmErrorNotAFolder;
+	if(perr == 0 && pOpenFile->isDeleted_)
+		perr = pfmErrorDeleted;
+
+	if(perr != 0)
+	{
+		op->Complete(perr, noMore);
+		return;
+	}
 
 	// Check whether listId already exists
 	FileList *pFileList = NULL;
@@ -805,18 +925,27 @@ int/*error*/ CCALL PFMLayer::List(int64_t openId,int64_t listId,PfmMarshallerLis
 			// Create new list
 			DirTraverse dirT = rootFS_->root->openDir(pOpenFile->pathName_.c_str());
 			if(!dirT.valid())
-				return pfmErrorFailed;
+				perr = pfmErrorFailed;
 
-			fl.listId_ = listId;
-			boost::shared_ptr<DirTraverse> pDirTTemp ( new DirTraverse(dirT) );
-			fl.pDirT_ = pDirTTemp;
-			pOpenFile->fileLists_.push_back(fl);
-			pFileList = &(pOpenFile->fileLists_.back());
+			if(perr == 0)
+			{
+				fl.listId_ = listId;
+				boost::shared_ptr<DirTraverse> pDirTTemp(new DirTraverse(dirT));
+				fl.pDirT_ = pDirTTemp;
+				pOpenFile->fileLists_.push_back(fl);
+				pFileList = &(pOpenFile->fileLists_.back());
+			}
 		}
 		catch( rlog::Error &err )
 		{
 			reportEncFSMPErr(L"Could not open directory", pOpenFile->pathName_, err);
-			return pfmErrorFailed;
+			perr = pfmErrorFailed;
+		}
+
+		if(perr != 0)
+		{
+			op->Complete(perr, noMore);
+			return;
 		}
 	}
 
@@ -824,7 +953,7 @@ int/*error*/ CCALL PFMLayer::List(int64_t openId,int64_t listId,PfmMarshallerLis
 	if(pFileList->hasPreviousResult_)
 	{
 		uint8_t wasAdded = 1;
-		listResult->Add8(&(pFileList->prevAttribs_), pFileList->prevName_.c_str(), &wasAdded);
+		op->Add8(&(pFileList->prevAttribs_), pFileList->prevName_.c_str());		// , &wasAdded);
 
 		if(wasAdded)
 			pFileList->hasPreviousResult_ = false;
@@ -839,7 +968,8 @@ int/*error*/ CCALL PFMLayer::List(int64_t openId,int64_t listId,PfmMarshallerLis
 			std::string name = pFileList->pDirT_->nextPlaintextName(&fileType);
 			if(name.empty())
 			{
-				listResult->NoMore();
+				//listResult->NoMore();
+				noMore = true;
 				doCont = false;
 			}
 			else
@@ -934,7 +1064,7 @@ int/*error*/ CCALL PFMLayer::List(int64_t openId,int64_t listId,PfmMarshallerLis
 							attribs.changeTime = UnixTimeToFileTime(buf.st_mtime);
 
 							if(!skipThisFile)
-								listResult->Add8(&attribs, name.c_str(), &wasAdded);
+								op->Add8(&attribs, name.c_str());	// , &wasAdded);
 
 							if(!wasAdded)
 							{
@@ -959,235 +1089,295 @@ int/*error*/ CCALL PFMLayer::List(int64_t openId,int64_t listId,PfmMarshallerLis
 		catch( rlog::Error &err )
 		{
 			reportEncFSMPErr(L"Error in directory listing", "", err);
-			return pfmErrorFailed;
+			perr = pfmErrorFailed;
 		}
 	}
 
-	return 0;
+	op->Complete(perr, noMore);
 }
 
-int/*error*/ CCALL PFMLayer::ListEnd(int64_t openId,int64_t listId)
+void CCALL PFMLayer::ListEnd(PfmMarshallerListEndOp* op, void* formatterUse)
 {
+	int64_t openId = op->OpenId();
+	int64_t listId = op->ListId();
+	int perr = 0;
+
 	if(!rootFS_)
-		return pfmErrorFailed;
+		perr = pfmErrorFailed;
 	OpenFile *pOpenFile = getOpenFile(openId);
-	if(pOpenFile == NULL)
-		return pfmErrorFailed;
-	if(pOpenFile->isFile_)
-		return pfmErrorNotAFolder;
+	if(perr == 0 && pOpenFile == NULL)
+		perr = pfmErrorFailed;
+	if(perr = 0 && pOpenFile->isFile_)
+		perr = pfmErrorNotAFolder;
 
-	FileList *pFileList = NULL;
-	std::list<FileList>::iterator iter = pOpenFile->fileLists_.begin();
-	while(iter != pOpenFile->fileLists_.end())
+	if(perr == 0)
 	{
-		FileList &cur = *iter;
-		if(cur.listId_ == listId)
+		FileList *pFileList = NULL;
+		std::list<FileList>::iterator iter = pOpenFile->fileLists_.begin();
+		while(iter != pOpenFile->fileLists_.end())
 		{
-			pOpenFile->fileLists_.erase(iter);
-			return 0;
+			FileList &cur = *iter;
+			if(cur.listId_ == listId)
+			{
+				pOpenFile->fileLists_.erase(iter);
+				op->Complete(perr);
+				return;
+			}
+			iter++;
 		}
-		iter++;
 	}
-
-	return 0;
+	op->Complete(perr);
 }
 
-int/*error*/ CCALL PFMLayer::Read(int64_t openId,uint64_t fileOffset,void* data,size_t requestedSize,size_t* outActualSize)
+void CCALL PFMLayer::Read(PfmMarshallerReadOp* op, void* formatterUse)
 {
+	int64_t openId = op->OpenId();
+	uint64_t fileOffset = op->FileOffset();
+	void* data = op->Data();
+	size_t requestedSize = op->RequestedSize();
+	int perr = 0;
+	size_t actualSize = 0;
+
 	OpenFile *pOpenFile = getOpenFile(openId);
 	if(pOpenFile == NULL)
-		return pfmErrorFailed;
-	if(!pOpenFile->isFile_)
-		return pfmErrorNotAFile;
-	if(pOpenFile->isDeleted_)
-		return pfmErrorDeleted;
+		perr = pfmErrorFailed;
+	if((perr == 0) && (!pOpenFile->isFile_))
+		perr = pfmErrorNotAFile;
+	if((perr == 0) && (pOpenFile->isDeleted_))
+		perr = pfmErrorDeleted;
 
-	boost::shared_ptr<FileNode> fileNode = pOpenFile->fileNode_;
-	if(!fileNode)
-		return pfmErrorFailed;
-
-	try
+	if(perr == 0)
 	{
-		ssize_t actSize = fileNode->read(static_cast<efs_off_t>(fileOffset), reinterpret_cast<unsigned char *>(data), requestedSize);
-		if(outActualSize != NULL)
-			(*outActualSize) = actSize;
-	}
-	catch( rlog::Error &err )
-	{
-		reportEncFSMPErr(L"Error during read operation", pOpenFile->pathName_, err);
-		return pfmErrorFailed;
-	}
-
-	return 0;
-}
-
-int/*error*/ CCALL PFMLayer::Write(int64_t openId,uint64_t fileOffset,const void* data,size_t requestedSize,size_t* outActualSize)
-{
-	OpenFile *pOpenFile = getOpenFile(openId);
-	if(pOpenFile == NULL)
-		return pfmErrorFailed;
-	if(!pOpenFile->isFile_)
-		return pfmErrorNotAFile;
-	if(pOpenFile->isDeleted_)
-		return pfmErrorDeleted;
-
-	boost::shared_ptr<FileNode> fileNode = pOpenFile->fileNode_;
-	if(!fileNode)
-		return pfmErrorFailed;
-
-	try
-	{
-		bool isOK = fileNode->write(static_cast<efs_off_t>(fileOffset), const_cast<unsigned char *>(reinterpret_cast<const unsigned char *>(data)),
-			requestedSize);
-		if(outActualSize != NULL)
+		boost::shared_ptr<FileNode> fileNode = pOpenFile->fileNode_;
+		if(!fileNode)
+			perr = pfmErrorFailed;
+		else
 		{
-			if(isOK)
-				(*outActualSize) = requestedSize;
-			else
-				(*outActualSize) = 0;	// We don't have more information
+			try
+			{
+				ssize_t actSize = fileNode->read(static_cast<efs_off_t>(fileOffset), reinterpret_cast<unsigned char *>(data), requestedSize);
+				actualSize = actSize;
+			}
+			catch(rlog::Error &err)
+			{
+				reportEncFSMPErr(L"Error during read operation", pOpenFile->pathName_, err);
+				perr = pfmErrorFailed;
+			}
 		}
-		if(!isOK)
-			return pfmErrorFailed;
 	}
-	catch( rlog::Error &err )
-	{
-		reportEncFSMPErr(L"Error during write operation", pOpenFile->pathName_, err);
-		return pfmErrorFailed;
-	}
-
-	// Size and/or last write time has changed, forget cached file stat
-	fileStatCache_.forgetCachedStat( fileNode->cipherName() );
-
-	return 0;
+	op->Complete(perr, actualSize);
 }
 
-int/*error*/ CCALL PFMLayer::SetSize(int64_t openId,uint64_t fileSize)
+void CCALL PFMLayer::Write(PfmMarshallerWriteOp* op, void* formatterUse)
 {
+	int64_t openId = op->OpenId();
+	uint64_t fileOffset = op->FileOffset();
+	const void* data = op->Data();
+	size_t requestedSize = op->RequestedSize();
+	int perr = 0;
+	size_t actualSize = 0;
+
 	OpenFile *pOpenFile = getOpenFile(openId);
 	if(pOpenFile == NULL)
-		return pfmErrorFailed;
-	if(!pOpenFile->isFile_)
-		return pfmErrorNotAFile;
-	if(pOpenFile->isDeleted_)
-		return pfmErrorDeleted;
+		perr = pfmErrorFailed;
+	if((perr == 0) && (!pOpenFile->isFile_))
+		perr = pfmErrorNotAFile;
+	if((perr == 0) && (pOpenFile->isDeleted_))
+		perr = pfmErrorDeleted;
 
-	boost::shared_ptr<FileNode> fileNode = pOpenFile->fileNode_;
-	if(!fileNode)
-		return pfmErrorFailed;
-
-	try
+	if(perr == 0)
 	{
-		int retVal = fileNode->truncate(static_cast<efs_off_t>(fileSize));
-		if(retVal < 0)
-			return pfmErrorFailed;
+		boost::shared_ptr<FileNode> fileNode = pOpenFile->fileNode_;
+		if(!fileNode)
+			perr = pfmErrorFailed;
+		else
+		{
+			try
+			{
+				bool isOK = fileNode->write(static_cast<efs_off_t>(fileOffset), const_cast<unsigned char *>(reinterpret_cast<const unsigned char *>(data)),
+					requestedSize);
+				if(isOK)
+					actualSize = requestedSize;
+				else
+					actualSize = 0;	// We don't have more information
+				if(!isOK)
+					perr = pfmErrorFailed;
+			}
+			catch(rlog::Error &err)
+			{
+				reportEncFSMPErr(L"Error during write operation", pOpenFile->pathName_, err);
+				perr = pfmErrorFailed;
+			}
+			if(perr == 0)
+			{
+				// Size and/or last write time has changed, forget cached file stat
+				fileStatCache_.forgetCachedStat(fileNode->cipherName());
+			}
+		}
 	}
-	catch( rlog::Error &err )
-	{
-		reportEncFSMPErr(L"Error during SetSize operation", pOpenFile->pathName_, err);
-		return pfmErrorFailed;
-	}
-
-	// Size has changed, forget cached file stat
-	fileStatCache_.forgetCachedStat( fileNode->cipherName() );
-
-	pOpenFile->fileSize_ = fileSize;
-	return 0;
+	op->Complete(perr, actualSize);
 }
 
-int/*error*/ CCALL PFMLayer::Capacity(uint64_t* totalCapacity,uint64_t* availableCapacity)
+void CCALL PFMLayer::SetSize(PfmMarshallerSetSizeOp* op, void* formatterUse)
 {
+	int64_t openId = op->OpenId();
+	uint64_t fileSize = op->FileSize();
+	int perr = 0;
+
+	OpenFile *pOpenFile = getOpenFile(openId);
+	if(pOpenFile == NULL)
+		perr = pfmErrorFailed;
+	if((perr == 0) && (!pOpenFile->isFile_))
+		perr = pfmErrorNotAFile;
+	if((perr == 0) && (pOpenFile->isDeleted_))
+		perr = pfmErrorDeleted;
+
+	if(perr == 0)
+	{
+		boost::shared_ptr<FileNode> fileNode = pOpenFile->fileNode_;
+		if(!fileNode)
+			perr = pfmErrorFailed;
+		else
+		{
+			try
+			{
+				int retVal = fileNode->truncate(static_cast<efs_off_t>(fileSize));
+				if(retVal < 0)
+					perr = pfmErrorFailed;
+			}
+			catch( rlog::Error &err )
+			{
+				reportEncFSMPErr(L"Error during SetSize operation", pOpenFile->pathName_, err);
+				perr = pfmErrorFailed;
+			}
+
+			if(perr == 0)
+			{
+				// Size has changed, forget cached file stat
+				fileStatCache_.forgetCachedStat( fileNode->cipherName() );
+
+				pOpenFile->fileSize_ = fileSize;
+			}
+		}
+	}
+	op->Complete(perr);
+}
+
+void CCALL PFMLayer::Capacity(PfmMarshallerCapacityOp* op, void* formatterUse)
+{
+	uint64_t totalCapacity = 0;
+	uint64_t availableCapacity = 0;
+	int perr = 0;
+
 	// Retrieve absolute path of encrypted directory
 	if(!rootFS_)
-		return pfmErrorFailed;
+		perr = pfmErrorFailed;
+	else
+	{
+		std::string rootDir = rootFS_->root->rootDirectory();
 
-	std::string rootDir = rootFS_->root->rootDirectory();
+		uint64_t totalCapacityLocal, availableCapacityLocal;
+		if(!fs_layer::capacity(rootDir, totalCapacityLocal, availableCapacityLocal))
+			perr = pfmErrorInvalid;
 
-	uint64_t totalCapacityLocal, availableCapacityLocal;
-	if(!fs_layer::capacity(rootDir, totalCapacityLocal, availableCapacityLocal))
-		return pfmErrorInvalid;
-
-	if(totalCapacity != NULL)
-		(*totalCapacity) = totalCapacityLocal;
-	if(availableCapacity != NULL)
-		(*availableCapacity) = availableCapacityLocal;
-
-	return 0;
+		totalCapacity = totalCapacityLocal;
+		availableCapacity = availableCapacityLocal;
+	}
+	op->Complete(perr, totalCapacity, availableCapacity);
 }
 
-int/*error*/ CCALL PFMLayer::FlushMedia(uint8_t/*bool*/ * mediaClean)
+void CCALL PFMLayer::FlushMedia(PfmMarshallerFlushMediaOp* op, void* formatterUse)
 {
-	if(mediaClean != NULL)
-		(*mediaClean) = true;
-	return 0;
+	op->Complete(pfmErrorSuccess, -1/*msecFlushDelay*/);
 }
 
-int/*error*/ CCALL PFMLayer::Control(int64_t openId,int8_t accessLevel,int controlCode,const void* input,size_t inputSize,void* output,size_t maxOutputSize,size_t* outputSize)
+void CCALL PFMLayer::Control(PfmMarshallerControlOp* op, void* formatterUse)
 {
-	return pfmErrorAccessDenied;
+	op->Complete(pfmErrorInvalid, 0/*outputSize*/);
 }
 
-int/*error*/ CCALL PFMLayer::MediaInfo(int64_t openId,PfmMediaInfo* mediaInfo,wchar_t** mediaLabel)
+void CCALL PFMLayer::MediaInfo(PfmMarshallerMediaInfoOp* op, void* formatterUse)
 {
-	wchar_t *stringCopy = new wchar_t[ mountName_.length() + 1];
-	wcscpy(stringCopy, &(mountName_[0]));
-	(*mediaLabel) = stringCopy;
+	PfmMediaInfo mediaInfo = zeroMediaInfo;
+	std::wstring mediaLabel = mountName_;
 
-	return 0;
+	op->Complete(pfmErrorSuccess, &mediaInfo, mediaLabel.c_str());
 }
 
-int/*error*/ CCALL PFMLayer::Access(int64_t openId,int8_t accessLevel,PfmOpenAttribs* openAttribs)
+void CCALL PFMLayer::Access(PfmMarshallerAccessOp* op, void* formatterUse)
 {
+	int64_t openId = op->OpenId();
+	int8_t accessLevel = op->AccessLevel();
+
+	int perr = 0;
+	PfmOpenAttribs openAttribs = zeroOpenAttribs;
+
 	OpenFile *pOpenFile = getOpenFile(openId);
 	if(pOpenFile == NULL)
-		return pfmErrorFailed;
-
-#if !defined(PFM_ACCESS_LEVEL_WORKAROUND)
-	// Check for access level and fail if source file is not writable
-	if(accessLevel >= pfmAccessLevelWriteData)
+		perr = pfmErrorFailed;
+	else
 	{
-		if(pOpenFile->isReadOnly_)
-			return pfmErrorAccessDenied;
-
-		if(pOpenFile->isOpenedReadOnly_)
+#if !defined(PFM_ACCESS_LEVEL_WORKAROUND)
+		// Check for access level and fail if source file is not writable
+		if(accessLevel >= pfmAccessLevelWriteData)
 		{
-			// Try to reopen file with write access
-			pOpenFile->fileNode_.reset();
+			if(pOpenFile->isReadOnly_)
+				perr = pfmErrorAccessDenied;
 
-			int res = 0;
-			pOpenFile->fileNode_ =
-				rootFS_->root->openNode(pOpenFile->pathName_.c_str(), "open", makeOpenFileFlags(accessLevel), &res);
-			if(!pOpenFile->fileNode_)
+			if((perr == 0) && (pOpenFile->isOpenedReadOnly_))
 			{
-				// Failed, try to open again for reading
+				// Try to reopen file with write access
+				pOpenFile->fileNode_.reset();
+
+				int res = 0;
 				pOpenFile->fileNode_ =
-					rootFS_->root->openNode(pOpenFile->pathName_.c_str(), "open", makeOpenFileFlags(openAttribs->accessLevel), &res);
-				return pfmErrorAccessDenied;
+					rootFS_->root->openNode(pOpenFile->pathName_.c_str(), "open", makeOpenFileFlags(accessLevel), &res);
+				if(!pOpenFile->fileNode_)
+				{
+					// Failed, try to open again for reading
+					pOpenFile->fileNode_ =
+						rootFS_->root->openNode(pOpenFile->pathName_.c_str(), "open", makeOpenFileFlags(pfmAccessLevelReadData), &res);
+					perr = pfmErrorAccessDenied;
+				}
+				if(perr == 0)
+					pOpenFile->isOpenedReadOnly_ = false;
 			}
-			pOpenFile->isOpenedReadOnly_ = false;
 		}
-	}
 #endif
 
-	pOpenFile->sequenceId_++;
+		if(perr == 0)
+		{
+			pOpenFile->sequenceId_++;
 
-	openAttribs->openId = pOpenFile->openId_;
-	openAttribs->openSequence = pOpenFile->sequenceId_;
-	openAttribs->accessLevel = ((pOpenFile->isReadOnly_ || pOpenFile->isOpenedReadOnly_) ? pfmAccessLevelDelete : pfmAccessLevelWriteData);
+			openAttribs.openId = pOpenFile->openId_;
+			openAttribs.openSequence = pOpenFile->sequenceId_;
+			openAttribs.accessLevel = ((pOpenFile->isReadOnly_ || pOpenFile->isOpenedReadOnly_) ? pfmAccessLevelDelete : pfmAccessLevelWriteData);
 
-	if(pOpenFile->isFile_)
-		openAttribs->attribs.fileType = pfmFileTypeFile;
-	else
-		openAttribs->attribs.fileType = pfmFileTypeFolder;
-	openAttribs->attribs.fileFlags = pOpenFile->fileFlags_;
-	openAttribs->attribs.fileId = pOpenFile->fileId_;
-	openAttribs->attribs.fileSize = pOpenFile->fileSize_;
+			if(pOpenFile->isFile_)
+				openAttribs.attribs.fileType = pfmFileTypeFile;
+			else
+				openAttribs.attribs.fileType = pfmFileTypeFolder;
+			openAttribs.attribs.fileFlags = pOpenFile->fileFlags_;
+			openAttribs.attribs.fileId = pOpenFile->fileId_;
+			openAttribs.attribs.fileSize = pOpenFile->fileSize_;
 
-	openAttribs->attribs.accessTime = pOpenFile->accessTime_;
-	openAttribs->attribs.createTime = pOpenFile->createTime_;
-	openAttribs->attribs.writeTime = pOpenFile->writeTime_;
-	openAttribs->attribs.changeTime = pOpenFile->changeTime_;
+			openAttribs.attribs.accessTime = pOpenFile->accessTime_;
+			openAttribs.attribs.createTime = pOpenFile->createTime_;
+			openAttribs.attribs.writeTime = pOpenFile->writeTime_;
+			openAttribs.attribs.changeTime = pOpenFile->changeTime_;
+		}
+	}
+	op->Complete(perr, &openAttribs, 0);
+}
 
-	return 0;
+void CCALL PFMLayer::ReadXattr(PfmMarshallerReadXattrOp* op, void* formatterUse)
+{
+	op->Complete(pfmErrorNotFound, 0/*xattrSize*/, 0/*transferredSize*/);
+}
+
+void CCALL PFMLayer::WriteXattr(PfmMarshallerWriteXattrOp* op, void* formatterUse)
+{
+	op->Complete(pfmErrorAccessDenied, 0/*transferredSize*/);
 }
 
 int64_t PFMLayer::getFileID(const std::string &path)
@@ -1282,17 +1472,11 @@ int64_t PFMLayer::createFileId(const std::string &fn)
 	return fileId;
 }
 
-void PFMLayer::createEndName(wchar_t** endName, const char *fullPathName)
+void PFMLayer::createEndName(std::wstring &endName, const char *fullPathName)
 {
-	if(endName != NULL)
-	{
-		// Convert filename from UTF8 to UTF16
-		std::string fileName = fs_layer::extract_filename(std::string(fullPathName));
-		std::wstring fileNameUTF16 = boost::locale::conv::utf_to_utf<wchar_t>(fileName.c_str());
-		wchar_t *newFileNameUTF16 = new wchar_t[fileNameUTF16.length() + 1];
-		wcscpy(newFileNameUTF16, fileNameUTF16.c_str());
-		(*endName) = newFileNameUTF16;
-	}
+	// Convert filename from UTF8 to UTF16
+	std::string fileName = fs_layer::extract_filename(std::string(fullPathName));
+	endName = boost::locale::conv::utf_to_utf<wchar_t>(fileName.c_str());
 }
 
 int PFMLayer::createOp(const std::string &path, int8_t createFileType, uint8_t createFileFlags,

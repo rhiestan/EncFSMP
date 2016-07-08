@@ -19,6 +19,8 @@
 
 #include "CommonIncludes.h"
 
+#include <stdint.h>
+
 #include "PFMProxy.h"
 #include "PFMMonitorThread.h"
 
@@ -31,7 +33,6 @@
 
 // Pismo File Mount
 #include "pfmapi.h"
-#include "pfmmarshaller.h"
 
 PFMProxy PFMProxy::instance_;
 

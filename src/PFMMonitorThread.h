@@ -20,7 +20,7 @@
 #ifndef PFMMONITORTHREAD_H
 #define PFMMONITORTHREAD_H
 
-struct PfmMonitor;
+struct PfmMountMonitor;
 
 class PFMMonitorThread: public wxThread
 {
@@ -36,7 +36,7 @@ protected:
 	virtual wxThread::ExitCode Entry();
 
 private:
-	PfmMonitor *pfmMonitor_;
+	PfmMountMonitor *pfmMonitor_;
 
 	wxMutex mutex_;
 	bool sendEvents_;
