@@ -375,7 +375,7 @@ void EncFSMPMainFrame::OnExportMenuItem( wxCommandEvent& event )
 			password = pMountEntry->volatilePassword_;
 		if(password.IsEmpty())
 		{
-			wxPasswordEntryDialog dlg(this, wxT("Please enter the password:"));
+			wxPasswordEntryDialog dlg(this, wxT("Please enter the password:"), wxString(wxT(ENCFSMP_NAME " - Password for ")) + pMountEntry->name_);
 			int retVal = dlg.ShowModal();
 			if(retVal == wxID_CANCEL)
 				return;
@@ -650,7 +650,7 @@ void EncFSMPMainFrame::OnMountButton( wxCommandEvent& event )
 				password = pMountEntry->volatilePassword_;
 			if(password.IsEmpty())
 			{
-				wxPasswordEntryDialog dlg(this, wxT("Please enter the password:"));
+				wxPasswordEntryDialog dlg(this, wxT("Please enter the password:"), wxString(wxT(ENCFSMP_NAME " - Password for ")) + pMountEntry->name_);
 				int retVal = dlg.ShowModal();
 				if(retVal == wxID_CANCEL)
 					return;
@@ -1019,7 +1019,7 @@ void EncFSMPMainFrame::OnEncFSCommand( wxCommandEvent &event )
 					password = pMountEntry->volatilePassword_;
 				if(password.IsEmpty())
 				{
-					wxPasswordEntryDialog dlg(this, wxT("Please enter the password:"));
+					wxPasswordEntryDialog dlg(this, wxT("Please enter the password:"), wxString(wxT(ENCFSMP_NAME " - Password for ")) + pMountEntry->name_);
 					int retVal = dlg.ShowModal();
 					if(retVal == wxID_CANCEL)
 						return;
