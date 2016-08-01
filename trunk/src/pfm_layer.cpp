@@ -126,7 +126,7 @@ void PFMLayer::startFS(RootPtr rootFS, const wchar_t *mountDir, PfmApi *pfmApi,
 	msp.dispatch = this;
 
 	mcp.mountSourceName = mountDir;
-	mcp.mountFlags |= pfmMountFlagUncOnly | pfmMountFlagUnmountOnRelease;	// | pfmMountFlagWorldOwned;
+	mcp.mountFlags |= pfmMountFlagUnmountOnRelease;	// | pfmMountFlagWorldOwned;
 	if(localDrive)
 		mcp.mountFlags |= pfmMountFlagLocalDriveType;
 	if(startBrowser)
@@ -135,7 +135,10 @@ void PFMLayer::startFS(RootPtr rootFS, const wchar_t *mountDir, PfmApi *pfmApi,
 		mcp.mountFlags |= (pfmMountFlagWorldRead | pfmMountFlagWorldWrite);
 
 	if(driveLetter != L'-')
+	{
 		mcp.driveLetter = driveLetter;
+		mcp.mountFlags |= pfmMountFlagUncOnly;
+	}
 
 	error = PfmMarshallerFactory(&marshaller);
 	if(error)
@@ -953,7 +956,7 @@ void CCALL PFMLayer::List(PfmMarshallerListOp* op, void* formatterUse)
 	if(pFileList->hasPreviousResult_)
 	{
 		uint8_t wasAdded = 1;
-		op->Add8(&(pFileList->prevAttribs_), pFileList->prevName_.c_str());		// , &wasAdded);
+		wasAdded = op->Add8(&(pFileList->prevAttribs_), pFileList->prevName_.c_str());
 
 		if(wasAdded)
 			pFileList->hasPreviousResult_ = false;
@@ -1064,7 +1067,7 @@ void CCALL PFMLayer::List(PfmMarshallerListOp* op, void* formatterUse)
 							attribs.changeTime = UnixTimeToFileTime(buf.st_mtime);
 
 							if(!skipThisFile)
-								op->Add8(&attribs, name.c_str());	// , &wasAdded);
+								wasAdded = op->Add8(&attribs, name.c_str());
 
 							if(!wasAdded)
 							{

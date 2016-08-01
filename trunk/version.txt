@@ -1,6 +1,12 @@
 ﻿Version history
 ---------------
 
+Version 0.10.6, 01.08.2016:
+- Bug fix (Windows only): Mounts without drive letter are now mounted again unter C:\Volumes
+- Fixed bug #66: For directories with more than ~1050 files, not all files were displayed
+- The password dialog now also shows the mount name
+
+
 Version 0.10.5, 08.07.2016:
 - Implemented pattern to upgrade from opening a file read-only to read-and-write (should fix bugs with seemingly read-only files)
 - Updated OpenSSL to 1.0.2h, boost to 1.61.0. OpenSSL is now compiled to use assembly language and AES instructions, if present

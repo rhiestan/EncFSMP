@@ -403,8 +403,9 @@ ADD_EXECUTABLE(EncFSMP WIN32 MACOSX_BUNDLE ${ALL_SRC} ${ALL_HEADERS} EncFSMPApp.
 SET(CMAKE_CTEST_COMMAND ${CMAKE_CTEST_COMMAND} -V)
 ADD_CUSTOM_TARGET(check COMMAND ${CMAKE_CTEST_COMMAND})
 SET(ALL_TEST_SRC EncFSMPTestApp.cpp TestBigFile.cpp TestOpenFileTwice.cpp
-	TestFileHelper.cpp TestReadOnlyFlag.cpp )
-SET(ALL_TEST_HEADERS EncFSMPTestApp.h TestBigFile.h TestOpenFileTwice.h TestFileHelper.h TestReadOnlyFlag.h)
+	TestFileHelper.cpp TestReadOnlyFlag.cpp TestManyFiles.cpp)
+SET(ALL_TEST_HEADERS EncFSMPTestApp.h TestBigFile.h TestOpenFileTwice.h TestFileHelper.h
+	TestReadOnlyFlag.h TestManyFiles.h)
 IF(WIN32)
 	LIST(APPEND ALL_TEST_SRC TestFileWin32.cpp )
 	LIST(APPEND ALL_TEST_HEADERS TestFileWin32.h )
