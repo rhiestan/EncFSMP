@@ -9,7 +9,7 @@ This is a guide to compile EncFSMP using Visual Studio 2015 Community edition. A
 In order to complete these steps, you need some experience with C++, CMake and Visual Studio. Unfortunately, I am not able to give support to build EncFSMP due to my limited spare time.
 
 - Please go to my project "Build scripts" ([link](https://github.com/rhiestan/build-scripts)) and download the latest release.
-- Follow the instructions in the README of this project to compile zlib, jpeg, png, tiff, bzip2, boost, openssl, wxwidgets (in this order). The other libraries are not required for EncFSMP.
+- Follow the instructions in the README of this project to compile zlib, jpeg, png, tiff, bzip2, boost, openssl, wxwidgets, gtest (in this order). The other libraries are not required for EncFSMP.
 - Download the latest PFM developer kit from the [PismoTech homepage](http://pismotec.com/download/) and extract it.
 - Download and extract the latest source release of EncFSMP
 - Copy the file `build_msvc2015_x64_sb_templ.bat` to `build_msvc2015_x64_sb.bat` and adjust the path `SB_SCRIPT_PATH` to the path where you extracted the build scripts, and adjust the path `PFM_ROOT` to the  include folder in the path where you extracted the PFM SDK.
