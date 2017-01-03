@@ -35,6 +35,11 @@
 #	include "EncFSMPIPCPosix.h"
 #endif
 
+wxBEGIN_EVENT_TABLE(EncFSMPApp, wxApp)
+	EVT_END_SESSION(EncFSMPApp::OnEndSession)
+	EVT_QUERY_END_SESSION(EncFSMPApp::OnQueryEndSession)
+wxEND_EVENT_TABLE()
+
 // Main program equivalent, creating windows and returning main app frame
 bool EncFSMPApp::OnInit()
 {
@@ -136,6 +141,33 @@ int EncFSMPApp::OnExit()
 	delete pSingleInstanceChecker_;
 
 	return 0;
+}
+
+/**
+ * Gets called when a session ends (logout, shutdown etc.).
+ */
+void EncFSMPApp::OnEndSession(wxCloseEvent& event)
+{
+	pMainFrame_->unmountAll();
+
+	EncFSMPIPC::cleanup();
+	OpenSSLProxy::uninitialize();
+	PFMProxy::getInstance().uninitialize();
+
+	// Call default handler (which quits the program)
+	wxApp::OnEndSession(event);
+}
+
+/**
+ * Gets called when a session is about to end (logout, shutdown etc.).
+ *
+ * The default behaviour is to send a normal close message to the main
+ * window, which is indistinguishable from the regular close.
+ */
+void EncFSMPApp::OnQueryEndSession(wxCloseEvent& event)
+{
+	pMainFrame_->unmountAll();
+	pMainFrame_->Close();
 }
 
 IMPLEMENT_APP(EncFSMPApp)

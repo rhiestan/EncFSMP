@@ -29,6 +29,12 @@ public:
 	virtual bool OnInit();
 	virtual int OnExit();
 
+	void OnEndSession(wxCloseEvent& event);
+	void OnQueryEndSession(wxCloseEvent& event);
+
+protected:
+	wxDECLARE_EVENT_TABLE();
+
 private:
 	EncFSMPMainFrame *pMainFrame_;
 	wxSingleInstanceChecker *pSingleInstanceChecker_;

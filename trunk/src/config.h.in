@@ -224,6 +224,10 @@ typedef signed   __int64  int64_t;
 
 #endif
 
+// wxWidgets defines this
+#if defined(pid_t)
+#	undef pid_t
+#endif
 
 #ifndef HAVE_MODE_T
 #cmakedefine HAVE_MODE_T 1
