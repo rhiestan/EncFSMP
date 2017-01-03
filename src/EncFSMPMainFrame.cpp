@@ -225,6 +225,12 @@ void EncFSMPMainFrame::sendCommand(const wxString &arg)
 
 void EncFSMPMainFrame::unmountAllAndQuit()
 {
+	unmountAll();
+	Close();
+}
+
+void EncFSMPMainFrame::unmountAll()
+{
 	// Unmount
 	std::list<MountEntry> &mountList = mountList_.getList();
 	std::list<MountEntry>::iterator iter = mountList.begin();
@@ -239,8 +245,6 @@ void EncFSMPMainFrame::unmountAllAndQuit()
 
 		iter++;
 	}
-
-	Close();
 }
 
 void EncFSMPMainFrame::OnMainFrameClose( wxCloseEvent& evt )

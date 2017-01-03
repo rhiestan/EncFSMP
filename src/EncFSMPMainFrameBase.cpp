@@ -113,7 +113,7 @@ EncFSMPMainFrameBase::EncFSMPMainFrameBase( wxWindow* parent, wxWindowID id, con
 	bSizer17 = new wxBoxSizer( wxVERTICAL );
 	
 	pMountButton_ = new wxButton( pMainPanel_, ID_MOUNTBUTTON, wxT("Mount"), wxDefaultPosition, wxDefaultSize, 0 );
-	bSizer17->Add( pMountButton_, 1, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	bSizer17->Add( pMountButton_, 1, wxALL|wxEXPAND, 3 );
 	
 	gSizer1->Add( bSizer17, 1, wxEXPAND, 5 );
 	
@@ -121,7 +121,7 @@ EncFSMPMainFrameBase::EncFSMPMainFrameBase( wxWindow* parent, wxWindowID id, con
 	bSizer18 = new wxBoxSizer( wxVERTICAL );
 	
 	pRemoveButton_ = new wxButton( pMainPanel_, ID_REMOVEBUTTON, wxT("Remove"), wxDefaultPosition, wxDefaultSize, 0 );
-	bSizer18->Add( pRemoveButton_, 1, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	bSizer18->Add( pRemoveButton_, 1, wxALL|wxEXPAND, 3 );
 	
 	gSizer1->Add( bSizer18, 1, wxEXPAND, 5 );
 	
@@ -129,7 +129,7 @@ EncFSMPMainFrameBase::EncFSMPMainFrameBase( wxWindow* parent, wxWindowID id, con
 	bSizer19 = new wxBoxSizer( wxVERTICAL );
 	
 	pEditButton_ = new wxButton( pMainPanel_, ID_EDITBUTTON, wxT("Edit"), wxDefaultPosition, wxDefaultSize, 0 );
-	bSizer19->Add( pEditButton_, 1, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	bSizer19->Add( pEditButton_, 1, wxALL|wxEXPAND, 3 );
 	
 	gSizer1->Add( bSizer19, 1, wxEXPAND, 5 );
 	
@@ -137,7 +137,7 @@ EncFSMPMainFrameBase::EncFSMPMainFrameBase( wxWindow* parent, wxWindowID id, con
 	bSizer20 = new wxBoxSizer( wxVERTICAL );
 	
 	pBrowseButton_ = new wxButton( pMainPanel_, ID_BROWSEBUTTON, wxT("Browse"), wxDefaultPosition, wxDefaultSize, 0 );
-	bSizer20->Add( pBrowseButton_, 1, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	bSizer20->Add( pBrowseButton_, 1, wxALL|wxEXPAND, 3 );
 	
 	gSizer1->Add( bSizer20, 1, wxEXPAND, 5 );
 	
@@ -145,7 +145,7 @@ EncFSMPMainFrameBase::EncFSMPMainFrameBase( wxWindow* parent, wxWindowID id, con
 	bSizer21 = new wxBoxSizer( wxVERTICAL );
 	
 	pInfoButton_ = new wxButton( pMainPanel_, ID_INFOBUTTON, wxT("Show Info"), wxDefaultPosition, wxDefaultSize, 0 );
-	bSizer21->Add( pInfoButton_, 1, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	bSizer21->Add( pInfoButton_, 1, wxALL|wxEXPAND, 3 );
 	
 	gSizer1->Add( bSizer21, 1, wxEXPAND, 5 );
 	
@@ -153,7 +153,7 @@ EncFSMPMainFrameBase::EncFSMPMainFrameBase( wxWindow* parent, wxWindowID id, con
 	bSizer22 = new wxBoxSizer( wxVERTICAL );
 	
 	pChangePasswordButton_ = new wxButton( pMainPanel_, ID_CHANGEPASSWORDBUTTON, wxT("Change password"), wxDefaultPosition, wxDefaultSize, 0 );
-	bSizer22->Add( pChangePasswordButton_, 1, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	bSizer22->Add( pChangePasswordButton_, 1, wxALL|wxEXPAND, 3 );
 	
 	gSizer1->Add( bSizer22, 1, wxEXPAND, 5 );
 	
@@ -383,7 +383,7 @@ CreateNewEncFSDialogBase::CreateNewEncFSDialogBase( wxWindow* parent, wxWindowID
 	pExternalConfigFileNameStaticText_->Wrap( -1 );
 	pFlexGridSizer_->Add( pExternalConfigFileNameStaticText_, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 2 );
 	
-	pExternalConfigFileNamePickerCtrl_ = new wxFilePickerCtrl( m_panel4, ID_EXTERNALCONFIGFILENAMEPICKERCTRL, wxEmptyString, wxT("Select an external config file"), wxT("*.*"), wxDefaultPosition, wxDefaultSize, wxFLP_DEFAULT_STYLE|wxFLP_OVERWRITE_PROMPT|wxFLP_SAVE );
+	pExternalConfigFileNamePickerCtrl_ = new wxFilePickerCtrl( m_panel4, ID_EXTERNALCONFIGFILENAMEPICKERCTRL, wxEmptyString, wxT("Select an external config file"), wxT("*.*"), wxDefaultPosition, wxDefaultSize, wxFLP_OVERWRITE_PROMPT|wxFLP_SAVE|wxFLP_USE_TEXTCTRL );
 	pFlexGridSizer_->Add( pExternalConfigFileNamePickerCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
 	
 	m_staticText25 = new wxStaticText( m_panel4, wxID_ANY, wxT("Password:"), wxDefaultPosition, wxDefaultSize, 0 );

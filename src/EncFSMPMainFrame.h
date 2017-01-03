@@ -43,6 +43,7 @@ public:
 	void sendCommand(const wxString &arg);
 
 	void unmountAllAndQuit();
+	void unmountAll();
 
 	virtual void OnMainFrameIconize( wxIconizeEvent& event );
 
