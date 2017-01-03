@@ -1,0 +1,336 @@
+/* config.h.in.  Generated from configure.ac by autoheader.  */
+
+#ifndef CONFIG_H
+#define CONFIG_H
+
+/* Building static library */
+#define BUILD_STATIC 1
+
+/* Define to 1 if translation of program messages to the user's native
+   language is requested. */
+#undef ENABLE_NLS
+
+/* Define to 1 if you have the <attr/xattr.h> header file. */
+#undef HAVE_ATTR_XATTR_H
+
+/* define if the Boost library is available */
+#define HAVE_BOOST 1
+
+/* define if the Boost::Filesystem library is available */
+#define HAVE_BOOST_FILESYSTEM 1
+
+/* define if the Boost::Serialization library is available */
+#define HAVE_BOOST_SERIALIZATION 1
+
+/* define if the Boost::System library is available */
+#define HAVE_BOOST_SYSTEM 1
+
+/* Define to 1 if you have the MacOS X function CFLocaleCopyCurrent in the
+   CoreFoundation framework. */
+#undef HAVE_CFLOCALECOPYCURRENT
+
+/* Define to 1 if you have the MacOS X function CFPreferencesCopyAppValue in
+   the CoreFoundation framework. */
+#undef HAVE_CFPREFERENCESCOPYAPPVALUE
+
+/* Define if the GNU dcgettext() function is already present or preinstalled.
+   */
+#undef HAVE_DCGETTEXT
+
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#cmakedefine HAVE_DLFCN_H 1
+
+/* Have EVP AES interfaces */
+#define HAVE_EVP_AES
+
+/* Define to 1 if you have the `EVP_aes_128_cbc' function. */
+#define HAVE_EVP_AES_128_CBC
+
+/* Define to 1 if you have the `EVP_aes_192_cbc' function. */
+#define HAVE_EVP_AES_192_CBC
+
+/* Define to 1 if you have the `EVP_aes_256_cbc' function. */
+#define HAVE_EVP_AES_256_CBC
+
+/* Have EVP Blowfish interfaces */
+#define HAVE_EVP_BF
+
+/* Define to 1 if you have the `EVP_bf_cbc' function. */
+#define HAVE_EVP_BF_CBC
+
+/* Define to 1 if you have the `EVP_CIPHER_CTX_set_padding' function. */
+#define HAVE_EVP_CIPHER_CTX_SET_PADDING
+
+/* Define if the GNU gettext() function is already present or preinstalled. */
+#undef HAVE_GETTEXT
+
+/* Define to 1 if you have the `HMAC_Init_ex' function. */
+#define HAVE_HMAC_INIT_EX
+
+/* Define if you have the iconv() function and it works. */
+#undef HAVE_ICONV
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#ifndef HAVE_INTTYPES_H
+#cmakedefine HAVE_INTTYPES_H 1
+#endif
+
+/* Define to 1 if you have the <memory.h> header file. */
+#ifndef HAVE_MEMORY_H
+#cmakedefine HAVE_MEMORY_H 1
+#endif
+
+/* Define if you have POSIX threads libraries and header files. */
+#ifndef HAVE_PTHREAD
+#cmakedefine HAVE_PTHREAD 1
+#endif
+
+/* Linking with OpenSSL */
+#define HAVE_SSL 1
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#cmakedefine HAVE_STDINT_H 1
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#cmakedefine HAVE_STDLIB_H 1
+
+/* Define to 1 if you have the <strings.h> header file. */
+#cmakedefine HAVE_STRINGS_H 1
+
+/* Define to 1 if you have the <string.h> header file. */
+#cmakedefine HAVE_STRING_H 1
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#cmakedefine HAVE_SYS_STAT_H 1
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#cmakedefine HAVE_SYS_TYPES_H 1
+
+/* Define to 1 if you have the <sys/dir.h> header file. */
+#cmakedefine HAVE_SYS_DIR_H 1
+
+/* Define to 1 if you have the <sys/xattr.h> header file. */
+#cmakedefine HAVE_SYS_XATTR_H 1
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#cmakedefine HAVE_UNISTD_H 1
+
+/* Define to 1 if you have the <sys/utime.h> header file. */
+#cmakedefine HAVE_SYS_UTIME_H 1
+
+/* Define to 1 if you have the <utime.h> header file. */
+#cmakedefine HAVE_UTIME_H 1
+
+/* Define to 1 if you have the <io.h> header file. */
+#cmakedefine HAVE_IO_H 1
+
+/* Define to 1 if you have the <valgrind/memcheck.h> header file. */
+#undef HAVE_VALGRIND_MEMCHECK_H
+
+/* Define to 1 if you have the <valgrind/valgrind.h> header file. */
+#undef HAVE_VALGRIND_VALGRIND_H
+
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#undef LT_OBJDIR
+
+/* Name of package */
+#undef PACKAGE
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* Define to the necessary symbol if this constant uses a non-standard name on
+   your system. */
+#undef PTHREAD_CREATE_JOINABLE
+
+/* Define to 1 if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* Version number of package */
+#define VERSION 1.7.4
+
+/* xattr functions have additional options */
+#undef XATTR_ADD_OPT
+
+#ifndef HAVE_SSIZE_T
+#cmakedefine HAVE_SSIZE_T 1
+#endif
+
+#ifndef HAVE_SSIZE_T
+typedef signed long long ssize_t;
+#define HAVE_SSIZE_T
+#endif
+
+#define EFS_STRINGIFY2(x) #x
+#define EFS_STRINGIFY(x) EFS_STRINGIFY2(x)
+
+#cmakedefine HAVE_VSNPRINTF 1
+#cmakedefine HAVE__VSNPRINTF 1
+
+#cmakedefine HAVE_SYS_FSUID_H 1
+#cmakedefine HAVE_SETFSUID 1
+
+#cmakedefine HAVE__WSOPEN_S 1
+
+#if !defined(HAVE_INTTYPES_H)
+
+// inttypes.h
+
+typedef unsigned char    uint8_t;
+typedef signed   char     int8_t;
+typedef unsigned short   uint16_t;
+typedef signed   short    int16_t;
+typedef unsigned int     uint32_t;
+typedef signed   int      int32_t;
+typedef unsigned __int64 uint64_t;
+typedef signed   __int64  int64_t;
+
+#define PRIi16 "i"
+#define PRId16 "d"
+#define PRIo16 "o"
+#define PRIu16 "u"
+#define PRIx16 "x"
+#define PRIX16 "X"
+
+#define PRIi32 "i"
+#define PRId32 "d"
+#define PRIo32 "o"
+#define PRIu32 "u"
+#define PRIx32 "x"
+#define PRIX32 "X"
+
+#define PRIi64 "I64i"
+#define PRId64 "I64d"
+#define PRIo64 "I64o"
+#define PRIu64 "I64u"
+#define PRIx64 "I64x"
+#define PRIX64 "I64X"
+
+#endif
+
+// wxWidgets defines this
+#if defined(pid_t)
+#	undef pid_t
+#endif
+
+#ifndef HAVE_MODE_T
+#cmakedefine HAVE_MODE_T 1
+#endif
+
+#cmakedefine HAVE_PID_T 1
+#cmakedefine HAVE_GID_T 1
+#cmakedefine HAVE_UID_T 1
+
+#if !defined(HAVE_MODE_T)
+typedef unsigned int mode_t;
+#endif
+
+#if !defined(HAVE_PID_T)
+typedef unsigned int pid_t;
+#endif
+
+#if !defined(HAVE_GID_T)
+typedef unsigned int gid_t;
+#endif
+
+#if !defined(HAVE_UID_T)
+typedef unsigned int uid_t;
+#endif
+
+#cmakedefine HAVE_OFF_T
+#define OFF_T_SIZE ${OFF_T}
+#cmakedefine HAVE_OFF64_T
+#define OFF64_T_SIZE ${OFF64_T}
+
+#cmakedefine HAVE_STRUCT_STAT
+#cmakedefine HAVE_STRUCT_STAT64
+#cmakedefine HAVE_STRUCT__STAT64
+#cmakedefine HAVE_STRUCT___STAT64
+
+
+#if defined(_WIN32)
+
+#include <sys/stat.h>
+
+#if !defined(S_ISREG)
+#	define S_ISREG(mode) ((mode)&_S_IFREG)
+#endif
+#if !defined(S_ISDIR)
+#	define S_ISDIR(mode) ((mode)&_S_IFDIR)
+#endif
+#if !defined(S_IFLNK)
+#define        S_IFLNK  0120000  /* symbolic link */
+#endif
+#if !defined(S_IRWXU)
+#define S_IRWXU 0000700    /* RWX mask for owner */
+#endif
+#if !defined(S_IRUSR)
+#define S_IRUSR 0000400    /* R for owner */
+#endif
+#if !defined(S_IWUSR)
+#define S_IWUSR 0000200    /* W for owner */
+#endif
+#if !defined(S_IXUSR)
+#define S_IXUSR 0000100    /* X for owner */
+#endif
+#if !defined(S_IRWXG)
+#define S_IRWXG 0000070    /* RWX mask for group */
+#endif
+#if !defined(S_IRGRP)
+#define S_IRGRP 0000040    /* R for group */
+#endif
+#if !defined(S_IWGRP)
+#define S_IWGRP 0000020    /* W for group */
+#endif
+#if !defined(S_IXGRP)
+#define S_IXGRP 0000010    /* X for group */
+#endif
+#if !defined(S_IRWXO)
+#define S_IRWXO 0000007    /* RWX mask for other */
+#endif
+#if !defined(S_IROTH)
+#define S_IROTH 0000004    /* R for other */
+#endif
+#if !defined(S_IWOTH)
+#define S_IWOTH 0000002    /* W for other */
+#endif
+#if !defined(S_IXOTH)
+#define S_IXOTH 0000001    /* X for other */
+#endif
+#if !defined(S_ISUID)
+#define S_ISUID 0004000    /* set user id on execution */
+#endif
+#if !defined(S_ISGID)
+#define S_ISGID 0002000    /* set group id on execution */
+#endif
+#if !defined(S_ISVTX)
+#define S_ISVTX 0001000    /* save swapped text even after use */
+#endif
+
+#endif
+
+#if defined(_MSC_VER) && (_MSC_VER < 1900)
+struct timespec
+{
+	time_t tv_sec;				/* Seconds.  */
+	long int tv_nsec;           /* Nanoseconds.  */
+};
+#endif
+
+#endif
