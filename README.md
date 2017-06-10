@@ -36,6 +36,9 @@ I need help in the following areas, in this order:
 
 ## Version history ##
 
+###Version 0.10.8, 08.06.2017:
+- Update OpenSSL to 1.0.2l, PFM to 1.0.0.184
+
 ###Version 0.10.7, 02.01.2017:
 - Unmount in case of Windows shutdown (bug #56)
 - Update OpenSSL to 1.0.2j, boost to 1.62.0
