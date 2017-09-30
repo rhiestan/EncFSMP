@@ -36,64 +36,70 @@ I need help in the following areas, in this order:
 
 ## Version history ##
 
-###Version 0.10.8, 08.06.2017:
+### Version 0.11.0, 30.09.2017:
+- Update PFM to 1.0.0.189, fixing several problems (tickets #78 and #69)
+- Added new command line commnds: quit and minimize
+- Added possibility to send password via pipe (-p -)
+- Check in create encfs that mount name is not empty
+
+### Version 0.10.8, 08.06.2017:
 - Update OpenSSL to 1.0.2l, PFM to 1.0.0.184
 
-###Version 0.10.7, 02.01.2017:
+### Version 0.10.7, 02.01.2017:
 - Unmount in case of Windows shutdown (bug #56)
 - Update OpenSSL to 1.0.2j, boost to 1.62.0
 
-###Version 0.10.6, 01.08.2016:
+### Version 0.10.6, 01.08.2016:
 - Bug fix (Windows only): Mounts without drive letter are now mounted again unter C:\Volumes
 - Fixed bug #66: For directories with more than ~1050 files, not all files were displayed
 - The password dialog now also shows the mount name
 
 
-###Version 0.10.5, 08.07.2016:
+### Version 0.10.5, 08.07.2016:
 - Implemented pattern to upgrade from opening a file read-only to read-and-write (should fix bugs with seemingly read-only files)
 - Updated OpenSSL to 1.0.2h, boost to 1.61.0. OpenSSL is now compiled to use assembly language and AES instructions, if present
 - Updated PFM to 1.0.0.183, using new API
 
 
-###Version 0.10.4, 17.04.2016:
+### Version 0.10.4, 17.04.2016:
 - Fixed another bug with read-only files, fixes error reports like "...RawFileIO.cpp:257 -- true == canWrite"
 - Properly implemented Access method, should fix ticket #55 (and maybe other problems on OS X)
 - Updated OpenSSL to 1.0.2g
 - Updated PFM to 1.0.0.181 (should fix ticket #50 and #53)
 
 
-###Version 0.10.3, 22.02.2016:
+### Version 0.10.3, 22.02.2016:
 - Fixed bug with opening files as read-only
 - Updated OpenSSL to 1.0.2f, boost to 1.60.0
 
 
-###Version 0.10.2, 07.01.2016:
+### Version 0.10.2, 07.01.2016:
 - Fixed directory listing of directories with more than 1100 entries (ticket #43)
 
 
-###Version 0.10.1, 27.12.2015:
+### Version 0.10.1, 27.12.2015:
 - Date bug fixed in 32 bit version (ticket #40)
 - Updated PFM to 1.0.0.180 (fixes ticket #34)
 - Updated OpenSSL to 1.0.2e
 
 
-###Version 0.10.0, 01.11.2015:
+### Version 0.10.0, 01.11.2015:
 - Added support for external encfs-configs
 - Improved speed with optional cache and better data structures
 
 
-###Version 0.9.9, 02.08.2015:
+### Version 0.9.9, 02.08.2015:
 - Updated OpenSSL to 1.0.2d
 - Updated Pismo File Mount to 1.0.0.178
 
-###Version 0.9.8, 15.06.2015:
+### Version 0.9.8, 15.06.2015:
 - Updated OpenSSL to 1.0.2c
 - Fixed bug with handling last write time, fixes ticket #25
 - Improved speed while reading directories on Windows
 - Windows: Added option to mount drives as Local or Network drives
 - Windows: Added option not to mount a new volume using a drive letter (only under C:\Volumes)
 
-###Version 0.9.7, 08.05.2015:
+### Version 0.9.7, 08.05.2015:
 - Updated Pismo File Mount to 1.0.0.177
 - Windows: Removed "System visible" flag for mounts and "Restart as Admin" menu
 - Fixed ticket #13 and #16: Mounted Volumes are now local under Windows
@@ -101,7 +107,7 @@ I need help in the following areas, in this order:
 - Fixed ticket #15: Dialogs now also work on high-DPI devices
 
 
-###Version 0.9.6, 20.03.2015
+### Version 0.9.6, 20.03.2015
 - Updated OpenSSL to 1.0.2a
 - Fixed bug in acquiring a mutex in MemoryPool, see ticket #12 for details
 

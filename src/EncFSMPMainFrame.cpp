@@ -983,73 +983,105 @@ void EncFSMPMainFrame::OnEncFSCommand( wxCommandEvent &event )
 	{
 		bool isMountCommand = (command.IsSameAs(EncFSMPStrings::commandMount_, false));
 		bool isUnmountCommand = (command.IsSameAs(EncFSMPStrings::commandUnmount_, false));
-		if(!isMountCommand && !isUnmountCommand)
+		bool isMinimizeCommand = (command.IsSameAs(EncFSMPStrings::commandMinimize_, false));
+		bool isQuitCommand = (command.IsSameAs(EncFSMPStrings::commandQuit_, false));
+		if(!isMountCommand && !isUnmountCommand && !isMinimizeCommand && !isQuitCommand)
 		{
 			wxMessageBox(wxString(wxT("Unknown command \"")) + command
 				+ wxString(wxT("\" received")),
 				wxT("Unknown command"), wxOK | wxICON_ERROR);
 			return;
 		}
-		MountEntry *pMountEntry = mountList_.findEntryByName(mountName);
-		if(pMountEntry != NULL)
+
+		if(isMinimizeCommand)
 		{
-			if(pMountEntry->mountState_ == MountEntry::MSMounted)
+			if(IsShown() && !IsIconized())
 			{
-				if(isUnmountCommand)
-				{
-					PFMProxy::getInstance().unmount(pMountEntry->name_);
-					pMountEntry->mountState_ = MountEntry::MSPending;
-				}
-				else
-				{
-					wxMessageBox(wxT("EncFS folder is already mounted"),
-						wxT("Mount command"), wxOK | wxICON_ERROR);
-					return;
-				}
+#if defined(EFS_MACOSX)
+				wxIconizeEvent dummyEvent(0, true);
+				dummyEvent.SetEventObject(this);
+				OnMainFrameIconize(dummyEvent);
+#else
+				Iconize(true);
+#endif
 			}
-			else if(pMountEntry->mountState_ == MountEntry::MSNotMounted)
+			else
 			{
-				if(!isMountCommand)
-				{
-					wxMessageBox(wxT("EncFS folder is not mounted"),
-						wxT("Unmount command"), wxOK | wxICON_ERROR);
-					return;
-				}
-				// Mount: Start a PFMHandlerThread
-				wxString password = pMountEntry->password_;
-				if(password.IsEmpty())
-					password = passwordCmd;
-				if(password.IsEmpty())
-					password = pMountEntry->volatilePassword_;
-				if(password.IsEmpty())
-				{
-					wxPasswordEntryDialog dlg(this, wxT("Please enter the password:"), wxString(wxT(ENCFSMP_NAME " - Password for ")) + pMountEntry->name_);
-					int retVal = dlg.ShowModal();
-					if(retVal == wxID_CANCEL)
-						return;
-					password = dlg.GetValue();
-				}
-				if(savePasswordsInRAM_)
-					pMountEntry->volatilePassword_ = password;
-				bool isWorldWritable = pMountEntry->isWorldWritable_;
-				PFMHandlerThread *pPFMHandlerThread = new PFMHandlerThread();
-				pPFMHandlerThread->setParameters(pMountEntry->name_,
-					pMountEntry->encFSPath_, pMountEntry->externalConfigFileName_,
-					pMountEntry->driveLetter_, password,
-					pMountEntry->useExternalConfigFile_, pMountEntry->enableCaching_,
-					isWorldWritable, pMountEntry->isLocalDrive_, false);
+				wxIconizeEvent dummyEvent(0, false);
+				dummyEvent.SetEventObject(this);
+				OnMainFrameIconize(dummyEvent);
 
-				pPFMHandlerThread->Create();
-				pPFMHandlerThread->Run();
-				pMountEntry->mountState_ = MountEntry::MSPending;
+				Iconize(false);
+				Show(true);
 			}
-
-			updateMountListCtrl();
+		}
+		else if(isQuitCommand)
+		{
+			Close();
 		}
 		else
 		{
-			wxMessageBox(wxString(wxT("Mount \"")) + mountName + wxString(wxT("\" not found")),
-				wxT("Mount not found"), wxOK | wxICON_ERROR);
+			MountEntry *pMountEntry = mountList_.findEntryByName(mountName);
+			if(pMountEntry != NULL)
+			{
+				if(pMountEntry->mountState_ == MountEntry::MSMounted)
+				{
+					if(isUnmountCommand)
+					{
+						PFMProxy::getInstance().unmount(pMountEntry->name_);
+						pMountEntry->mountState_ = MountEntry::MSPending;
+					}
+					else
+					{
+						wxMessageBox(wxT("EncFS folder is already mounted"),
+							wxT("Mount command"), wxOK | wxICON_ERROR);
+						return;
+					}
+				}
+				else if(pMountEntry->mountState_ == MountEntry::MSNotMounted)
+				{
+					if(!isMountCommand)
+					{
+						wxMessageBox(wxT("EncFS folder is not mounted"),
+							wxT("Unmount command"), wxOK | wxICON_ERROR);
+						return;
+					}
+					// Mount: Start a PFMHandlerThread
+					wxString password = pMountEntry->password_;
+					if(password.IsEmpty())
+						password = passwordCmd;
+					if(password.IsEmpty())
+						password = pMountEntry->volatilePassword_;
+					if(password.IsEmpty())
+					{
+						wxPasswordEntryDialog dlg(this, wxT("Please enter the password:"), wxString(wxT(ENCFSMP_NAME " - Password for ")) + pMountEntry->name_);
+						int retVal = dlg.ShowModal();
+						if(retVal == wxID_CANCEL)
+							return;
+						password = dlg.GetValue();
+					}
+					if(savePasswordsInRAM_)
+						pMountEntry->volatilePassword_ = password;
+					bool isWorldWritable = pMountEntry->isWorldWritable_;
+					PFMHandlerThread *pPFMHandlerThread = new PFMHandlerThread();
+					pPFMHandlerThread->setParameters(pMountEntry->name_,
+						pMountEntry->encFSPath_, pMountEntry->externalConfigFileName_,
+						pMountEntry->driveLetter_, password,
+						pMountEntry->useExternalConfigFile_, pMountEntry->enableCaching_,
+						isWorldWritable, pMountEntry->isLocalDrive_, false);
+
+					pPFMHandlerThread->Create();
+					pPFMHandlerThread->Run();
+					pMountEntry->mountState_ = MountEntry::MSPending;
+				}
+
+				updateMountListCtrl();
+			}
+			else
+			{
+				wxMessageBox(wxString(wxT("Mount \"")) + mountName + wxString(wxT("\" not found")),
+					wxT("Mount not found"), wxOK | wxICON_ERROR);
+			}
 		}
 
 	}

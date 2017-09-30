@@ -51,6 +51,8 @@ public:
 	const static wxString commandUnmount_;
 	const static wxString commandDDETopic_;
 	const static wxString commandDDEServerName_;
+	const static wxString commandMinimize_;
+	const static wxString commandQuit_;
 
 private:
 	EncFSMPStrings() { }

@@ -48,3 +48,6 @@ const wxString EncFSMPStrings::commandMount_(wxT("mount"));
 const wxString EncFSMPStrings::commandUnmount_(wxT("unmount"));
 const wxString EncFSMPStrings::commandDDETopic_(wxT("EncFSMP_Command"));
 const wxString EncFSMPStrings::commandDDEServerName_(wxT("EncFSMP_DDEServer"));
+const wxString EncFSMPStrings::commandMinimize_(wxT("minimize"));
+const wxString EncFSMPStrings::commandQuit_(wxT("quit"));
+

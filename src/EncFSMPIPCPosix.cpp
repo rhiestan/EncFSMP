@@ -189,7 +189,7 @@ bool EncFSMPIPC::unmarshalArguments(const wxString &args,
 		i++;
 	}
 
-	return (i >= 2 && i < 4);
+	return (i >= 1 && i < 4);
 }
 
 wxString EncFSMPIPC::getFIFOFilename()

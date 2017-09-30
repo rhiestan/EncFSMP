@@ -21,6 +21,8 @@
 #include "version.h"
 #include "efs_config.h"
 
+#include <iostream>
+
 #include "EncFSMPApp.h"
 #include "EncFSMPMainFrame.h"
 #include <wx/cmdline.h>
@@ -35,6 +37,68 @@
 #	include "EncFSMPIPCPosix.h"
 #endif
 
+#if defined(_MSC_VER)
+#define ENCFSMP_MINIDUMP
+#endif
+
+#if defined(ENCFSMP_MINIDUMP)
+// Taken from here:
+// https://stackoverflow.com/questions/5028781/how-to-write-a-sample-code-that-will-crash-and-produce-dump-file
+// Obviously only works on Windows
+
+#include <Windows.h>
+#include <Dbghelp.h>
+
+void make_minidump(EXCEPTION_POINTERS* e)
+{
+    auto hDbgHelp = LoadLibraryA("dbghelp");
+    if(hDbgHelp == nullptr)
+        return;
+    auto pMiniDumpWriteDump = (decltype(&MiniDumpWriteDump))GetProcAddress(hDbgHelp, "MiniDumpWriteDump");
+    if(pMiniDumpWriteDump == nullptr)
+        return;
+
+    char name[MAX_PATH];
+    {
+        auto nameEnd = name + GetModuleFileNameA(GetModuleHandleA(0), name, MAX_PATH);
+        SYSTEMTIME t;
+        GetSystemTime(&t);
+        wsprintfA(nameEnd - strlen(".exe"),
+            "_%4d%02d%02d_%02d%02d%02d.dmp",
+            t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
+    }
+
+    auto hFile = CreateFileA(name, GENERIC_WRITE, FILE_SHARE_READ, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+    if(hFile == INVALID_HANDLE_VALUE)
+        return;
+
+    MINIDUMP_EXCEPTION_INFORMATION exceptionInfo;
+    exceptionInfo.ThreadId = GetCurrentThreadId();
+    exceptionInfo.ExceptionPointers = e;
+    exceptionInfo.ClientPointers = FALSE;
+
+    auto dumped = pMiniDumpWriteDump(
+        GetCurrentProcess(),
+        GetCurrentProcessId(),
+        hFile,
+        MINIDUMP_TYPE(MiniDumpWithIndirectlyReferencedMemory | MiniDumpScanMemory),
+        e ? &exceptionInfo : nullptr,
+        nullptr,
+        nullptr);
+
+    CloseHandle(hFile);
+
+    return;
+}
+
+LONG CALLBACK unhandled_handler(EXCEPTION_POINTERS* e)
+{
+    make_minidump(e);
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+#endif
+
 wxBEGIN_EVENT_TABLE(EncFSMPApp, wxApp)
 	EVT_END_SESSION(EncFSMPApp::OnEndSession)
 	EVT_QUERY_END_SESSION(EncFSMPApp::OnQueryEndSession)
@@ -43,6 +107,10 @@ wxEND_EVENT_TABLE()
 // Main program equivalent, creating windows and returning main app frame
 bool EncFSMPApp::OnInit()
 {
+#if defined(ENCFSMP_MINIDUMP)
+	SetUnhandledExceptionFilter(unhandled_handler);
+#endif
+
 	wxString appName(wxT(ENCFSMP_NAME));
 #if wxCHECK_VERSION(2, 9, 0)
 	SetAppDisplayName(appName);
@@ -55,11 +123,11 @@ bool EncFSMPApp::OnInit()
 	{
 #if wxCHECK_VERSION(2, 9, 0)
 		{ wxCMD_LINE_PARAM, "Command", "Command", "Command to run", wxCMD_LINE_VAL_STRING, wxCMD_LINE_OPTION_MANDATORY },
-		{ wxCMD_LINE_OPTION, "m", "mount", "The name of the EncFS mount", wxCMD_LINE_VAL_STRING, wxCMD_LINE_OPTION_MANDATORY },
+		{ wxCMD_LINE_OPTION, "m", "mount", "The name of the EncFS mount", wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL },
 		{ wxCMD_LINE_OPTION, "p", "password", "The password", wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL },
 #else
 		{ wxCMD_LINE_PARAM, wxT("Command"), wxT("Command"), wxT("Command to run"), wxCMD_LINE_VAL_STRING, wxCMD_LINE_OPTION_MANDATORY },
-		{ wxCMD_LINE_OPTION, wxT("m"), wxT("mount"), wxT("The name of the EncFS mount"), wxCMD_LINE_VAL_STRING, wxCMD_LINE_OPTION_MANDATORY },
+		{ wxCMD_LINE_OPTION, wxT("m"), wxT("mount"), wxT("The name of the EncFS mount"), wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL },
 		{ wxCMD_LINE_OPTION, wxT("p"), wxT("password"), wxT("The password"), wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL },
 #endif
 		{ wxCMD_LINE_NONE }
@@ -80,6 +148,14 @@ bool EncFSMPApp::OnInit()
 				mountName = param;
 			if(parser.Found(wxT("p"), &param))
 				password = param;
+
+			if(password == wxT("-"))
+			{
+				// Read password from cin
+				std::string password_cstr;
+				std::cin >> password_cstr;
+				password = wxString(password_cstr.c_str(), *wxConvCurrent);
+			}
 		}
 		else
 			return false;
@@ -95,7 +171,7 @@ bool EncFSMPApp::OnInit()
 
 	if(pSingleInstanceChecker_->IsAnotherRunning())
 	{
-		if(!command.IsEmpty() && !mountName.IsEmpty())
+		if(!command.IsEmpty())
 		{
 			EncFSMPIPC::sendCommand(command, mountName, password);
 			return false;

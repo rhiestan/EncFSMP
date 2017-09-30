@@ -1,8 +1,16 @@
 ﻿Version history
 ---------------
 
+Version 0.11.0, 30.09.2017:
+- Update PFM to 1.0.0.189, fixing several problems (tickets #78 and #69)
+- Added new command line commnds: quit and minimize
+- Added possibility to send password via pipe (-p -)
+- Check in create encfs that mount name is not empty
+
+
 Version 0.10.8, 08.06.2017:
 - Update OpenSSL to 1.0.2l, PFM to 1.0.0.184
+
 
 Version 0.10.7, 02.01.2017:
 - Unmount in case of Windows shutdown (bug #56)

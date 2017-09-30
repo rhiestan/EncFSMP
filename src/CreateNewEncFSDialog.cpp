@@ -268,6 +268,14 @@ void CreateNewEncFSDialog::OnOK( wxCommandEvent& event )
 {
 	if (Validate() && TransferDataFromWindow())
 	{
+		// Make sure mountName_ is not empty
+		if(mountName_.IsEmpty())
+		{
+			wxMessageBox(wxT("The mount name must not be empty!"),
+				wxT("Error"), wxOK | wxICON_ERROR);
+			return;
+		}
+
 		// Make sure mountName_ is unique
 		if(pMountList_->findEntryByName(mountName_) != NULL)
 		{
