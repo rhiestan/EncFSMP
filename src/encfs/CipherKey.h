@@ -7,7 +7,7 @@
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.  
+ * option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,16 +21,18 @@
 #ifndef _CipherKey_incl_
 #define _CipherKey_incl_
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
-class AbstractCipherKey
-{
-public:
-    AbstractCipherKey();
-    virtual ~AbstractCipherKey();
+namespace encfs {
+
+class AbstractCipherKey {
+ public:
+  AbstractCipherKey();
+  virtual ~AbstractCipherKey();
 };
 
-typedef boost::shared_ptr<AbstractCipherKey> CipherKey;
+using CipherKey = std::shared_ptr<AbstractCipherKey>;
+
+}  // namespace encfs
 
 #endif
-

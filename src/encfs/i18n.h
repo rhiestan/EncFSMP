@@ -7,7 +7,7 @@
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.  
+ * option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,24 +21,10 @@
 #ifndef _i18n_incl_
 #define _i18n_incl_
 
-#if defined(LOCALEDIR)
+#include "config.h"
+#include "intl/gettext_.h"
 
-#  include "gettext.h"
 // make shortcut for gettext
-#  define _(STR) gettext (STR)
-
-#  include "autosprintf.h"
-using gnu::autosprintf;
-
-#else
-
-#  define gettext(STR) (STR)
-#  define gettext_noop(STR) (STR)
-#  define _(STR) (STR)
-#  define N_(STR) (STR)
+#define _(STR) gettext(STR)
 
 #endif
-
-#endif
-
-

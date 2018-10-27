@@ -7,7 +7,7 @@
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.  
+ * option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,49 +21,59 @@
 #ifndef _MACFileIO_incl_
 #define _MACFileIO_incl_
 
+#include <memory>
+#include <stdint.h>
+#include <sys/types.h>
+
 #include "BlockFileIO.h"
 #include "Cipher.h"
+#include "CipherKey.h"
+#include "FSConfig.h"
+#include "Interface.h"
 
-using boost::shared_ptr;
+namespace encfs {
 
-class MACFileIO : public BlockFileIO
-{
-public:
-    /*
-	If warnOnlyMode is enabled, then a MAC comparison failure will only
-	result in a warning message from encfs -- the garbled data will still
-	be made available..
-    */
-    MACFileIO( const shared_ptr<FileIO> &base,
-               const FSConfigPtr &cfg );
-    MACFileIO();
-    virtual ~MACFileIO();
+class Cipher;
+class FileIO;
+struct IORequest;
 
-    virtual rel::Interface get_interface() const;
+class MACFileIO : public BlockFileIO {
+ public:
+  /*
+      If warnOnlyMode is enabled, then a MAC comparison failure will only
+      result in a warning message from encfs -- the garbled data will still
+      be made available..
+  */
+  MACFileIO(std::shared_ptr<FileIO> base, const FSConfigPtr &cfg);
+  MACFileIO();
+  virtual ~MACFileIO();
 
-    virtual void setFileName( const char *fileName );
-    virtual const char *getFileName() const;
-    virtual bool setIV( uint64_t iv );
+  virtual Interface interface() const;
 
-    virtual int open( int flags );
-    virtual int getAttr( efs_stat *stbuf, void *statCache ) const;
-    virtual efs_off_t getSize() const;
+  virtual void setFileName(const char *fileName);
+  virtual const char *getFileName() const;
+  virtual bool setIV(uint64_t iv);
 
-    virtual int truncate( efs_off_t size );
+  virtual int open(int flags);
+  virtual int getAttr(efs_stat *stbuf, void *statCache) const;
+  virtual off_t getSize() const;
 
-    virtual bool isWritable() const;
+  virtual int truncate(off_t size);
 
-private:
-    virtual ssize_t readOneBlock( const IORequest &req ) const;
-    virtual bool writeOneBlock( const IORequest &req );
+  virtual bool isWritable() const;
 
-    shared_ptr<FileIO> base;
-    shared_ptr<Cipher> cipher;
-    CipherKey key;
-    int macBytes;
-    int randBytes;
-    bool warnOnly;
+ private:
+  virtual ssize_t readOneBlock(const IORequest &req) const;
+  virtual ssize_t writeOneBlock(const IORequest &req);
+
+  std::shared_ptr<FileIO> base;
+  std::shared_ptr<Cipher> cipher;
+  CipherKey key;
+  int macBytes;
+  int randBytes;
+  bool warnOnly;
 };
 
-#endif
+}  // namespace encfs
 
+#endif

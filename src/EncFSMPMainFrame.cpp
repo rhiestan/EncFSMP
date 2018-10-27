@@ -459,7 +459,7 @@ void EncFSMPMainFrame::OnAboutMenuItem( wxCommandEvent& WXUNUSED(event) )
 	descrString = wxT("Mount EncFS folders - multiplatform style.\n\n");
 	descrString.Append(wxT("Built with: ") wxT(ENCFSMP_COMPILER) wxT(" ") wxT(ENCFSMP_COMPILER_VERSION) wxT("\n"));
 	descrString.Append(wxT("Linked with:\n - ") wxVERSION_STRING wxT("\n - "));
-	descrString.Append(wxT("EncFS ") wxT(EFS_STRINGIFY(VERSION)) wxT("\n - "));
+	descrString.Append(wxT("EncFS ") wxT(VERSION) wxT("\n - "));
 	descrString.Append(wxString(wxT(OPENSSL_VERSION_TEXT)));
 
 	wxString boostVersion;

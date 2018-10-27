@@ -22,7 +22,7 @@
 
 // Forward declarations
 class EncFSMPErrorLog;
-namespace rlog
+namespace encfs
 {
 	class Error;
 };
@@ -33,7 +33,9 @@ public:
 
 	static void setErrorLog(EncFSMPErrorLog *pEncFSMPErrorLog);
 
-	static void log(const std::wstring &errStr, const std::string &fn, rlog::Error *pErr);
+	static void log(const std::wstring &errStr, const std::string &fn, encfs::Error *pErr);
+
+	static void setup();
 
 private:
 	EncFSMPLogger();

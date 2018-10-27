@@ -17,6 +17,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+
 #include "portability.cpp"
 
 #include <stdlib.h>
@@ -27,7 +28,6 @@
 
 #include "efs_config.h"
 #include "pfm_layer.h"
-#include "EncFSMPStrings.h"
 #include "EncFSMPLogger.h"
 
 #include <boost/filesystem.hpp>
@@ -38,6 +38,7 @@
 #include <boost/random/uniform_int_distribution.hpp>
 
 // libencfs
+#include "DirNode.h"
 #include "Cipher.h"
 #include "DirNode.h"
 #include "MemoryPool.h"
@@ -47,7 +48,10 @@
 #include "BlockNameIO.h"
 #include "NullNameIO.h"
 
-#include "rlog/rlog.h"
+// include this after libencfs, to avoid conflicts with definitions of mode_t, guid_t etc. in wxWidgets and libencfs
+#include "EncFSMPStrings.h"
+
+#include "easylogging++.h"
 
 //#define PFM_ACCESS_LEVEL_WORKAROUND 1
 
@@ -95,7 +99,7 @@ PFMLayer::~PFMLayer()
 					fs_layer::rmdir(cipherPathName.c_str());
 				}
 			}
-			catch( rlog::Error &err )
+			catch( encfs::Error &err )
 			{
 				reportRLogErr(err);
 			}
@@ -361,7 +365,7 @@ void CCALL PFMLayer::Open(PfmMarshallerOpenOp* op, void* formatterUse)
 
 			try
 			{
-				boost::shared_ptr<FileNode> fileNode =
+				std::shared_ptr<encfs::FileNode> fileNode =
 					rootFS_->root->openNode(path.c_str(), "open", makeOpenFileFlags(existingAccessLevel), &res);
 
 				if(fileNode)
@@ -402,7 +406,7 @@ void CCALL PFMLayer::Open(PfmMarshallerOpenOp* op, void* formatterUse)
 					}
 				}
 			}
-			catch(rlog::Error &err)
+			catch(encfs::Error &err)
 			{
 				reportEncFSMPErr(L"Open failed", path, err);
 			}
@@ -524,12 +528,12 @@ void CCALL PFMLayer::Move(PfmMarshallerMoveOp* op, void* formatterUse)
 			try
 			{
 				// Not found in open files, look on file system
-				DirTraverse dirTParent = rootFS_->root->openDir(parentFolder.c_str());
+				encfs::DirTraverse dirTParent = rootFS_->root->openDir(parentFolder.c_str());
 				// If not, return pfmErrorParentNotFound
 				if(!dirTParent.valid())
 					perr = pfmErrorParentNotFound;
 			}
-			catch(rlog::Error &err)
+			catch(encfs::Error &err)
 			{
 				// Not an error
 				perr = pfmErrorParentNotFound;
@@ -590,11 +594,11 @@ void CCALL PFMLayer::Move(PfmMarshallerMoveOp* op, void* formatterUse)
 			{
 				try
 				{
-					DirTraverse dirT = rootFS_->root->openDir(path.c_str());
+					encfs::DirTraverse dirT = rootFS_->root->openDir(path.c_str());
 					if(dirT.valid())
 						isDir = true;
 				}
-				catch(rlog::Error &err)
+				catch(encfs::Error &err)
 				{
 					// Not an error
 				}
@@ -605,7 +609,7 @@ void CCALL PFMLayer::Move(PfmMarshallerMoveOp* op, void* formatterUse)
 				try
 				{
 					int res = 0;
-					boost::shared_ptr<FileNode> fileNode =
+					std::shared_ptr<encfs::FileNode> fileNode =
 						rootFS_->root->openNode(path.c_str(), "open", makeOpenFileFlags(existingAccessLevel), &res);
 
 					if(fileNode)
@@ -634,7 +638,7 @@ void CCALL PFMLayer::Move(PfmMarshallerMoveOp* op, void* formatterUse)
 						}
 					}
 				}
-				catch(rlog::Error &err)
+				catch(encfs::Error &err)
 				{
 					reportEncFSMPErr(L"File not found in move operation", path, err);
 					perr = pfmErrorFailed;
@@ -775,8 +779,7 @@ void CCALL PFMLayer::Close(PfmMarshallerCloseOp* op, void* formatterUse)
 					{
 						int retVal = rootFS_->root->unlink(pathName.c_str());
 						if(retVal != 0)												// See above: Is file is not closed, delete does not work
-							throw rlog::Error("PFMLayer::Close", __FILE__,
-								__FUNCTION__, __LINE__, "Could not delete file");
+							throw encfs::Error("PFMLayer::Close: Could not delete file");
 					}
 					else
 					{
@@ -788,7 +791,7 @@ void CCALL PFMLayer::Close(PfmMarshallerCloseOp* op, void* formatterUse)
 						}
 					}
 				}
-				catch( rlog::Error &err )
+				catch( encfs::Error &err )
 				{
 					reportEncFSMPErr(L"File deletion failed", pathName, err);
 				}
@@ -926,20 +929,20 @@ void CCALL PFMLayer::List(PfmMarshallerListOp* op, void* formatterUse)
 		try
 		{
 			// Create new list
-			DirTraverse dirT = rootFS_->root->openDir(pOpenFile->pathName_.c_str());
+			encfs::DirTraverse dirT = rootFS_->root->openDir(pOpenFile->pathName_.c_str());
 			if(!dirT.valid())
 				perr = pfmErrorFailed;
 
 			if(perr == 0)
 			{
 				fl.listId_ = listId;
-				boost::shared_ptr<DirTraverse> pDirTTemp(new DirTraverse(dirT));
+				std::shared_ptr<encfs::DirTraverse> pDirTTemp(new encfs::DirTraverse(dirT));
 				fl.pDirT_ = pDirTTemp;
 				pOpenFile->fileLists_.push_back(fl);
 				pFileList = &(pOpenFile->fileLists_.back());
 			}
 		}
-		catch( rlog::Error &err )
+		catch( encfs::Error &err )
 		{
 			reportEncFSMPErr(L"Could not open directory", pOpenFile->pathName_, err);
 			perr = pfmErrorFailed;
@@ -1023,6 +1026,7 @@ void CCALL PFMLayer::List(PfmMarshallerListOp* op, void* formatterUse)
 							{
 								// Determine file size for unencrypted file
 								efs_stat buf_ue;
+								memset(&buf_ue, 0, sizeof(efs_stat));
 								bool getAttrSuccess = false;
 
 								try
@@ -1040,7 +1044,7 @@ void CCALL PFMLayer::List(PfmMarshallerListOp* op, void* formatterUse)
 									{
 										int res = 0;
 										const int flags = makeOpenFileFlags(true);
-										boost::shared_ptr<FileNode> fileNode = 
+										std::shared_ptr<encfs::FileNode> fileNode = 
 											rootFS_->root->lookupNode( plainPath.c_str(), "open" );
 										if(fileNode)
 										{
@@ -1050,7 +1054,7 @@ void CCALL PFMLayer::List(PfmMarshallerListOp* op, void* formatterUse)
 										}
 									}
 								}
-								catch( rlog::Error &err )
+								catch( encfs::Error &err )
 								{
 									reportEncFSMPErr(L"Error during directory listing", cpath, err);
 									skipThisFile = true;
@@ -1089,7 +1093,7 @@ void CCALL PFMLayer::List(PfmMarshallerListOp* op, void* formatterUse)
 				}
 			}
 		}
-		catch( rlog::Error &err )
+		catch( encfs::Error &err )
 		{
 			reportEncFSMPErr(L"Error in directory listing", "", err);
 			perr = pfmErrorFailed;
@@ -1151,7 +1155,7 @@ void CCALL PFMLayer::Read(PfmMarshallerReadOp* op, void* formatterUse)
 
 	if(perr == 0)
 	{
-		boost::shared_ptr<FileNode> fileNode = pOpenFile->fileNode_;
+		std::shared_ptr<encfs::FileNode> fileNode = pOpenFile->fileNode_;
 		if(!fileNode)
 			perr = pfmErrorFailed;
 		else
@@ -1161,7 +1165,7 @@ void CCALL PFMLayer::Read(PfmMarshallerReadOp* op, void* formatterUse)
 				ssize_t actSize = fileNode->read(static_cast<efs_off_t>(fileOffset), reinterpret_cast<unsigned char *>(data), requestedSize);
 				actualSize = actSize;
 			}
-			catch(rlog::Error &err)
+			catch(encfs::Error &err)
 			{
 				reportEncFSMPErr(L"Error during read operation", pOpenFile->pathName_, err);
 				perr = pfmErrorFailed;
@@ -1190,7 +1194,7 @@ void CCALL PFMLayer::Write(PfmMarshallerWriteOp* op, void* formatterUse)
 
 	if(perr == 0)
 	{
-		boost::shared_ptr<FileNode> fileNode = pOpenFile->fileNode_;
+		std::shared_ptr<encfs::FileNode> fileNode = pOpenFile->fileNode_;
 		if(!fileNode)
 			perr = pfmErrorFailed;
 		else
@@ -1206,7 +1210,7 @@ void CCALL PFMLayer::Write(PfmMarshallerWriteOp* op, void* formatterUse)
 				if(!isOK)
 					perr = pfmErrorFailed;
 			}
-			catch(rlog::Error &err)
+			catch(encfs::Error &err)
 			{
 				reportEncFSMPErr(L"Error during write operation", pOpenFile->pathName_, err);
 				perr = pfmErrorFailed;
@@ -1237,7 +1241,7 @@ void CCALL PFMLayer::SetSize(PfmMarshallerSetSizeOp* op, void* formatterUse)
 
 	if(perr == 0)
 	{
-		boost::shared_ptr<FileNode> fileNode = pOpenFile->fileNode_;
+		std::shared_ptr<encfs::FileNode> fileNode = pOpenFile->fileNode_;
 		if(!fileNode)
 			perr = pfmErrorFailed;
 		else
@@ -1248,7 +1252,7 @@ void CCALL PFMLayer::SetSize(PfmMarshallerSetSizeOp* op, void* formatterUse)
 				if(retVal < 0)
 					perr = pfmErrorFailed;
 			}
-			catch( rlog::Error &err )
+			catch( encfs::Error &err )
 			{
 				reportEncFSMPErr(L"Error during SetSize operation", pOpenFile->pathName_, err);
 				perr = pfmErrorFailed;
@@ -1520,7 +1524,7 @@ int PFMLayer::createOp(const std::string &path, int8_t createFileType, uint8_t c
 #else
 			flags |= O_RDWR;
 #endif
-			boost::shared_ptr<FileNode> fileNodeNew = 
+			std::shared_ptr<encfs::FileNode> fileNodeNew = 
 				//rootFS_->root->openNode( path.c_str(), "open", flags, &res );
 				rootFS_->root->lookupNode( path.c_str(), "mknod" );
 #if defined(_WIN32)
@@ -1668,7 +1672,7 @@ int PFMLayer::createOp(const std::string &path, int8_t createFileType, uint8_t c
 		else
 			return pfmErrorInvalid;		// We only create files and folders, nothing else
 	}
-	catch( rlog::Error &err )
+	catch( encfs::Error &err )
 	{
 		reportEncFSMPErr(L"Error during create", path, err);
 		return pfmErrorFailed;
@@ -1715,14 +1719,14 @@ int PFMLayer::renameOp(PFMLayer::OpenFile *pOpenFile, const std::string &newPath
 
 		if(reopen)
 		{
-			boost::shared_ptr<FileNode> fileNode = 
+			std::shared_ptr<encfs::FileNode> fileNode = 
 				rootFS_->root->openNode( newPath.c_str(), "open", openFlags, &res );
 			if(!fileNode)
 				return pfmErrorInvalid;
 			pOpenFile->fileNode_ = fileNode;
 		}
 	}
-	catch( rlog::Error &err )
+	catch( encfs::Error &err )
 	{
 		reportEncFSMPErr(L"Error during rename operation", pOpenFile->pathName_, err);
 		return pfmErrorFailed;
@@ -1752,11 +1756,11 @@ int PFMLayer::deleteOp(PFMLayer::OpenFile *pOpenFile)
 		try
 		{
 			// Check whether folder contains files. If yes, return pfmErrorNotEmpty
-			DirTraverse dirT = rootFS_->root->openDir(pOpenFile->pathName_.c_str());
+			encfs::DirTraverse dirT = rootFS_->root->openDir(pOpenFile->pathName_.c_str());
 			if(!dirT.valid())
 				return pfmErrorFailed;
 
-			boost::shared_ptr<DirTraverse> pDirT ( new DirTraverse(dirT) );
+			std::shared_ptr<encfs::DirTraverse> pDirT ( new encfs::DirTraverse(dirT) );
 			int fileType = 0;
 			std::string name = pDirT->nextPlaintextName(&fileType);
 			while(name == "." || name == "..")
@@ -1767,7 +1771,7 @@ int PFMLayer::deleteOp(PFMLayer::OpenFile *pOpenFile)
 			if(!name.empty())
 				return pfmErrorNotEmpty;
 		}
-		catch( rlog::Error &err )
+		catch( encfs::Error &err )
 		{
 			reportEncFSMPErr(L"Error during delete operation", pOpenFile->pathName_, err);
 			return pfmErrorFailed;
@@ -1824,7 +1828,7 @@ void PFMLayer::openExisting(PFMLayer::OpenFile *pOpenFile, PfmOpenAttribs *openA
 	openAttribs->attribs.changeTime = pOpenFile->changeTime_;
 }
 
-int PFMLayer::openFileOp(boost::shared_ptr<FileNode> fileNode, int fd, PfmOpenAttribs *openAttribs,
+int PFMLayer::openFileOp(std::shared_ptr<encfs::FileNode> fileNode, int fd, PfmOpenAttribs *openAttribs,
 	int64_t newExistingOpenId, PT_UINT8 accessLevel, const std::string &path)
 {
 	efs_stat buf;
@@ -1835,7 +1839,7 @@ int PFMLayer::openFileOp(boost::shared_ptr<FileNode> fileNode, int fd, PfmOpenAt
 		if(err != 0)
 			return pfmErrorFailed;
 	}
-	catch( rlog::Error &err )
+	catch( encfs::Error &err )
 	{
 		reportEncFSMPErr(L"Error during open", path, err);
 		return pfmErrorFailed;
@@ -1899,7 +1903,7 @@ int PFMLayer::openDirOp(PfmOpenAttribs *openAttribs, int64_t newExistingOpenId,
 		if(statOk < 0)
 			return pfmErrorInvalid;
 	}
-	catch( rlog::Error &err )
+	catch( encfs::Error &err )
 	{
 		reportEncFSMPErr(L"Error during open dir operation", path, err);
 		return pfmErrorFailed;
@@ -1986,20 +1990,23 @@ int PFMLayer::makeOpenFileFlags(bool isReadOnly)
 	return flags;
 }
 
-void PFMLayer::reportRLogErr(rlog::Error &err)
+void PFMLayer::reportRLogErr(encfs::Error &err)
 {
-	rError("encode err: %s", err.message());
-	err.log( rlog::_RLWarningChannel );
+	//rError("encode err: %s", err.message());
+	//err.log( rlog::_RLWarningChannel );
+
+	//TODO: Check
+	reportEncFSMPErr(L"", "", err);
 
 #if defined(_WIN32) && defined(_DEBUG)
 	std::stringstream ostr;
-	ostr << err.message() << std::endl;
+	ostr << err.what() << std::endl;
 	std::string debugString = ostr.str();
 	OutputDebugStringA(debugString.c_str());
 #endif
 }
 
-void PFMLayer::reportEncFSMPErr(const std::wstring &errStr, const std::string &fn, rlog::Error &err)
+void PFMLayer::reportEncFSMPErr(const std::wstring &errStr, const std::string &fn, encfs::Error &err)
 {
 	EncFSMPLogger::log(errStr, fn, &err);
 }

@@ -163,7 +163,7 @@
 #undef STDC_HEADERS
 
 /* Version number of package */
-#define VERSION 1.7.4
+#define VERSION "@ENCFS_VERSION@"
 
 /* xattr functions have additional options */
 #undef XATTR_ADD_OPT
@@ -227,6 +227,12 @@ typedef signed   __int64  int64_t;
 // wxWidgets defines this
 #if defined(pid_t)
 #	undef pid_t
+#endif
+#if defined(gid_t)
+#	undef gid_t
+#endif
+#if defined(uid_t)
+#	undef uid_t
 #endif
 
 #ifndef HAVE_MODE_T

@@ -7,7 +7,7 @@
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.  
+ * option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,91 +21,88 @@
 #ifndef _Context_incl_
 #define _Context_incl_
 
-#include "encfs.h"
-#include <boost/shared_ptr.hpp>
+#include <algorithm>
+#include <atomic>
+#include <list>
+#include <memory>
 #include <boost/thread.hpp>
 #include <set>
+#include <string>
+#include <unordered_map>
 
-#ifdef USE_HASHMAP
-#include <ext/hash_map>
-#else
-#include <map>
-#endif
+#include "encfs.h"
 
-using boost::shared_ptr;
+namespace encfs {
+
+class DirNode;
+class FileNode;
 struct EncFS_Args;
 struct EncFS_Opts;
-class FileNode;
-class DirNode;
 
-class EncFS_Context
-{
-public:
-    EncFS_Context();
-    ~EncFS_Context();
+class EncFS_Context {
+ public:
+  EncFS_Context();
+  ~EncFS_Context();
 
-    shared_ptr<FileNode> getNode(void *ptr);
-    shared_ptr<FileNode> lookupNode(const char *path);
+  std::shared_ptr<FileNode> lookupNode(const char *path);
 
-    int getAndResetUsageCounter();
-    int openFileCount() const;
+  bool usageAndUnmount(int timeoutCycles);
 
-    void *putNode(const char *path, const shared_ptr<FileNode> &node);
+  void putNode(const char *path, const std::shared_ptr<FileNode> &node);
 
-    void eraseNode(const char *path, void *placeholder);
+  void eraseNode(const char *path, const std::shared_ptr<FileNode> &fnode);
 
-    void renameNode(const char *oldName, const char *newName);
+  void renameNode(const char *oldName, const char *newName);
 
-    void setRoot(const shared_ptr<DirNode> &root);
-    shared_ptr<DirNode> getRoot(int *err);
-    bool isMounted();
+  void setRoot(const std::shared_ptr<DirNode> &root);
+  std::shared_ptr<DirNode> getRoot(int *err);
+  std::shared_ptr<DirNode> getRoot(int *err, bool skipUsageCount);
 
-    shared_ptr<EncFS_Args> args;
-    shared_ptr<EncFS_Opts> opts;
-    bool publicFilesystem;
+  std::shared_ptr<EncFS_Args> args;
+  std::shared_ptr<EncFS_Opts> opts;
+  bool publicFilesystem;
 
-    // root path to cipher dir
-    std::string rootCipherDir;
+  // root path to cipher dir
+  std::string rootCipherDir;
 
-    // for idle monitor
-    bool running;
-    boost::condition_variable wakeupCond;
-	boost::mutex wakeupMutex;
+  // for idle monitor
+  bool running;
+  //pthread_t monitorThread;
+  boost::condition_variable wakeupCond;
+  boost::mutex wakeupMutex;
 
-private:
-    /* This placeholder is what is referenced in FUSE context (passed to
-     * callbacks).
-     *
-     * A FileNode may be opened many times, but only one FileNode instance per
-     * file is kept.  Rather then doing reference counting in FileNode, we
-     * store a unique Placeholder for each open() until the corresponding
-     * release() is called.  shared_ptr then does our reference counting for
-     * us.
-     */
-    struct Placeholder
-    {
-	shared_ptr<FileNode> node;
+  uint64_t nextFuseFh();
+  std::shared_ptr<FileNode> lookupFuseFh(uint64_t);
 
-	Placeholder( const shared_ptr<FileNode> &ptr ) : node(ptr) {}
-    };
+ private:
+  /* This placeholder is what is referenced in FUSE context (passed to
+   * callbacks).
+   *
+   * A FileNode may be opened many times, but only one FileNode instance per
+   * file is kept.  Rather then doing reference counting in FileNode, we
+   * store a unique Placeholder for each open() until the corresponding
+   * release() is called.  std::shared_ptr then does our reference counting for
+   * us.
+   */
 
-    // set of open files, indexed by path
-#ifdef USE_HASHMAP
-    typedef __gnu_cxx::hash_map<std::string, 
-	    std::set<Placeholder*> > FileMap;
-#else
-    typedef std::map< std::string, 
-	    std::set<Placeholder*> > FileMap;
-#endif
+  using FileMap =
+      std::unordered_map<std::string, std::list<std::shared_ptr<FileNode>>>;
 
-    mutable boost::mutex contextMutex;
-    FileMap openFiles;
+  mutable boost::mutex contextMutex;
+  FileMap openFiles;
 
-    int usageCount;
-    shared_ptr<DirNode> root;
+  int usageCount;
+  int idleCount;
+  bool isUnmounting;
+  std::shared_ptr<DirNode> root;
+
+  std::atomic<std::uint64_t> currentFuseFh;
+  std::unordered_map<uint64_t, std::shared_ptr<FileNode>> fuseFhMap;
 };
 
-int remountFS( EncFS_Context *ctx, std::ostream &ostr );
+int remountFS(EncFS_Context *ctx);
+bool unmountFS(EncFS_Context *ctx);
+
+}  // namespace encfs
 
 #endif
-

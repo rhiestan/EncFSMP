@@ -7,7 +7,7 @@
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.  
+ * option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,43 +23,34 @@
 
 #include <boost/thread.hpp>
 
-namespace rel
-{
+namespace encfs {
 
-    class Lock
-    {
-    public:
-	Lock( boost::mutex &mutex );
-	~Lock();
+class Lock {
+ public:
+  Lock(boost::mutex &mutex);
+  ~Lock();
 
-	// leave the lock as it is.  When the Lock wrapper is destroyed, it
-	// will do nothing with the pthread mutex.
-	void leave();
+  // leave the lock as it is.  When the Lock wrapper is destroyed, it
+  // will do nothing with the pthread mutex.
+  void leave();
 
-    private:
-	Lock(const Lock &src); // not allowed
-	Lock &operator = (const Lock &src); // not allowed
+ private:
+  Lock(const Lock &src);             // not allowed
+  Lock &operator=(const Lock &src);  // not allowed
 
-	boost::mutex *_mutex;
-    };
+  boost::mutex *_mutex;
+};
 
-    inline Lock::Lock( boost::mutex &mutex )
-	 : _mutex( &mutex )
-    {
-		_mutex->lock();
-    }
-
-    inline Lock::~Lock( )
-    {
-	if(_mutex)
-		_mutex->unlock();
-    }
-
-    inline void Lock::leave()
-    {
-	_mutex = 0;
-    }
+inline Lock::Lock(boost::mutex &mutex) : _mutex(&mutex) {
+  _mutex->lock();
 }
 
-#endif
+inline Lock::~Lock() {
+  if (_mutex) _mutex->unlock();
+}
 
+inline void Lock::leave() { _mutex = 0; }
+
+}  // namespace encfs
+
+#endif

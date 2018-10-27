@@ -26,8 +26,11 @@
 #endif
 #include "fs_layer.h"
 
-// rlog
-#include "rlog/Error.h"
+#include "Error.h"
+
+#include "easylogging++.h"
+
+#include <codecvt>
 
 // Static member
 EncFSMPLogger EncFSMPLogger::instance_;
@@ -46,7 +49,7 @@ void EncFSMPLogger::setErrorLog(EncFSMPErrorLog *pEncFSMPErrorLog)
 	instance_.pEncFSMPErrorLog_ = pEncFSMPErrorLog;
 }
 
-void EncFSMPLogger::log(const std::wstring &errStr, const std::string &fn, rlog::Error *pErr)
+void EncFSMPLogger::log(const std::wstring &errStr, const std::string &fn, encfs::Error *pErr)
 {
 	if(instance_.pEncFSMPErrorLog_ != NULL)
 	{
@@ -68,4 +71,42 @@ void EncFSMPLogger::log(const std::wstring &errStr, const std::string &fn, rlog:
 		text.Append(wxT("\n"));
 		instance_.pEncFSMPErrorLog_->addText(text);
 	}
+}
+
+class EncFSMPLogDispatcher : public el::LogDispatchCallback
+{
+protected:
+	void handle(const el::LogDispatchData* data) noexcept override
+	{
+		m_data = data;
+		// Dispatch using default log builder of logger
+		dispatch(m_data->logMessage()->logger()->logBuilder()->build(m_data->logMessage(),
+			m_data->dispatchAction() == el::base::DispatchAction::NormalLog));
+	}
+
+private:
+	const el::LogDispatchData* m_data;
+	void dispatch(el::base::type::string_t&& logLine) noexcept
+	{
+		std::string fn;
+		EncFSMPLogger::log(logLine, fn, nullptr);
+	}
+};
+
+void EncFSMPLogger::setup()
+{
+	el::Configurations defaultConf;
+	defaultConf.setToDefault();
+	defaultConf.set(el::Level::Global, el::ConfigurationType::ToFile, "false");
+	defaultConf.set(el::Level::Global, el::ConfigurationType::ToStandardOutput, "false");
+	el::Loggers::setDefaultConfigurations(defaultConf, true);
+
+	el::Logger* defaultLogger = el::Loggers::getLogger("default");
+
+	encfs::initLogging(false, false);
+
+	el::Helpers::installLogDispatchCallback<EncFSMPLogDispatcher>("EncFSMPLogDispatcher");
+
+	EncFSMPLogDispatcher* dispatcher = el::Helpers::logDispatchCallback<EncFSMPLogDispatcher>("EncFSMPLogDispatcher");
+	dispatcher->setEnabled(true);
 }

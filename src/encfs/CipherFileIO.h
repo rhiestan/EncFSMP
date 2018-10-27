@@ -7,7 +7,7 @@
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.  
+ * option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,76 +21,77 @@
 #ifndef _CipherFileIO_incl_
 #define _CipherFileIO_incl_
 
+#include <inttypes.h>
+#include <memory>
+#include <stdint.h>
+#include <sys/types.h>
+
 #include "BlockFileIO.h"
 #include "CipherKey.h"
+#include "FSConfig.h"
 #include "FileUtils.h"
+#include "Interface.h"
 
-#if defined(HAVE_INTTYPES_H)
-#include <inttypes.h>
-#endif
-
-#if defined(HAVE_STDINT_H)
-#include <stdint.h>
-#endif
+namespace encfs {
 
 class Cipher;
+class FileIO;
+struct IORequest;
 
 /*
-    Implement the FileIO interface encrypting data in blocks. 
-    
+    Implement the FileIO interface encrypting data in blocks.
+
     Uses BlockFileIO to handle the block scatter / gather issues.
 */
-class CipherFileIO : public BlockFileIO
-{
-public:
-    CipherFileIO( const boost::shared_ptr<FileIO> &base, 
-                  const FSConfigPtr &cfg);
-    virtual ~CipherFileIO();
+class CipherFileIO : public BlockFileIO {
+ public:
+  CipherFileIO(std::shared_ptr<FileIO> base, const FSConfigPtr &cfg);
+  virtual ~CipherFileIO();
 
-    virtual rel::Interface get_interface() const;
+  virtual Interface interface() const;
 
-    virtual void setFileName( const char *fileName );
-    virtual const char *getFileName() const;
-    virtual bool setIV( uint64_t iv );
+  virtual void setFileName(const char *fileName);
+  virtual const char *getFileName() const;
+  virtual bool setIV(uint64_t iv);
 
-    virtual int open( int flags );
+  virtual int open(int flags);
 
-    virtual int getAttr( efs_stat *stbuf, void *statCache ) const;
-    virtual efs_off_t getSize() const;
+  virtual int getAttr(efs_stat *stbuf, void *statCache) const;
+  virtual off_t getSize() const;
 
-    virtual int truncate( efs_off_t size );
+  virtual int truncate(off_t size);
 
-    virtual bool isWritable() const;
+  virtual bool isWritable() const;
 
-private:
-    virtual ssize_t readOneBlock( const IORequest &req ) const;
-    virtual bool writeOneBlock( const IORequest &req );
+ private:
+  virtual ssize_t readOneBlock(const IORequest &req) const;
+  virtual ssize_t writeOneBlock(const IORequest &req);
+  virtual int generateReverseHeader(unsigned char *data);
 
-    void initHeader();
-    bool writeHeader();
-    bool blockRead( unsigned char *buf, int size, 
-	             uint64_t iv64 ) const;
-    bool streamRead( unsigned char *buf, int size, 
-	             uint64_t iv64 ) const;
-    bool blockWrite( unsigned char *buf, int size, 
-	             uint64_t iv64 ) const;
-    bool streamWrite( unsigned char *buf, int size, 
-	             uint64_t iv64 ) const;
+  int initHeader();
+  bool writeHeader();
+  bool blockRead(unsigned char *buf, int size, uint64_t iv64) const;
+  bool streamRead(unsigned char *buf, int size, uint64_t iv64) const;
+  bool blockWrite(unsigned char *buf, int size, uint64_t iv64) const;
+  bool streamWrite(unsigned char *buf, int size, uint64_t iv64) const;
 
-    boost::shared_ptr<FileIO> base;
+  ssize_t read(const IORequest &req) const;
 
-    FSConfigPtr fsConfig;
+  std::shared_ptr<FileIO> base;
 
-    // if haveHeader is true, then we have a transparent file header which
-    // contains a 64 bit initialization vector.
-    bool haveHeader;
-    bool externalIVChaining;
-    uint64_t externalIV;
-    uint64_t fileIV;
-    int lastFlags;
+  FSConfigPtr fsConfig;
 
-    boost::shared_ptr<Cipher> cipher;
-    CipherKey key;
+  // if haveHeader is true, then we have a transparent file header which
+  // contains a 64 bit initialization vector.
+  bool haveHeader;
+  uint64_t externalIV;
+  uint64_t fileIV;
+  int lastFlags;
+
+  std::shared_ptr<Cipher> cipher;
+  CipherKey key;
 };
+
+}  // namespace encfs
 
 #endif

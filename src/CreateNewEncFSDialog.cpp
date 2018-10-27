@@ -95,8 +95,8 @@ CreateNewEncFSDialog::CreateNewEncFSDialog(wxWindow* parent)
 #endif
 
 	pCipherAlgorithmChoice_->Clear();
-	Cipher::AlgorithmList algorithms = Cipher::GetAlgorithmList();
-	Cipher::AlgorithmList::const_iterator it;
+	encfs::Cipher::AlgorithmList algorithms = encfs::Cipher::GetAlgorithmList();
+	encfs::Cipher::AlgorithmList::const_iterator it;
 	for(it = algorithms.begin(); it != algorithms.end(); ++it)
 	{
 		pCipherAlgorithmChoice_->Append(wxString(it->name.c_str(), *wxConvCurrent));
@@ -105,8 +105,8 @@ CreateNewEncFSDialog::CreateNewEncFSDialog(wxWindow* parent)
 
 	pNameEncodingChoice_->Clear();
 	wxString toolTipStr;
-	NameIO::AlgorithmList nmalgorithms = NameIO::GetAlgorithmList();
-	NameIO::AlgorithmList::const_iterator nmit;
+	encfs::NameIO::AlgorithmList nmalgorithms = encfs::NameIO::GetAlgorithmList();
+	encfs::NameIO::AlgorithmList::const_iterator nmit;
 	for(nmit = nmalgorithms.begin(); nmit != nmalgorithms.end(); ++nmit)
 	{
 #if defined(EFS_COMPATIBILITY_WORKAROUND)
@@ -185,6 +185,23 @@ void CreateNewEncFSDialog::OnEncFSConfigurationRadioBox( wxCommandEvent& event )
 	}
 	else if(selection == 1)
 	{
+		// Cloud-friendly paranoia configuration: AES, 256, 1024, Block, true, true, true, false, 3000
+		pCipherAlgorithmChoice_->SetStringSelection(wxT("AES"));
+
+		wxCommandEvent dummyEvent;
+		OnCipherAlgorithmChoice(dummyEvent);
+
+		pCipherKeysizeChoice_->SetStringSelection(wxT("256"));
+		pCipherBlocksizeChoice_->SetStringSelection(wxT("1024"));
+		pNameEncodingChoice_->SetStringSelection(wxT("Block"));
+		pPerBlockHMACCheckBox_->SetValue(true);
+		pUniqueIVCheckBox_->SetValue(true);
+		pChainedIVCheckBox_->SetValue(true);
+		pExternalIVCheckBox_->SetValue(false);
+		pKeyDerivationDurationChoice_->SetStringSelection(wxT("3000"));
+	}
+	else if(selection == 2)
+	{
 		// Paranoia configuration: AES, 256, 1024, Block, true, true, true, true, 3000
 		pCipherAlgorithmChoice_->SetStringSelection(wxT("AES"));
 
@@ -224,8 +241,8 @@ void CreateNewEncFSDialog::OnCipherAlgorithmChoice( wxCommandEvent& event )
 	pCipherKeysizeChoice_->Clear();
 	pCipherBlocksizeChoice_->Clear();
 
-	Cipher::AlgorithmList algorithms = Cipher::GetAlgorithmList();
-	Cipher::AlgorithmList::const_iterator it;
+	encfs::Cipher::AlgorithmList algorithms = encfs::Cipher::GetAlgorithmList();
+	encfs::Cipher::AlgorithmList::const_iterator it;
 	int optNum = 1;
 	for(it = algorithms.begin(); it != algorithms.end(); ++it, ++optNum)
 	{

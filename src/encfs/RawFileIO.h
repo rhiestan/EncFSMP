@@ -7,7 +7,7 @@
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.  
+ * option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,44 +21,48 @@
 #ifndef _RawFileIO_incl_
 #define _RawFileIO_incl_
 
-#include "FileIO.h"
-
 #include <string>
+#include <sys/types.h>
 
-class RawFileIO : public FileIO
-{
-public:
-    RawFileIO();
-    RawFileIO( const std::string &fileName );
-    virtual ~RawFileIO();
+#include "FileIO.h"
+#include "Interface.h"
 
-    virtual rel::Interface get_interface() const;
+namespace encfs {
 
-    virtual void setFileName( const char *fileName );
-    virtual const char *getFileName() const;
+class RawFileIO : public FileIO {
+ public:
+  RawFileIO();
+  RawFileIO(std::string fileName);
+  virtual ~RawFileIO();
 
-    virtual int open( int flags );
-    
-    virtual int getAttr( efs_stat *stbuf, void *statCache ) const;
-    virtual efs_off_t getSize() const;
+  virtual Interface interface() const;
 
-    virtual ssize_t read( const IORequest & req ) const;
-    virtual bool write( const IORequest &req );
+  virtual void setFileName(const char *fileName);
+  virtual const char *getFileName() const;
 
-    virtual int truncate( efs_off_t size );
+  virtual int open(int flags);
 
-    virtual bool isWritable() const;
-protected:
+  virtual int getAttr(efs_stat *stbuf, void *statCache) const;
+  virtual off_t getSize() const;
 
-    std::string name;
+  virtual ssize_t read(const IORequest &req) const;
+  virtual ssize_t write(const IORequest &req);
 
-    bool knownSize;
-    efs_off_t fileSize;
+  virtual int truncate(off_t size);
 
-    int fd;
-    int oldfd;
-    bool canWrite;
+  virtual bool isWritable() const;
+
+ protected:
+  std::string name;
+
+  bool knownSize;
+  off_t fileSize;
+
+  int fd;
+  int oldfd;
+  bool canWrite;
 };
 
-#endif
+}  // namespace encfs
 
+#endif

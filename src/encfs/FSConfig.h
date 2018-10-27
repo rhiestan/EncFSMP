@@ -7,7 +7,7 @@
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.  
+ * option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,112 +21,120 @@
 #ifndef _FSConfig_incl_
 #define _FSConfig_incl_
 
-#include "encfs.h"
-#include "Interface.h"
-#include "CipherKey.h"
-
+#include <memory>
+#include <string>
 #include <vector>
-#include <boost/shared_ptr.hpp>
 
-enum ConfigType
-{
-    Config_None = 0,
-    Config_Prehistoric,
-    Config_V3,
-    Config_V4,
-    Config_V5,
-    Config_V6
+#include "CipherKey.h"
+#include "Interface.h"
+#include "encfs.h"
+
+namespace encfs {
+
+enum ConfigType {
+  Config_None = 0,
+  Config_Prehistoric,
+  Config_V3,
+  Config_V4,
+  Config_V5,
+  Config_V6
 };
 
 struct EncFS_Opts;
 class Cipher;
 class NameIO;
 
-struct EncFSConfig
-{
-    ConfigType cfgType;
+/**
+ * Persistent configuration (stored in config file .encfs6.xml)
+ */
+struct EncFSConfig {
+  ConfigType cfgType;
 
-    std::string creator;
-    int subVersion;
+  std::string creator;
+  int subVersion;
 
-    // interface of cipher
-    rel::Interface cipherIface;
-    // interface used for file name coding
-    rel::Interface nameIface;
-    int keySize; // reported in bits
-    int blockSize; // reported in bytes
+  // interface of cipher
+  Interface cipherIface;
+  // interface used for file name coding
+  Interface nameIface;
 
-    std::vector<unsigned char> keyData;
+  int keySize;    // reported in bits
+  int blockSize;  // reported in bytes
 
-    std::vector<unsigned char> salt;
-    int kdfIterations;
-    long desiredKDFDuration;
+  std::vector<unsigned char> keyData;
+  std::vector<unsigned char> salt;
 
-    int blockMACBytes; // MAC headers on blocks..
-    int blockMACRandBytes; // number of random bytes in the block header
+  int kdfIterations;
+  long desiredKDFDuration;
 
-    bool uniqueIV; // per-file Initialization Vector
-    bool externalIVChaining; // IV seeding by filename IV chaining
+  bool plainData;         // do not encrypt file content
 
-    bool chainedNameIV; // filename IV chaining
-    bool allowHoles; // allow holes in files (implicit zero blocks)
+  int blockMACBytes;      // MAC headers on blocks..
+  int blockMACRandBytes;  // number of random bytes in the block header
 
-    EncFSConfig()
-        : keyData()
-        , salt()
-    {
-        cfgType = Config_None;
-        subVersion = 0;
-        blockMACBytes = 0;
-        blockMACRandBytes = 0;
-        uniqueIV = false;
-        externalIVChaining = false;
-        chainedNameIV = false;
-        allowHoles = false;
+  bool uniqueIV;            // per-file Initialization Vector
+  bool externalIVChaining;  // IV seeding by filename IV chaining
 
-        kdfIterations = 0;
-        desiredKDFDuration = 500;
-    }
+  bool chainedNameIV;  // filename IV chaining
+  bool allowHoles;     // allow holes in files (implicit zero blocks)
 
-    CipherKey getUserKey(bool useStdin);
-    CipherKey getUserKey(const std::string &passwordProgram,
-                         const std::string &rootDir);
-    CipherKey getNewUserKey();
-    
-    boost::shared_ptr<Cipher> getCipher() const;
+  EncFSConfig() : keyData(), salt() {
+    cfgType = Config_None;
+    subVersion = 0;
+    plainData = false;
+    blockMACBytes = 0;
+    blockMACRandBytes = 0;
+    uniqueIV = false;
+    externalIVChaining = false;
+    chainedNameIV = false;
+    allowHoles = false;
 
-    // deprecated
-    void assignKeyData(const std::string &in);
-    void assignKeyData(unsigned char *data, int length);
-    void assignSaltData(unsigned char *data, int length);
+    kdfIterations = 0;
+    desiredKDFDuration = 500;
+  }
 
-    unsigned char *getKeyData() const;
-    unsigned char *getSaltData() const;
+  CipherKey getUserKey(bool useStdin);
+  CipherKey getUserKey(const std::string &passwordProgram,
+                       const std::string &rootDir);
+  CipherKey getNewUserKey();
 
-private:
-    CipherKey makeKey(const char *password, int passwdLen);
+  std::shared_ptr<Cipher> getCipher() const;
+
+  // deprecated
+  void assignKeyData(const std::string &in);
+  void assignKeyData(unsigned char *data, int length);
+  void assignSaltData(unsigned char *data, int length);
+
+  unsigned char *getKeyData() const;
+  unsigned char *getSaltData() const;
+
+ private:
+  CipherKey makeKey(const char *password, int passwdLen);
 };
-   
+
 // helpers for serializing to/from a stream
-std::ostream &operator << (std::ostream &os, const EncFSConfig &cfg);
-std::istream &operator >> (std::istream &os, EncFSConfig &cfg);
+std::ostream &operator<<(std::ostream &os, const EncFSConfig &cfg);
+std::istream &operator>>(std::istream &os, EncFSConfig &cfg);
 
-struct FSConfig
-{
-    boost::shared_ptr<EncFSConfig> config;
-    boost::shared_ptr<EncFS_Opts> opts;
+struct FSConfig {
+  std::shared_ptr<EncFSConfig> config;
+  std::shared_ptr<EncFS_Opts> opts;
 
-    boost::shared_ptr<Cipher> cipher;
-    CipherKey key;
-    boost::shared_ptr<NameIO> nameCoding;
+  std::shared_ptr<Cipher> cipher;
+  CipherKey key;
+  std::shared_ptr<NameIO> nameCoding;
 
-    bool forceDecode; // force decode on MAC block failures
-    bool reverseEncryption; // reverse encryption operation
+  bool forceDecode;        // force decode on MAC block failures
+  bool reverseEncryption;  // reverse encryption operation
 
-    bool idleTracking; // turn on idle monitoring of filesystem
+  bool idleTracking;  // turn on idle monitoring of filesystem
+
+  FSConfig()
+      : forceDecode(false), reverseEncryption(false), idleTracking(false) {}
 };
 
-typedef boost::shared_ptr<FSConfig> FSConfigPtr;
+using FSConfigPtr = std::shared_ptr<FSConfig>;
+
+}  // namespace encfs
 
 #endif
-

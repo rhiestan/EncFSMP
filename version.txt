@@ -1,6 +1,17 @@
 ﻿Version history
 ---------------
 
+Version 0.99.0, 27.10.2018:
+- Beta version of 1.0, use with caution!
+- Upgrade of encfs to 1.9.5
+- Update of PFM to 1.0.0.191, boost to 1.68.0, wxWidgets to 3.1.1 and OpenSSL to 1.1.0i on Windows and 1.0.2p on MacOS
+- Compiling with newest compilers (MinGW GCC 8.1.0 on Windows, Apple-Clang 10.0.0 on MacOS)
+
+
+Version 0.11.1, 16.11.2017:
+- Update PFM to 1.0.0.190, fixing issues with MacOS 10.13 and Windows 10 Fall Creators Update (tickets #81 and #83).
+
+
 Version 0.11.0, 30.09.2017:
 - Update PFM to 1.0.0.189, fixing several problems (tickets #78 and #69)
 - Added new command line commnds: quit and minimize

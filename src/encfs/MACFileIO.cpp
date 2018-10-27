@@ -7,7 +7,7 @@
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.  
+ * option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -20,25 +20,24 @@
 
 #include "MACFileIO.h"
 
-#include "MemoryPool.h"
-#include "FileUtils.h"
-
-#include <rlog/rlog.h>
-#include <rlog/Error.h>
-#include <rlog/RLogChannel.h>
-
+#include "easylogging++.h"
+#include <cinttypes>
 #include <cstring>
+#include <sys/stat.h>
+#include <utility>
 
+#include "BlockFileIO.h"
+#include "Cipher.h"
+#include "Error.h"
+#include "FileIO.h"
+#include "FileUtils.h"
+#include "MemoryPool.h"
 #include "i18n.h"
 
-using namespace rlog;
-using namespace rel;
 using namespace std;
-using boost::shared_ptr;
-using boost::dynamic_pointer_cast;
 
-static RLogChannel *Info = DEF_CHANNEL("info/MACFileIO", Log_Info);
-//
+namespace encfs {
+
 // Version 1.0 worked on blocks of size (blockSize + headerSize).
 //   That is, it took [blockSize] worth of user data and added headers.
 // Version 2.0 takes [blockSize - headerSize] worth of user data and writes
@@ -51,68 +50,47 @@ static RLogChannel *Info = DEF_CHANNEL("info/MACFileIO", Log_Info);
 // compatible, except at a high level by checking a revision number for the
 // filesystem...
 //
-static rel::Interface MACFileIO_iface("FileIO/MAC", 2, 1, 0);
+static Interface MACFileIO_iface("FileIO/MAC", 2, 1, 0);
 
-int dataBlockSize(const FSConfigPtr &cfg)
-{
-    return cfg->config->blockSize
-            - cfg->config->blockMACBytes
-            - cfg->config->blockMACRandBytes;
+int dataBlockSize(const FSConfigPtr &cfg) {
+  return cfg->config->blockSize - cfg->config->blockMACBytes -
+         cfg->config->blockMACRandBytes;
 }
 
-MACFileIO::MACFileIO( const boost::shared_ptr<FileIO> &_base,
-                      const FSConfigPtr &cfg )
-   : BlockFileIO( dataBlockSize( cfg ), cfg )
-   , base( _base )
-   , cipher( cfg->cipher )
-   , key( cfg->key )
-   , macBytes( cfg->config->blockMACBytes )
-   , randBytes( cfg->config->blockMACRandBytes )
-   , warnOnly( cfg->opts->forceDecode )
-{
-    rAssert( macBytes >= 0 && macBytes <= 8 );
-    rAssert( randBytes >= 0 );
-    rLog(Info, "fs block size = %i, macBytes = %i, randBytes = %i",
-	    cfg->config->blockSize, 
-            cfg->config->blockMACBytes, 
-            cfg->config->blockMACRandBytes);
+MACFileIO::MACFileIO(std::shared_ptr<FileIO> _base, const FSConfigPtr &cfg)
+    : BlockFileIO(dataBlockSize(cfg), cfg),
+      base(std::move(_base)),
+      cipher(cfg->cipher),
+      key(cfg->key),
+      macBytes(cfg->config->blockMACBytes),
+      randBytes(cfg->config->blockMACRandBytes),
+      warnOnly(cfg->opts->forceDecode) {
+  rAssert(macBytes >= 0 && macBytes <= 8);
+  rAssert(randBytes >= 0);
+  VLOG(1) << "fs block size = " << cfg->config->blockSize
+          << ", macBytes = " << cfg->config->blockMACBytes
+          << ", randBytes = " << cfg->config->blockMACRandBytes;
 }
 
-MACFileIO::~MACFileIO()
-{
+MACFileIO::~MACFileIO() = default;
+
+Interface MACFileIO::interface() const { return MACFileIO_iface; }
+
+int MACFileIO::open(int flags) { return base->open(flags); }
+
+void MACFileIO::setFileName(const char *fileName) {
+  base->setFileName(fileName);
 }
 
-rel::Interface MACFileIO::get_interface() const
-{
-    return MACFileIO_iface;
-}
+const char *MACFileIO::getFileName() const { return base->getFileName(); }
 
-int MACFileIO::open( int flags )
-{
-    return base->open( flags );
-}
+bool MACFileIO::setIV(uint64_t iv) { return base->setIV(iv); }
 
-void MACFileIO::setFileName( const char *fileName )
-{
-    base->setFileName( fileName );
-}
-
-const char *MACFileIO::getFileName() const
-{
-    return base->getFileName();
-}
-
-bool MACFileIO::setIV( uint64_t iv )
-{
-    return base->setIV( iv );
-}
-
-inline static efs_off_t roundUpDivide( efs_off_t numerator, int denominator )
-{
-    // integer arithmetic always rounds down, so we can round up by adding
-    // enough so that any value other then a multiple of denominator gets
-    // rouned to the next highest value.
-    return ( numerator + denominator - 1 ) / denominator;
+inline static off_t roundUpDivide(off_t numerator, int denominator) {
+  // integer arithmetic always rounds down, so we can round up by adding
+  // enough so that any value other then a multiple of denominator gets
+  // rouned to the next highest value.
+  return (numerator + denominator - 1) / denominator;
 }
 
 // Convert from a location in the raw file to a location when MAC headers are
@@ -125,10 +103,9 @@ inline static efs_off_t roundUpDivide( efs_off_t numerator, int denominator )
 //   ... blockNum = 1
 //   ... partialBlock = 0
 //   ... adjLoc = 1 * blockSize
-static efs_off_t locWithHeader( efs_off_t offset, int blockSize, int headerSize )
-{
-    efs_off_t blockNum = roundUpDivide( offset , blockSize - headerSize );
-    return offset + blockNum * headerSize;
+static off_t locWithHeader(off_t offset, int blockSize, int headerSize) {
+  off_t blockNum = roundUpDivide(offset, blockSize - headerSize);
+  return offset + blockNum * headerSize;
 }
 
 // convert from a given location in the stream containing headers, and return a
@@ -136,171 +113,160 @@ static efs_off_t locWithHeader( efs_off_t offset, int blockSize, int headerSize 
 // The output value will always be less then the input value, because the
 // headers are stored at the beginning of the block, so even the first data is
 // offset by the size of the header.
-static efs_off_t locWithoutHeader( efs_off_t offset, int blockSize, int headerSize )
-{
-    efs_off_t blockNum = roundUpDivide( offset , blockSize );
-    return offset - blockNum * headerSize;
+static off_t locWithoutHeader(off_t offset, int blockSize, int headerSize) {
+  off_t blockNum = roundUpDivide(offset, blockSize);
+  return offset - blockNum * headerSize;
 }
 
-int MACFileIO::getAttr( efs_stat *stbuf, void *statCache ) const
-{
-    int res = base->getAttr( stbuf, statCache );
+int MACFileIO::getAttr(efs_stat *stbuf, void *statCache) const {
+  int res = base->getAttr(stbuf, statCache);
 
-    if(res == 0 && S_ISREG(stbuf->st_mode))
-    {
-	// have to adjust size field..
-	int headerSize = macBytes + randBytes;
-	int bs = blockSize() + headerSize;
-	stbuf->st_size = locWithoutHeader( stbuf->st_size, bs, headerSize );
+  if (res == 0 && S_ISREG(stbuf->st_mode)) {
+    // have to adjust size field..
+    int headerSize = macBytes + randBytes;
+    int bs = blockSize() + headerSize;
+    stbuf->st_size = locWithoutHeader(stbuf->st_size, bs, headerSize);
+  }
+
+  return res;
+}
+
+off_t MACFileIO::getSize() const {
+  // adjust the size to hide the header overhead we tack on..
+  int headerSize = macBytes + randBytes;
+  int bs = blockSize() + headerSize;
+
+  off_t size = base->getSize();
+  if (size > 0) {
+    size = locWithoutHeader(size, bs, headerSize);
+  }
+
+  return size;
+}
+
+ssize_t MACFileIO::readOneBlock(const IORequest &req) const {
+  int headerSize = macBytes + randBytes;
+
+  int bs = blockSize() + headerSize;  // ok, should clearly fit into an int
+
+  MemBlock mb = MemoryPool::allocate(bs);
+
+  IORequest tmp;
+  tmp.offset = locWithHeader(req.offset, bs, headerSize);
+  tmp.data = mb.data;
+  tmp.dataLen = headerSize + req.dataLen;
+
+  // get the data from the base FileIO layer
+  ssize_t readSize = base->read(tmp);
+
+  // don't store zeros if configured for zero-block pass-through
+  bool skipBlock = true;
+  if (_allowHoles) {
+    for (int i = 0; i < readSize; ++i) {
+      if (tmp.data[i] != 0) {
+        skipBlock = false;
+        break;
+      }
     }
+  } else if (macBytes > 0) {
+    skipBlock = false;
+  }
 
-    return res;
-}
+  if (readSize > headerSize) {
+    if (!skipBlock) {
+      // At this point the data has been decoded.  So, compute the MAC of
+      // the block and check against the checksum stored in the header..
+      uint64_t mac =
+          cipher->MAC_64(tmp.data + macBytes, readSize - macBytes, key);
 
-efs_off_t MACFileIO::getSize() const
-{
-    // adjust the size to hide the header overhead we tack on..
-    int headerSize = macBytes + randBytes;
-    int bs = blockSize() + headerSize;
+      // Constant time comparision to prevent timing attacks
+      unsigned char fail = 0;
+      for (int i = 0; i < macBytes; ++i, mac >>= 8) {
+        int test = mac & 0xff;
+        int stored = tmp.data[i];
 
-    efs_off_t size = base->getSize();
-    if(size > 0)
-	size = locWithoutHeader( size, bs, headerSize );
+        fail |= (test ^ stored);
+      }
 
-    return size;
-}
-
-ssize_t MACFileIO::readOneBlock( const IORequest &req ) const
-{
-    int headerSize = macBytes + randBytes;
-
-    int bs = blockSize() + headerSize;
-
-    MemBlock mb = MemoryPool::allocate( bs );
-
-    IORequest tmp;
-    tmp.offset = locWithHeader( req.offset, bs, headerSize );
-    tmp.data = mb.data;
-    tmp.dataLen = headerSize + req.dataLen;
-
-    // get the data from the base FileIO layer
-    ssize_t readSize = base->read( tmp );
-
-    // don't store zeros if configured for zero-block pass-through
-    bool skipBlock = true;
-    if( _allowHoles )
-    {
-        for(int i=0; i<readSize; ++i)
-            if(tmp.data[i] != 0)
-            {
-                skipBlock = false;
-                break;
-            }
-    } else if(macBytes > 0)
-       skipBlock = false; 
-
-    if(readSize > headerSize)
-    {
-        if(!skipBlock)
-        {
-            // At this point the data has been decoded.  So, compute the MAC of
-            // the block and check against the checksum stored in the header..
-            uint64_t mac = cipher->MAC_64( tmp.data + macBytes, 
-                    readSize - macBytes, key );
-
-            for(int i=0; i<macBytes; ++i, mac >>= 8)
-            {
-                int test = mac & 0xff;
-                int stored = tmp.data[i];
-                if(test != stored)
-                {
-                    // uh oh.. 
-                    long blockNum = req.offset / bs;
-                    rWarning(_("MAC comparison failure in block %li"), 
-                            blockNum);
-                    if( !warnOnly )
-                    {
-                        MemoryPool::release( mb );
-                        throw RL_ERROR(
-                                _("MAC comparison failure, refusing to read"));
-                    }
-                    break;
-                }
-            }
+      if (fail > 0) {
+        // uh oh..
+        long blockNum = req.offset / bs;
+        RLOG(WARNING) << "MAC comparison failure in block " << blockNum;
+        if (!warnOnly) {
+          MemoryPool::release(mb);
+          return -EBADMSG;
         }
-
-	// now copy the data to the output buffer
-	readSize -= headerSize;
-	memcpy( req.data, tmp.data + headerSize, readSize );
-    } else
-    {
-	rDebug("readSize %i at offset %" PRIi64, (int)readSize, req.offset);
-	if(readSize > 0)
-	    readSize = 0;
+      }
     }
 
-    MemoryPool::release( mb );
-
-    return readSize;
-}
-
-bool MACFileIO::writeOneBlock( const IORequest &req )
-{
-    int headerSize = macBytes + randBytes;
-
-    int bs = blockSize() + headerSize;
-
-    // we have the unencrypted data, so we need to attach a header to it.
-    MemBlock mb = MemoryPool::allocate( bs );
-
-    IORequest newReq;
-    newReq.offset = locWithHeader( req.offset, bs, headerSize );
-    newReq.data = mb.data;
-    newReq.dataLen = headerSize + req.dataLen;
-
-    memset( newReq.data, 0, headerSize );
-    memcpy( newReq.data + headerSize, req.data, req.dataLen );
-    if(randBytes > 0)
-    {
-	if(!cipher->randomize( newReq.data+macBytes, randBytes, false ))
-            return false;
+    // now copy the data to the output buffer
+    readSize -= headerSize;
+    memcpy(req.data, tmp.data + headerSize, readSize);
+  } else {
+    VLOG(1) << "readSize " << readSize << " at offset " << req.offset;
+    if (readSize > 0) {
+      readSize = 0;
     }
+  }
 
-    if(macBytes > 0)
-    {
-        // compute the mac (which includes the random data) and fill it in
-        uint64_t mac = cipher->MAC_64( newReq.data+macBytes, 
-                req.dataLen + randBytes, key );
+  MemoryPool::release(mb);
 
-        for(int i=0; i<macBytes; ++i)
-        {
-            newReq.data[i] = mac & 0xff;
-            mac >>= 8;
-        }
+  return readSize;
+}
+
+ssize_t MACFileIO::writeOneBlock(const IORequest &req) {
+  int headerSize = macBytes + randBytes;
+
+  int bs = blockSize() + headerSize;  // ok, should clearly fit into an int
+
+  // we have the unencrypted data, so we need to attach a header to it.
+  MemBlock mb = MemoryPool::allocate(bs);
+
+  IORequest newReq;
+  newReq.offset = locWithHeader(req.offset, bs, headerSize);
+  newReq.data = mb.data;
+  newReq.dataLen = headerSize + req.dataLen;
+
+  memset(newReq.data, 0, headerSize);
+  memcpy(newReq.data + headerSize, req.data, req.dataLen);
+  if (randBytes > 0) {
+    if (!cipher->randomize(newReq.data + macBytes, randBytes, false)) {
+      return -EBADMSG;
     }
+  }
 
-    // now, we can let the next level have it..
-    bool ok = base->write( newReq );
+  if (macBytes > 0) {
+    // compute the mac (which includes the random data) and fill it in
+    uint64_t mac =
+        cipher->MAC_64(newReq.data + macBytes, req.dataLen + randBytes, key);
 
-    MemoryPool::release( mb );
+    for (int i = 0; i < macBytes; ++i) {
+      newReq.data[i] = mac & 0xff;
+      mac >>= 8;
+    }
+  }
 
-    return ok;
+  // now, we can let the next level have it..
+  ssize_t writeSize = base->write(newReq);
+
+  MemoryPool::release(mb);
+
+  return writeSize;
 }
 
-int MACFileIO::truncate( efs_off_t size )
-{
-    int headerSize = macBytes + randBytes;
-    int bs = blockSize() + headerSize;
+int MACFileIO::truncate(off_t size) {
+  int headerSize = macBytes + randBytes;
+  int bs = blockSize() + headerSize;  // ok, should clearly fit into an int
 
-    int res =  BlockFileIO::truncate( size, 0 );
+  int res = BlockFileIO::truncateBase(size, nullptr);
 
-    if(res == 0)
-	base->truncate( locWithHeader( size, bs, headerSize ) );
+  if (res == 0) {
+    res = base->truncate(locWithHeader(size, bs, headerSize));
+  }
 
-    return res;
+  return res;
 }
 
-bool MACFileIO::isWritable() const
-{
-    return base->isWritable();
-}
+bool MACFileIO::isWritable() const { return base->isWritable(); }
+
+}  // namespace encfs

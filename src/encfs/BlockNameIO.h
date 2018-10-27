@@ -7,7 +7,7 @@
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.  
+ * option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,10 +21,16 @@
 #ifndef _BlockNameIO_incl_
 #define _BlockNameIO_incl_
 
-#include "NameIO.h"
-#include "CipherKey.h"
+#include <memory>
+#include <stdint.h>  // for uint64_t
 
-#include <boost/shared_ptr.hpp>
+#include "CipherKey.h"  // for CipherKey
+#include "Interface.h"  // for Interface
+#include "NameIO.h"     // for NameIO
+
+#undef interface
+
+namespace encfs {
 
 class Cipher;
 
@@ -33,38 +39,37 @@ class Cipher;
     mode to encode filenames.  The filenames are padded to be a multiple of the
     cipher block size.
 */
-class BlockNameIO : public NameIO
-{
-public:
-    static rel::Interface CurrentInterface(bool caseSensitive = false);
+class BlockNameIO : public NameIO {
+ public:
+  static Interface CurrentInterface(bool caseInsensitive = false);
 
-    BlockNameIO( const rel::Interface &iface,
-	         const boost::shared_ptr<Cipher> &cipher, 
-	         const CipherKey &key, int blockSize,
-           bool caseSensitiveEncoding = false );
-    virtual ~BlockNameIO();
+  BlockNameIO(const Interface &iface, std::shared_ptr<Cipher> cipher,
+              CipherKey key, int blockSize,
+              bool caseInsensitiveEncoding = false);
+  virtual ~BlockNameIO();
 
-    virtual rel::Interface get_interface() const;
+  virtual Interface interface() const;
 
-    virtual int maxEncodedNameLen( int plaintextNameLen ) const;
-    virtual int maxDecodedNameLen( int encodedNameLen ) const;
+  virtual int maxEncodedNameLen(int plaintextNameLen) const;
+  virtual int maxDecodedNameLen(int encodedNameLen) const;
 
-    // hack to help with static builds
-    static bool Enabled();
-protected:
-    virtual int encodeName( const char *plaintextName, int length,
-	                    uint64_t *iv, char *encodedName ) const;
-    virtual int decodeName( const char *encodedName, int length,
-	                    uint64_t *iv, char *plaintextName ) const;
+  // hack to help with static builds
+  static bool Enabled();
 
-private:
-    int _interface;
-    int _bs;
-    boost::shared_ptr<Cipher> _cipher;
-    CipherKey _key;
-    bool _caseSensitive;
+ protected:
+  virtual int encodeName(const char *plaintextName, int length, uint64_t *iv,
+                         char *encodedName, int bufferLength) const;
+  virtual int decodeName(const char *encodedName, int length, uint64_t *iv,
+                         char *plaintextName, int bufferLength) const;
+
+ private:
+  int _interface;
+  int _bs;
+  std::shared_ptr<Cipher> _cipher;
+  CipherKey _key;
+  bool _caseInsensitive;
 };
 
+}  // namespace encfs
 
 #endif
-

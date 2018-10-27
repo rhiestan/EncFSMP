@@ -20,7 +20,10 @@
 #ifndef PFM_LAYER_H
 #define PFM_LAYER_H
 
+namespace encfs
+{
 class DirTraverse;
+}
 
 #include "config.h"
 
@@ -45,15 +48,18 @@ class DirTraverse;
 // libencfs
 #include "FileUtils.h"
 #include "FileNode.h"
+#include "Error.h"
 
-// rlog
-#include "rlog/Error.h"
+// easyloggingpp
+#include "easylogging++.h"
 
 #ifdef _WIN32
 #define CCALL __cdecl
 #else
 #define CCALL
 #endif
+
+using encfs::RootPtr;
 
 class PFMLayer: public PfmFormatterDispatch
 {
@@ -111,7 +117,7 @@ public:
 		}
 
 		int64_t listId_;
-		boost::shared_ptr<DirTraverse> pDirT_;
+		std::shared_ptr<encfs::DirTraverse> pDirT_;
 
 		bool hasPreviousResult_;
 		PfmAttribs prevAttribs_;
@@ -160,7 +166,7 @@ public:
 		bool isFile_;	// File: true, Directory: false
 		bool isDeleted_;
 		int64_t fileId_;
-		boost::shared_ptr<FileNode> fileNode_;	// For files
+		std::shared_ptr<encfs::FileNode> fileNode_;	// For files
 		bool isReadOnly_;						// File has Read-only bit set
 		bool isOpenedReadOnly_;					// File was opened read-only
 		PT_UINT8 fileFlags_;
@@ -189,15 +195,15 @@ public:
 	int deleteOp(OpenFile *pOpenFile);
 	void openExisting(OpenFile *pOpenFile, PfmOpenAttribs *openAttribs,
 		PT_UINT8 accessLevel);
-	int openFileOp(boost::shared_ptr<FileNode> fileNode, int fd, PfmOpenAttribs *openAttribs,
+	int openFileOp(std::shared_ptr<encfs::FileNode> fileNode, int fd, PfmOpenAttribs *openAttribs,
 		int64_t newExistingOpenId, PT_UINT8 accessLevel, const std::string &path);
 	int openDirOp(PfmOpenAttribs *openAttribs, int64_t newExistingOpenId,
 		PT_UINT8 accessLevel, const std::string &path);
 	int makeOpenFileFlags(PT_INT8 accessLevel);
 	int makeOpenFileFlags(bool isReadOnly);
 
-	void reportRLogErr(rlog::Error &err);
-	void reportEncFSMPErr(const std::wstring &errStr, const std::string &fn, rlog::Error &err);
+	void reportRLogErr(encfs::Error &err);
+	void reportEncFSMPErr(const std::wstring &errStr, const std::string &fn, encfs::Error &err);
 	void reportEncFSMPErr(const std::wstring &errStr, const std::string &fn);
 
 	bool isHiddenFile(const std::string &fileName);

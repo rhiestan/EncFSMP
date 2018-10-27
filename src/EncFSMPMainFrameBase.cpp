@@ -459,10 +459,10 @@ CreateNewEncFSDialogBase::CreateNewEncFSDialogBase( wxWindow* parent, wxWindowID
 	wxBoxSizer* bSizer6;
 	bSizer6 = new wxBoxSizer( wxHORIZONTAL );
 	
-	wxString pEncFSConfigurationRadioButton_Choices[] = { wxT("Standard"), wxT("Paranoia"), wxT("Expert") };
+	wxString pEncFSConfigurationRadioButton_Choices[] = { wxT("Standard"), wxT("Cloud-safe paranoia"), wxT("Paranoia"), wxT("Expert") };
 	int pEncFSConfigurationRadioButton_NChoices = sizeof( pEncFSConfigurationRadioButton_Choices ) / sizeof( wxString );
 	pEncFSConfigurationRadioButton_ = new wxRadioBox( m_panel4, ID_ENCFSCONFIGURATIONRADIOBUTTON, wxT("Configuration"), wxDefaultPosition, wxDefaultSize, pEncFSConfigurationRadioButton_NChoices, pEncFSConfigurationRadioButton_Choices, 1, wxRA_SPECIFY_COLS );
-	pEncFSConfigurationRadioButton_->SetSelection( 1 );
+	pEncFSConfigurationRadioButton_->SetSelection( 0 );
 	bSizer6->Add( pEncFSConfigurationRadioButton_, 0, wxALL, 3 );
 	
 	
@@ -546,7 +546,7 @@ CreateNewEncFSDialogBase::CreateNewEncFSDialogBase( wxWindow* parent, wxWindowID
 	
 	pExternalIVCheckBox_ = new wxCheckBox( m_panel4, ID_EXTERNALIVCHECKBOX, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
 	pExternalIVCheckBox_->SetValidator( wxGenericValidator( &externalIV_ ) );
-	pExternalIVCheckBox_->SetToolTip( wxT("Enable filename to IV header chaining?\nThis makes file data encoding dependent on the complete file path. If a file is renamed, it will not decode sucessfully unless it was renamed by encfs with the proper key. If this option is enabled, then hard links will not be supported in the filesystem.") );
+	pExternalIVCheckBox_->SetToolTip( wxT("Enable filename to IV header chaining?\nThis makes file data encoding dependent on the complete file path. If a file is renamed, it will not decode sucessfully unless it was renamed by encfs with the proper key. If this option is enabled, then hard links will not be supported in the filesystem.\nThis option may be incompatible with some cloud providers, as during a rename, file's content changes, but not its timestamp. Due to this, file's changes may no be correctly seen by cloud providers' sync programs. It is then not recommended for cloud usage.") );
 	
 	fgSizer6->Add( pExternalIVCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	

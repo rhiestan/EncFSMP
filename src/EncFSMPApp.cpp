@@ -25,11 +25,14 @@
 
 #include "EncFSMPApp.h"
 #include "EncFSMPMainFrame.h"
+#include "EncFSMPLogger.h"
 #include <wx/cmdline.h>
 #include <wx/snglinst.h>
 
 #include "PFMProxy.h"
 #include "OpenSSLProxy.h"
+
+#include "easylogging++.h"
 
 #if defined(EFS_WIN32)
 #	include "EncFSMPIPCWin.h"
@@ -117,6 +120,10 @@ bool EncFSMPApp::OnInit()
 #endif
 	appName.Replace(wxT(" "), wxEmptyString, true);
 	SetAppName(appName);
+
+	// Set logging configuration
+	START_EASYLOGGINGPP(argc, argv);
+	EncFSMPLogger::setup();
 
 	// Parse command line
 	static const wxCmdLineEntryDesc cmdLineDesc[] =

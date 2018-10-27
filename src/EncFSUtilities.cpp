@@ -41,6 +41,7 @@
 #include "FileUtils.h"
 #include "ConfigReader.h"
 #include "FSConfig.h"
+#include "Cipher.h"
 
 #include "DirNode.h"
 #include "FileNode.h"
@@ -81,7 +82,7 @@ bool EncFSUtilities::createEncFS(const wxString &encFSPath, const wxString &pass
 	std::string cipherAlgo(cipherAlgorithm.mb_str());
 #endif
 
-	boost::shared_ptr<Cipher> cipher = Cipher::New( cipherAlgo, cipherKeySize );
+	std::shared_ptr<encfs::Cipher> cipher = encfs::Cipher::New( cipherAlgo, cipherKeySize );
 	if(!cipher)
 		return false;
 
@@ -90,9 +91,9 @@ bool EncFSUtilities::createEncFS(const wxString &encFSPath, const wxString &pass
 #else
 	std::string nameEncodingStdStr(nameEncoding.mb_str());
 #endif
-	rel::Interface nameIOIface = BlockNameIO::CurrentInterface();
-	NameIO::AlgorithmList algorithms = NameIO::GetAlgorithmList();
-	NameIO::AlgorithmList::const_iterator it;
+	encfs::Interface nameIOIface = encfs::BlockNameIO::CurrentInterface();
+	encfs::NameIO::AlgorithmList algorithms = encfs::NameIO::GetAlgorithmList();
+	encfs::NameIO::AlgorithmList::const_iterator it;
 	for(it = algorithms.begin(); it != algorithms.end(); ++it)
 	{
 		if(it->name == nameEncodingStdStr)
@@ -110,10 +111,10 @@ bool EncFSUtilities::createEncFS(const wxString &encFSPath, const wxString &pass
 		blockMACBytes = 8;
 	bool allowHoles = true;
 
-	boost::shared_ptr<EncFSConfig> config( new EncFSConfig );
+	std::shared_ptr<encfs::EncFSConfig> config( new encfs::EncFSConfig );
 
-	config->cfgType = Config_V6;
-	config->cipherIface = cipher->get_interface();
+	config->cfgType = encfs::Config_V6;
+	config->cipherIface = cipher->interface();// cipher->get_interface();
 	config->keySize = cipherKeySize;
 	config->blockSize = cipherBlockSize;
 	config->nameIface = nameIOIface;
@@ -132,10 +133,10 @@ bool EncFSUtilities::createEncFS(const wxString &encFSPath, const wxString &pass
 
 	int encodedKeySize = cipher->encodedKeySize();
 	unsigned char *encodedKey = new unsigned char[ encodedKeySize ];
-	CipherKey volumeKey = cipher->newRandomKey();
+	encfs::CipherKey volumeKey = cipher->newRandomKey();
 
 	// get user key and use it to encode volume key
-	CipherKey userKey = config->getUserKey(std::string(password.mb_str()), "");
+	encfs::CipherKey userKey = config->getUserKey(std::string(password.mb_str()), "");
 
 	cipher->writeKey( volumeKey, encodedKey, userKey );
 	userKey.reset();
@@ -151,7 +152,7 @@ bool EncFSUtilities::createEncFS(const wxString &encFSPath, const wxString &pass
 	std::string rootDir = EncFSUtilities::wxStringToEncFSPath(encFSPath);
 	std::string externalConfigFileNameStr = EncFSUtilities::wxStringToEncFSFile(externalConfigFileName);
 
-	if(!saveConfig( Config_V6, rootDir, config, useExternalConfigFile, externalConfigFileNameStr ))
+	if(!saveConfig( encfs::Config_V6, rootDir, config.get(), useExternalConfigFile, externalConfigFileNameStr ))
 		return false;
 
 	return true;
@@ -162,39 +163,39 @@ bool EncFSUtilities::getEncFSInfo(const wxString &encFSPath, const wxString &ext
 {
 	std::string rootDir = wxStringToEncFSPath(encFSPath);
 	std::string externalConfigFileNameStr = wxStringToEncFSFile(externalConfigFileName);
-	boost::shared_ptr<EncFSConfig> config(new EncFSConfig);
+	std::shared_ptr<encfs::EncFSConfig> config(new encfs::EncFSConfig);
 
-	ConfigType type = readConfig( rootDir, config, useExternalConfigFile, externalConfigFileNameStr );
+	encfs::ConfigType type = readConfig( rootDir, config.get(), useExternalConfigFile, externalConfigFileNameStr );
 	switch(type)
 	{
-	case Config_None:
+	case encfs::Config_None:
 		info.configVersionString = wxT("Unable to load or parse config file");
 		return false;
-	case Config_Prehistoric:
+	case encfs::Config_Prehistoric:
 		info.configVersionString = wxT("A really old EncFS filesystem was found. \n")
 			wxT("It is not supported in this EncFS build.");
 		return false;
-	case Config_V3:
+	case encfs::Config_V3:
 		info.configVersionString = wxT("Version 3 configuration; ")
 			wxT("created by ") + wxString(config->creator.c_str(), *wxConvCurrent);
 		break;
-	case Config_V4:
+	case encfs::Config_V4:
 		info.configVersionString = wxT("Version 4 configuration; ")
 			wxT("created by ") + wxString(config->creator.c_str(), *wxConvCurrent);
 		break;
-	case Config_V5:
+	case encfs::Config_V5:
 		info.configVersionString = wxT("Version 5 configuration; ")
 			wxT("created by ") + wxString(config->creator.c_str(), *wxConvCurrent)
 			+ wxString::Format(wxT(" (revision %i)"), config->subVersion);
 		break;
-	case Config_V6:
+	case encfs::Config_V6:
 		info.configVersionString = wxT("Version 6 configuration; ")
 			wxT("created by ") + wxString(config->creator.c_str(), *wxConvCurrent)
 			+ wxString::Format(wxT(" (revision %i)"), config->subVersion);
 		break;
 	}
 
-	boost::shared_ptr<Cipher> cipher = Cipher::New( config->cipherIface, -1 );
+	std::shared_ptr<encfs::Cipher> cipher = encfs::Cipher::New( config->cipherIface, -1 );
 	info.cipherAlgorithm = wxString(config->cipherIface.name().c_str(), *wxConvCurrent);
 	if(!cipher)
 		info.cipherAlgorithm.Append(wxT(" (NOT supported)"));
@@ -202,8 +203,8 @@ bool EncFSUtilities::getEncFSInfo(const wxString &encFSPath, const wxString &ext
 	info.cipherBlockSize = config->blockSize;
 
 	// check if we support the filename encoding interface..
-	boost::shared_ptr<NameIO> nameCoder = NameIO::New( config->nameIface,
-		cipher, CipherKey() );
+	std::shared_ptr<encfs::NameIO> nameCoder = encfs::NameIO::New( config->nameIface,
+		cipher, encfs::CipherKey() );
 	info.nameEncoding = wxString(config->nameIface.name().c_str(), *wxConvCurrent);
 	if(!nameCoder)
 		info.nameEncoding.Append(wxT(" (NOT supported)"));
@@ -226,15 +227,15 @@ bool EncFSUtilities::changePassword(const wxString &encFSPath,
 	std::string rootDir = wxStringToEncFSPath(encFSPath);
 	std::string externalConfigFileNameStr = wxStringToEncFSFile(externalConfigFileName);
 
-	boost::shared_ptr<EncFSConfig> config(new EncFSConfig);
-	ConfigType cfgType = readConfig( rootDir, config, useExternalConfigFile, externalConfigFileNameStr );
-	if(cfgType == Config_None)
+	std::shared_ptr<encfs::EncFSConfig> config(new encfs::EncFSConfig);
+	encfs::ConfigType cfgType = readConfig( rootDir, config.get(), useExternalConfigFile, externalConfigFileNameStr );
+	if(cfgType == encfs::Config_None)
 	{
 		errorMsg = wxT("Unable to load or parse config file");
 		return false;
 	}
 
-	shared_ptr<Cipher> cipher = Cipher::New( config->cipherIface, config->keySize );
+	std::shared_ptr<encfs::Cipher> cipher = encfs::Cipher::New( config->cipherIface, config->keySize );
     if(!cipher)
     {
 		errorMsg = wxT("Unable to find specified cipher \"");
@@ -243,11 +244,11 @@ bool EncFSUtilities::changePassword(const wxString &encFSPath,
 		return false;
     }
 
-	CipherKey userKey = config->getUserKey(std::string(oldPassword.mb_str()), "");
+	encfs::CipherKey userKey = config->getUserKey(std::string(oldPassword.mb_str()), "");
 
 	// decode volume key using user key -- at this point we detect an incorrect
 	// password if the key checksum does not match (causing readKey to fail).
-	CipherKey volumeKey = cipher->readKey( config->getKeyData(), userKey );
+	encfs::CipherKey volumeKey = cipher->readKey( config->getKeyData(), userKey );
 
 	if(!volumeKey)
 	{
@@ -275,7 +276,7 @@ bool EncFSUtilities::changePassword(const wxString &encFSPath,
 		config->assignKeyData( keyBuf, encodedKeySize );
 		delete [] keyBuf;
 
-		if(saveConfig( cfgType, rootDir, config, useExternalConfigFile, externalConfigFileNameStr ))
+		if(saveConfig( cfgType, rootDir, config.get(), useExternalConfigFile, externalConfigFileNameStr ))
 		{
 			// password modified -- changes volume key of filesystem..
 			errorMsg = wxT("Volume Key successfully updated.");
@@ -296,10 +297,10 @@ bool EncFSUtilities::changePassword(const wxString &encFSPath,
 	return isOK;
 }
 
-static bool exportFile(const boost::shared_ptr<EncFS_Root> &rootInfo, 
+static bool exportFile(const std::shared_ptr<encfs::EncFS_Root> &rootInfo, 
 	std::string encfsName, std::string targetName)
 {
-	boost::shared_ptr<FileNode> node = 
+	std::shared_ptr<encfs::FileNode> node = 
 		rootInfo->root->lookupNode( encfsName.c_str(), "EncFSMP" );
 	if(!node)
 		return false;
@@ -335,13 +336,13 @@ static bool exportFile(const boost::shared_ptr<EncFS_Root> &rootInfo,
 	return true;
 }
 
-static bool exportDir(const boost::shared_ptr<EncFS_Root> &rootInfo, 
+static bool exportDir(const std::shared_ptr<encfs::EncFS_Root> &rootInfo, 
 	std::string volumeDir, std::string destDir)
 {
 	// Create destination directory with the same permissions as original
 	{
 		efs_stat st;
-		boost::shared_ptr<FileNode> dirNode = 
+		std::shared_ptr<encfs::FileNode> dirNode = 
 			rootInfo->root->lookupNode( volumeDir.c_str(), "EncFSMP" );
 		if(dirNode->getAttr(&st, 0))
 			return false;
@@ -350,7 +351,7 @@ static bool exportDir(const boost::shared_ptr<EncFS_Root> &rootInfo,
 	}
 
 	// Traverse directory
-	DirTraverse dt = rootInfo->root->openDir(volumeDir.c_str());
+	encfs::DirTraverse dt = rootInfo->root->openDir(volumeDir.c_str());
 	if(dt.valid())
 	{
 		std::string name = dt.nextPlaintextName();
@@ -400,14 +401,14 @@ bool EncFSUtilities::exportEncFS(const wxString &encFSPath,
 	std::string rootDir = wxStringToEncFSPath(encFSPath);
 	std::ostringstream ostr;
 
-	shared_ptr<EncFS_Opts> opts( new EncFS_Opts() );
+	std::shared_ptr<encfs::EncFS_Opts> opts( new encfs::EncFS_Opts() );
 	opts->rootDir = rootDir;
 	opts->createIfNotFound = false;
 	opts->checkKey = false;
 	opts->passwordProgram = std::string(password.mb_str());
 	opts->externalConfigFileName = EncFSUtilities::wxStringToEncFSFile(externalConfigFileName);
 	opts->useExternalConfigFile = useExternalConfigFile;
-	RootPtr rootInfo = initFS( NULL, opts, ostr );
+	encfs::RootPtr rootInfo = initFS( NULL, opts, ostr );
 
 	if(!rootInfo)
 	{

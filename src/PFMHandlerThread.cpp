@@ -44,6 +44,7 @@
 #include "StreamNameIO.h"
 #include "BlockNameIO.h"
 #include "NullNameIO.h"
+#include "Context.h"
 
 // boost
 #include <boost/locale.hpp>
@@ -98,14 +99,16 @@ wxThread::ExitCode PFMHandlerThread::Entry()
 //		std::wstring passwordUTF16 = password_.c_str();
 //		std::string passwordUTF8 = boost::locale::conv::utf_to_utf<char>(passwordUTF16.c_str());
 
-		boost::shared_ptr<EncFS_Opts> opts( new EncFS_Opts() );
+		std::shared_ptr<encfs::EncFS_Opts> opts( new encfs::EncFS_Opts() );
 		opts->rootDir = pathUTF8;
 		opts->createIfNotFound = false;
 		opts->checkKey = true;					// If this is set to false, mounting never fails even with a wrong password
 		opts->passwordProgram = std::string(password_.mb_str());	//passwordUTF8;	// Abusing this parameter here, so that it uses EncFSConfig::getUserKey with password program
 		opts->externalConfigFileName = EncFSUtilities::wxStringToEncFSFile(externalConfigFileName_);
 		opts->useExternalConfigFile = useExternalConfigFile_;
-		rootFS = initFS( NULL, opts, ostr );
+
+		std::unique_ptr<encfs::EncFS_Context> ctx( new encfs::EncFS_Context() );
+		rootFS = initFS( ctx.get(), opts, ostr );
 
 		if(rootFS)
 		{

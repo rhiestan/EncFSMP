@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.6)
 project(EncFSMP)
 
-#SET(CMAKE_VERBOSE_MAKEFILE TRUE)
+SET(CMAKE_VERBOSE_MAKEFILE FALSE)
 SET(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_SOURCE_DIR}/cmake")
 
 # Enable Unicode
@@ -121,31 +121,15 @@ ELSE(WIN32)
 	SET(HAVE__WSOPEN_S FALSE)
 ENDIF(WIN32)
 
+set (ENCFS_MAJOR 1)
+set (ENCFS_MINOR 9)
+set (ENCFS_PATCH 5)
+set (ENCFS_VERSION "${ENCFS_MAJOR}.${ENCFS_MINOR}.${ENCFS_PATCH}")
+set (ENCFS_SOVERSION "${ENCFS_MAJOR}.${ENCFS_MINOR}")
+set (ENCFS_NAME "Encrypted Filesystem")
+
 CONFIGURE_FILE(config.h.in config.h)
 INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR})
-
-CHECK_CXX_SOURCE_COMPILES("
-void test(int val) { }
-int main()
-{
-static int foo __attribute__ (( section(\"__DATA, RLOG_DATA\") )) = 0;
-test( foo );
-return 0;
-}
-" HAVE_GCC_DATA_SECTION_ATTRIBUTE )
-
-CHECK_CXX_SOURCE_COMPILES("
-void test(int val) { }
-int main()
-{
-static int foo __attribute__ (( section(\"RLOG_DATA\") )) = 0;
-test( foo );
-return 0;
-}
-" HAVE_GCC_SIMPLE_SECTION_ATTRIBUTE )
-
-CONFIGURE_FILE(rlog/common.h.in rlog/common.h)
-INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR}/rlog)
 
 IF(HAVE_INTTYPES_H)
 	ADD_DEFINITIONS(-D__STDC_FORMAT_MACROS)
@@ -159,18 +143,19 @@ ENDIF(ENCFSMP_DEFINE_STOCKICONINFO)
 # Pismo File Mount Library
 FIND_PACKAGE(PFM REQUIRED)
 INCLUDE_DIRECTORIES(${PFM_INCLUDE_DIR})
-ADD_DEFINITIONS(-DRLOG_COMPONENT="encfs")
 
 # wxWidgets
 IF(WIN32)
 	IF(CMAKE_COMPILER_IS_GNUCC)
-		IF(${IS_64BITS} EQUAL 1)
-			SET(wxWidgets_LIB_DIR ${wxWidgets_ROOT_DIR}/lib/gcc_lib64)
-		ELSE(${IS_64BITS} EQUAL 1)
-			SET(wxWidgets_LIB_DIR ${wxWidgets_ROOT_DIR}/lib/gcc_lib)
-		ENDIF(${IS_64BITS} EQUAL 1)
-	ELSE(CMAKE_COMPILER_IS_GNUCC)
 		SET(wxWidgets_LIB_DIR ${wxWidgets_ROOT_DIR}/lib)
+
+	#	IF(${IS_64BITS} EQUAL 1)
+	#		SET(wxWidgets_LIB_DIR ${wxWidgets_ROOT_DIR}/lib/gcc_lib64)
+	#	ELSE(${IS_64BITS} EQUAL 1)
+	#		SET(wxWidgets_LIB_DIR ${wxWidgets_ROOT_DIR}/lib/gcc_lib)
+	#	ENDIF(${IS_64BITS} EQUAL 1)
+	#ELSE(CMAKE_COMPILER_IS_GNUCC)
+	#	SET(wxWidgets_LIB_DIR ${wxWidgets_ROOT_DIR}/lib)
 	ENDIF(CMAKE_COMPILER_IS_GNUCC)
 	IF(CMAKE_BUILD_TYPE="Debug")
 		SET(wxWidgets_CONFIGURATION mswud)
@@ -179,8 +164,10 @@ IF(WIN32)
 	ENDIF()
 ENDIF(WIN32)
 message("wxWidgets_ROOT_DIR = ${wxWidgets_ROOT_DIR}")
-#message("wxWidgets_LIB_DIR = ${wxWidgets_LIB_DIR}")
-#message("wxWidgets_CONFIGURATION = ${wxWidgets_CONFIGURATION}")
+message("wxWidgets_LIB_DIR = ${wxWidgets_LIB_DIR}")
+message("wxWidgets_CONFIGURATION = ${wxWidgets_CONFIGURATION}")
+message("wxWidgets_LIBRARIES = ${wxWidgets_LIBRARIES}")
+message("wxWidgets_FIND_STYLE = ${wxWidgets_FIND_STYLE}")
 
 FIND_PACKAGE(wxWidgets REQUIRED adv core base)
 INCLUDE(${wxWidgets_USE_FILE})
@@ -202,6 +189,10 @@ IF(ENCFSMP_REMOVE_ADDITIONAL_LIBRARIES)
 	STRING(REPLACE "-ltiff" "" wxWidgets_LIBRARIES "${wxWidgets_LIBRARIES}" )
 	STRING(REPLACE "-liconv" "" wxWidgets_LIBRARIES "${wxWidgets_LIBRARIES}" )
 ENDIF(ENCFSMP_REMOVE_ADDITIONAL_LIBRARIES)
+
+IF(EFS_OLEACC_WORKAROUND)
+	LIST(REMOVE_ITEM wxWidgets_LIBRARIES oleacc)
+ENDIF(EFS_OLEACC_WORKAROUND)
 
 message("wxWidgets_INCLUDE_DIRS = ${wxWidgets_INCLUDE_DIRS}")
 message("wxWidgets_LIBRARIES = ${wxWidgets_LIBRARIES}")
@@ -241,7 +232,7 @@ ELSE(MSVC)
 	IF(MSYS)
 		SET(Boost_USE_STATIC_RUNTIME     OFF)
 	ELSE(MSYS)
-		SET(Boost_USE_STATIC_RUNTIME     ON)
+		SET(Boost_USE_STATIC_RUNTIME     OFF)
 	ENDIF(MSYS)
 ENDIF(MSVC)
 #SET(Boost_DEBUG TRUE)
@@ -376,17 +367,20 @@ IF(APPLE)
 ENDIF(APPLE)
 
 ADD_SUBDIRECTORY(encfs)
-ADD_SUBDIRECTORY(rlog)
+ADD_SUBDIRECTORY(easyloggingpp)
+
 ADD_SUBDIRECTORY(intl)
+ADD_SUBDIRECTORY(tinyxml2)
 
 INCLUDE_DIRECTORIES(".")
 INCLUDE_DIRECTORIES("encfs")
-INCLUDE_DIRECTORIES("rlog")
+INCLUDE_DIRECTORIES("easyloggingpp")
 INCLUDE_DIRECTORIES("intl")
+INCLUDE_DIRECTORIES("tinyxml2")
 
-SET(EncFSMP_LINK_LIBRARIES ${wxWidgets_LIBRARIES} libencfs rlog intl ${OPENSSL_LIBRARIES} ${Boost_LIBRARIES})
+SET(EncFSMP_LINK_LIBRARIES ${wxWidgets_LIBRARIES} libencfs intl easyloggingpp tinyxml2_static ${OPENSSL_LIBRARIES} ${Boost_LIBRARIES})
 IF(WIN32)
-	SET(EncFSMP_LINK_LIBRARIES ${EncFSMP_LINK_LIBRARIES} psapi.lib Crypt32.lib Ws2_32.lib)
+	SET(EncFSMP_LINK_LIBRARIES ${EncFSMP_LINK_LIBRARIES} psapi.lib Crypt32.lib Ws2_32.lib UxTheme.lib)
 ENDIF(WIN32)
 
 IF(DEFINED ENCFSMP_ADDITIONAL_LINK_LIBRARIES)
@@ -408,8 +402,16 @@ IF(WIN32)
 ENDIF(WIN32)
 ADD_EXECUTABLE(EncFSMPTest EXCLUDE_FROM_ALL ${ALL_SRC} ${ALL_HEADERS} ${ALL_TEST_SRC} ${ALL_TEST_HEADERS} )
 
+message("EncFSMP_LINK_LIBRARIES = ${EncFSMP_LINK_LIBRARIES}")
+
 TARGET_LINK_LIBRARIES(EncFSMP ${EncFSMP_LINK_LIBRARIES})
 TARGET_LINK_LIBRARIES(EncFSMPTest ${EncFSMP_LINK_LIBRARIES} ${GOOGLE_TEST_LIBRARY})
+target_compile_features(EncFSMP PRIVATE cxx_range_for cxx_auto_type cxx_deleted_functions cxx_nullptr)
+target_compile_features(EncFSMPTest PRIVATE cxx_range_for cxx_auto_type cxx_deleted_functions cxx_nullptr)
+
+IF(EFS_OLEACC_WORKAROUND)
+	TARGET_LINK_LIBRARIES(EncFSMP uuid oleacc)
+ENDIF(EFS_OLEACC_WORKAROUND)
 
 # For make-based builds, defines make target named test.
 # For Visual Studio builds, defines Visual Studio project named RUN_TESTS.
@@ -461,7 +463,7 @@ IF(APPLE)
 		COMMAND osacompile -o "${CMAKE_BINARY_DIR}/Uninstall PFM.app" "${CMAKE_SOURCE_DIR}/install/Uninstall PFM.scpt")
 	ADD_CUSTOM_TARGET(Uninstall_PFM ALL DEPENDS "${CMAKE_BINARY_DIR}/Uninstall PFM.app")
 
-	INSTALL(PROGRAMS ${CMAKE_SOURCE_DIR}/install/res/pfm-189-encfsmp-mac.run DESTINATION pfm)
+	INSTALL(PROGRAMS ${CMAKE_SOURCE_DIR}/install/res/pfm-191-encfsmp-mac.run DESTINATION pfm)
 	INSTALL(DIRECTORY "${CMAKE_BINARY_DIR}/Install PFM.app" DESTINATION "." USE_SOURCE_PERMISSIONS)
 	INSTALL(DIRECTORY "${CMAKE_BINARY_DIR}/Uninstall PFM.app" DESTINATION "." USE_SOURCE_PERMISSIONS)
 ENDIF(APPLE)
