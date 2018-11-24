@@ -1567,7 +1567,7 @@ RootPtr initFS(EncFS_Context *ctx, const std::shared_ptr<EncFS_Opts> &opts,
   RootPtr rootInfo;
   std::shared_ptr<EncFSConfig> config(new EncFSConfig);
 
-  if (readConfig(opts->rootDir, config.get(), false, "") != Config_None) {
+  if (readConfig(opts->rootDir, config.get(), opts->useExternalConfigFile, opts->externalConfigFileName) != Config_None) {
     if (config->blockMACBytes == 0 && opts->requireMac) {
       ostr << _(
           "The configuration disabled MAC, but you passed --require-macs\n");
