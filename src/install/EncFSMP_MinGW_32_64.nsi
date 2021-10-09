@@ -94,7 +94,7 @@ Section "Main program 32" Section_Main32
 	WriteRegStr HKCU "Software\hiesti.ch\EncFSMP" "" $INSTDIR
 
 	; Put files there
-	File ..\..\build_mingw32_msys\EncFSMP.exe
+	File ..\..\build_mingw64_32\EncFSMP.exe
 	WriteUninstaller "$INSTDIR\Uninstall.exe"
 
 	; Insert links in start menu
@@ -129,7 +129,7 @@ Section "Main program 64" Section_Main64
 	WriteRegStr HKCU "Software\hiesti.ch\EncFSMP" "" $INSTDIR
 
 	; Put files there
-	File ..\..\build_mingw64_msys\EncFSMP.exe
+	File ..\..\build_mingw64_x64\EncFSMP.exe
 	WriteUninstaller "$INSTDIR\Uninstall.exe"
 
 	; Insert links in start menu
@@ -158,11 +158,11 @@ Section "Pismo File Mount" Section_PFM
 	
 	SetOutPath $TEMP
 	
-	IfFileExists "$TEMP\pfm-189-encfsmp-win.exe" ErrorPFMFileExists
+	IfFileExists "$TEMP\pfm-192-encfsmp-win.exe" ErrorPFMFileExists
 	DetailPrint "Installing Pismo File Mount"
-	File "res\pfm-189-encfsmp-win.exe"
-	nsExec::ExecToLog '"$TEMP\pfm-189-encfsmp-win.exe" install'
-	Delete "$TEMP\pfm-189-encfsmp-win.exe"
+	File "res\pfm-192-encfsmp-win.exe"
+	nsExec::ExecToLog '"$TEMP\pfm-192-encfsmp-win.exe" install'
+	Delete "$TEMP\pfm-192-encfsmp-win.exe"
 
 	Return
 

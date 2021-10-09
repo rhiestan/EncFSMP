@@ -225,14 +225,14 @@ int FileNode::getAttr(efs_stat *stbuf, void *statCache) const {
   return res;
 }
 
-off_t FileNode::getSize() const {
+efs_off_t FileNode::getSize() const {
   Lock _lock(mutex);
 
-  off_t res = io->getSize();
+  efs_off_t res = io->getSize();
   return res;
 }
 
-ssize_t FileNode::read(off_t offset, unsigned char *data, size_t size) const {
+ssize_t FileNode::read(efs_off_t offset, unsigned char *data, size_t size) const {
   IORequest req;
   req.offset = offset;
   req.dataLen = size;
@@ -243,7 +243,7 @@ ssize_t FileNode::read(off_t offset, unsigned char *data, size_t size) const {
   return io->read(req);
 }
 
-ssize_t FileNode::write(off_t offset, unsigned char *data, size_t size) {
+ssize_t FileNode::write(efs_off_t offset, unsigned char *data, size_t size) {
   VLOG(1) << "FileNode::write offset " << offset << ", data size " << size;
 
   IORequest req;
@@ -261,7 +261,7 @@ ssize_t FileNode::write(off_t offset, unsigned char *data, size_t size) {
   return size;
 }
 
-int FileNode::truncate(off_t size) {
+int FileNode::truncate(efs_off_t size) {
   Lock _lock(mutex);
 
   return io->truncate(size);

@@ -20,6 +20,8 @@
 #include "CommonIncludes.h"
 
 #include <stdint.h>
+#include <sstream>
+#include <iomanip>
 
 #include "PFMProxy.h"
 #include "PFMMonitorThread.h"
@@ -53,30 +55,42 @@ void PFMProxy::initialize()
 		pfmApi_ = NULL;
 		int err = PfmApiFactory(&pfmApi_);
 
+		std::ostringstream ostr;
+		ostr << "Creating Api factory, result: " << err << ", pointer is " << std::hex << pfmApi_ << std::endl;
+		OutputDebugStringA(ostr.str().c_str());
+
 		if(pfmApi_ != NULL)
 		{
 			isPFMPresent_ = true;
 			const char *versionStr = pfmApi_->Version();
 			pfmVersionString_ = std::string(versionStr);
+
+			std::ostringstream ostr2;
+			ostr2 << "Pfm API version: " << versionStr << std::endl;
+			OutputDebugStringA(ostr2.str().c_str());
+
 		}
 
 		isInitialized_ = true;
 	}
 }
 
-void PFMProxy::startMonitorThread()
+bool PFMProxy::startMonitorThread()
 {
 	if(!isPFMPresent_)
-		return;
+		return false;
 	if(pPFMMonitorThread_ != NULL)
-		return;
+		return true;
 
 	pPFMMonitorThread_ = new PFMMonitorThread();
 	if(!pPFMMonitorThread_->startThread())
 	{
 		delete pPFMMonitorThread_;
 		pPFMMonitorThread_ = NULL;
+		return false;
 	}
+	
+	return true;
 }
 
 void PFMProxy::closingDown()

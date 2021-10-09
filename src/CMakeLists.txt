@@ -224,6 +224,7 @@ ELSE(OPENSSL_FOUND)
 	message("OpenSSL not found")
 ENDIF(OPENSSL_FOUND)
 
+# BOOST
 set(Boost_USE_STATIC_LIBS        ON)
 set(Boost_USE_MULTITHREADED      ON)
 IF(MSVC)
@@ -378,7 +379,8 @@ INCLUDE_DIRECTORIES("easyloggingpp")
 INCLUDE_DIRECTORIES("intl")
 INCLUDE_DIRECTORIES("tinyxml2")
 
-SET(EncFSMP_LINK_LIBRARIES ${wxWidgets_LIBRARIES} libencfs intl easyloggingpp tinyxml2_static ${OPENSSL_LIBRARIES} ${Boost_LIBRARIES})
+SET(EncFSMP_LINK_LIBRARIES ${wxWidgets_LIBRARIES} libencfs intl easyloggingpp tinyxml2_static ${OPENSSL_LIBRARIES} Boost::boost Boost::date_time Boost::serialization
+	Boost::filesystem Boost::thread Boost::random)
 IF(WIN32)
 	SET(EncFSMP_LINK_LIBRARIES ${EncFSMP_LINK_LIBRARIES} psapi.lib Crypt32.lib Ws2_32.lib UxTheme.lib)
 ENDIF(WIN32)
@@ -463,7 +465,7 @@ IF(APPLE)
 		COMMAND osacompile -o "${CMAKE_BINARY_DIR}/Uninstall PFM.app" "${CMAKE_SOURCE_DIR}/install/Uninstall PFM.scpt")
 	ADD_CUSTOM_TARGET(Uninstall_PFM ALL DEPENDS "${CMAKE_BINARY_DIR}/Uninstall PFM.app")
 
-	INSTALL(PROGRAMS ${CMAKE_SOURCE_DIR}/install/res/pfm-191-encfsmp-mac.run DESTINATION pfm)
+	INSTALL(PROGRAMS ${CMAKE_SOURCE_DIR}/install/res/pfm-192-encfsmp-mac.run DESTINATION pfm)
 	INSTALL(DIRECTORY "${CMAKE_BINARY_DIR}/Install PFM.app" DESTINATION "." USE_SOURCE_PERMISSIONS)
 	INSTALL(DIRECTORY "${CMAKE_BINARY_DIR}/Uninstall PFM.app" DESTINATION "." USE_SOURCE_PERMISSIONS)
 ENDIF(APPLE)

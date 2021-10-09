@@ -56,9 +56,9 @@ class MACFileIO : public BlockFileIO {
 
   virtual int open(int flags);
   virtual int getAttr(efs_stat *stbuf, void *statCache) const;
-  virtual off_t getSize() const;
+  virtual efs_off_t getSize() const;
 
-  virtual int truncate(off_t size);
+  virtual int truncate(efs_off_t size);
 
   virtual bool isWritable() const;
 

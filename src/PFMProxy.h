@@ -30,7 +30,7 @@ public:
 	virtual ~PFMProxy();
 
 	void initialize();
-	void startMonitorThread();
+	bool startMonitorThread();
 	void closingDown();
 	void uninitialize();
 	bool isPFMPresent() const { return isPFMPresent_; }

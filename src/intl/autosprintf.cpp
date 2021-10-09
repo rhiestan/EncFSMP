@@ -35,7 +35,8 @@
 
 extern "C" int vasprintf(char **ret, const char *fmt, va_list ap);
 
-#if defined(__MINGW32__) || defined(__MINGW64__)
+#if 0
+//defined(__MINGW32__) || defined(__MINGW64__)
 int vasprintf(char ** __restrict__ ret,
 	const char * __restrict__ format,
 	va_list ap)

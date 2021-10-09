@@ -111,7 +111,7 @@ bool EncFSMPTestApp::OnInit()
 
 TEST(FilesTest, TestBigFile)
 {
-	//EXPECT_TRUE(TestBigFile::runTest(TestParameters::testPathBoost_));
+	EXPECT_TRUE(TestBigFile::runTest(TestParameters::testPathBoost_));
 }
 TEST(FilesTest, TestOpenFileTwice)
 {

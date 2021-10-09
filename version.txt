@@ -1,6 +1,11 @@
 ﻿Version history
 ---------------
 
+Version 0.99.1, 21.12.2018:
+- Fixed two regressions: External encfs config files, files with size > 2GB
+- Update of PFM to 1.0.0.192
+
+
 Version 0.99.0, 27.10.2018:
 - Beta version of 1.0, use with caution!
 - Upgrade of encfs to 1.9.5

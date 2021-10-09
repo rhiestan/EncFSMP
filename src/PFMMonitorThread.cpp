@@ -55,6 +55,9 @@ bool PFMMonitorThread::startThread()
 	pfmMonitor_ = NULL;
 	pfmApi->MountMonitorFactory(&pfmMonitor_);
 
+	if(pfmMonitor_ == NULL)
+		return false;
+
 	wxThreadError err = this->Create();
 	if(err != wxTHREAD_NO_ERROR)
 		return false;

@@ -207,7 +207,12 @@ bool EncFSMPApp::OnInit()
 	SetTopWindow(pMainFrame_);
 
 	// Monitor thread needs top window
-	PFMProxy::getInstance().startMonitorThread();
+	if(!PFMProxy::getInstance().startMonitorThread())
+	{
+		wxMessageBox(wxT("Creating a PFM monitor failed. Please reinstall Pismo File Mount."),
+			wxT(ENCFSMP_NAME), wxOK | wxICON_ERROR);
+		return false;
+	}
 
 	if(!command.IsEmpty() && !mountName.IsEmpty())
 		pMainFrame_->sendCommand(command, mountName, password);

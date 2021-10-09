@@ -43,12 +43,12 @@ class RawFileIO : public FileIO {
   virtual int open(int flags);
 
   virtual int getAttr(efs_stat *stbuf, void *statCache) const;
-  virtual off_t getSize() const;
+  virtual efs_off_t getSize() const;
 
   virtual ssize_t read(const IORequest &req) const;
   virtual ssize_t write(const IORequest &req);
 
-  virtual int truncate(off_t size);
+  virtual int truncate(efs_off_t size);
 
   virtual bool isWritable() const;
 
@@ -56,7 +56,7 @@ class RawFileIO : public FileIO {
   std::string name;
 
   bool knownSize;
-  off_t fileSize;
+  efs_off_t fileSize;
 
   int fd;
   int oldfd;

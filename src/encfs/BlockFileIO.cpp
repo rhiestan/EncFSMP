@@ -134,7 +134,7 @@ ssize_t BlockFileIO::read(const IORequest &req) const {
 
   int partialOffset =
       req.offset % _blockSize;  // can be int as _blockSize is int
-  off_t blockNum = req.offset / _blockSize;
+  efs_off_t blockNum = req.offset / _blockSize;
   ssize_t result = 0;
 
   if (partialOffset == 0 && req.dataLen <= _blockSize) {
@@ -207,21 +207,21 @@ ssize_t BlockFileIO::read(const IORequest &req) const {
 ssize_t BlockFileIO::write(const IORequest &req) {
   CHECK(_blockSize != 0);
 
-  off_t fileSize = getSize();
+  efs_off_t fileSize = getSize();
   if (fileSize < 0) {
     return fileSize;
   }
 
   // where write request begins
-  off_t blockNum = req.offset / _blockSize;
+  efs_off_t blockNum = req.offset / _blockSize;
   int partialOffset =
       req.offset % _blockSize;  // can be int as _blockSize is int
 
   // last block of file (for testing write overlaps with file boundary)
-  off_t lastFileBlock = fileSize / _blockSize;
+  efs_off_t lastFileBlock = fileSize / _blockSize;
   size_t lastBlockSize = fileSize % _blockSize;
 
-  off_t lastNonEmptyBlock = lastFileBlock;
+  efs_off_t lastNonEmptyBlock = lastFileBlock;
   if (lastBlockSize == 0) {
     --lastNonEmptyBlock;
   }
@@ -267,7 +267,7 @@ ssize_t BlockFileIO::write(const IORequest &req) {
     // if writing an entire block, or writing a partial block that requires
     // no merging with existing data..
     if ((toCopy == _blockSize) ||
-        (partialOffset == 0 && blockReq.offset + (off_t)toCopy >= fileSize)) {
+        (partialOffset == 0 && blockReq.offset + (efs_off_t)toCopy >= fileSize)) {
       // write directly from buffer
       blockReq.data = inPtr;
       blockReq.dataLen = toCopy;
@@ -330,9 +330,9 @@ unsigned int BlockFileIO::blockSize() const { return _blockSize; }
 /**
  * Returns 0 in case of success, or -errno in case of failure.
  */
-int BlockFileIO::padFile(off_t oldSize, off_t newSize, bool forceWrite) {
-  off_t oldLastBlock = oldSize / _blockSize;
-  off_t newLastBlock = newSize / _blockSize;
+int BlockFileIO::padFile(efs_off_t oldSize, efs_off_t newSize, bool forceWrite) {
+  efs_off_t oldLastBlock = oldSize / _blockSize;
+  efs_off_t newLastBlock = newSize / _blockSize;
   int newBlockSize = newSize % _blockSize;  // can be int as _blockSize is int
   ssize_t res = 0;
 
@@ -415,11 +415,11 @@ int BlockFileIO::padFile(off_t oldSize, off_t newSize, bool forceWrite) {
 /**
  * Returns 0 in case of success, or -errno in case of failure.
  */
-int BlockFileIO::truncateBase(off_t size, FileIO *base) {
+int BlockFileIO::truncateBase(efs_off_t size, FileIO *base) {
   int partialBlock = size % _blockSize;  // can be int as _blockSize is int
   int res = 0;
 
-  off_t oldSize = getSize();
+  efs_off_t oldSize = getSize();
 
   if (size > oldSize) {
     // truncate can be used to extend a file as well.  truncate man page
@@ -440,7 +440,7 @@ int BlockFileIO::truncateBase(off_t size, FileIO *base) {
     // partial block after truncate.  Need to read in the block being
     // truncated before the truncate.  Then write it back out afterwards,
     // since the encoding will change..
-    off_t blockNum = size / _blockSize;
+    efs_off_t blockNum = size / _blockSize;
     MemBlock mb = MemoryPool::allocate(_blockSize);
 
     IORequest req;
