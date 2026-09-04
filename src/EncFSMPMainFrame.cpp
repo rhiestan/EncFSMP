@@ -469,10 +469,10 @@ void EncFSMPMainFrame::OnAboutMenuItem( wxCommandEvent& WXUNUSED(event) )
 	descrString.Append(wxT("\n\n"));
 
 	if(PFMProxy::getInstance().isPFMPresent())
-		descrString.Append(wxString(wxT("Pismo File Mount version found: "))
+		descrString.Append(wxString(wxT("Pismo File System Redirector found: "))
 			+ wxString(PFMProxy::getInstance().getPFMVersionString().c_str(), *wxConvCurrent) );
 	else
-		descrString.Append(wxT("No Pismo File Mount installation found"));
+		descrString.Append(wxT("No Pismo File System Redirector installation found"));
 	
 	descrString.Append(wxT("\nIcon \u00A9 by Oxygen\n"));
 

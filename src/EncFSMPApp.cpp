@@ -209,8 +209,16 @@ bool EncFSMPApp::OnInit()
 	// Monitor thread needs top window
 	if(!PFMProxy::getInstance().startMonitorThread())
 	{
-		wxMessageBox(wxT("Creating a PFM monitor failed. Please reinstall Pismo File Mount."),
-			wxT(ENCFSMP_NAME), wxOK | wxICON_ERROR);
+		wxString errorText;
+		if(!PFMProxy::getInstance().isPFMPresent())
+			errorText = wxT("The Pismo File System Redirector could not be started.\n\n")
+				wxT("It provides the file system runtime that ") wxT(ENCFSMP_NAME)
+				wxT(" mounts through. Please install the Pismo File Mount Audit Package ")
+				wxT("(or the Core package) and start ") wxT(ENCFSMP_NAME) wxT(" again.");
+		else
+			errorText = wxT("Starting the mount monitor thread failed.");
+
+		wxMessageBox(errorText, wxT(ENCFSMP_NAME), wxOK | wxICON_ERROR);
 		return false;
 	}
 

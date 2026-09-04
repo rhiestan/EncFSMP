@@ -28,10 +28,6 @@
 #define HAVE_MODE_T		// Workaround for double defined mode_t on Windows
 #endif
 
-#ifndef _INC_WINDOWS
-#define _INC_WINDOWS
-#endif
-
 #include "pfm_layer.h"
 #include "fs_layer.h"
 
@@ -114,9 +110,8 @@ wxThread::ExitCode PFMHandlerThread::Entry()
 		{
 			PFMLayer pfm;
 			wchar_t driveLetterW = driveLetter_[0];
-			PfmApi *pfmApi = PFMProxy::getInstance().getPfmApi();
 
-			pfm.startFS(rootFS, mountName_.c_str(), pfmApi, driveLetterW,	// Will not return before unmount
+			pfm.startFS(rootFS, mountName_.c_str(), driveLetterW,	// Will not return before unmount
 				enableCaching_, worldWrite_, localDrive_, startBrowser_, ostr);
 		}
 		else

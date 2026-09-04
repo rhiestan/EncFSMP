@@ -238,7 +238,7 @@ ELSE(MSVC)
 ENDIF(MSVC)
 #SET(Boost_DEBUG TRUE)
 find_package( Boost 1.53.0 COMPONENTS date_time thread
-	system chrono serialization filesystem locale random)
+	system chrono serialization filesystem locale random locale)
 IF(Boost_FOUND)
 	include_directories(${Boost_INCLUDE_DIRS})
 	IF(UNIX AND NOT APPLE)
@@ -333,13 +333,13 @@ SET(ALL_SRC ${ALL_SRC} fs_layer.cpp pfm_layer.cpp EncFSMPMainFrameBase.cpp
 	EncFSMPMainFrame.cpp PFMProxy.cpp PFMHandlerThread.cpp OpenSSLProxy.cpp
 	PFMMonitorThread.cpp OpenExistingFSDialog.cpp EncFSUtilities.cpp MountList.cpp
 	CreateNewEncFSDialog.cpp ChangePasswordDialog.cpp EncFSMPStrings.cpp
-	EncFSMPTaskBarIcon.cpp EncFSMPErrorLog.cpp EncFSMPLogger.cpp FileStatCache.cpp )
+	EncFSMPTaskBarIcon.cpp EncFSMPErrorLog.cpp EncFSMPLogger.cpp FileStatCache.cpp)
 
 SET(ALL_HEADERS ${ALL_HEADERS} fs_layer.h pfm_layer.h EncFSMPMainFrameBase.h
 	EncFSMPMainFrame.h CommonIncludes.h version.h PFMProxy.h PFMHandlerThread.h OpenSSLProxy.h
 	PFMMonitorThread.h OpenExistingFSDialog.h EncFSUtilities.h MountList.h
 	CreateNewEncFSDialog.h ChangePasswordDialog.h EncFSMPStrings.h
-	EncFSMPTaskBarIcon.h EncFSMPErrorLog.h EncFSMPLogger.h FileStatCache.h )
+	EncFSMPTaskBarIcon.h EncFSMPErrorLog.h EncFSMPLogger.h FileStatCache.h)
 
 IF(WIN32)
 	# Add resource definitions, Win32Utils and IPC for Windows
@@ -380,7 +380,7 @@ INCLUDE_DIRECTORIES("intl")
 INCLUDE_DIRECTORIES("tinyxml2")
 
 SET(EncFSMP_LINK_LIBRARIES ${wxWidgets_LIBRARIES} libencfs intl easyloggingpp tinyxml2_static ${OPENSSL_LIBRARIES} Boost::boost Boost::date_time Boost::serialization
-	Boost::filesystem Boost::thread Boost::random)
+	Boost::filesystem Boost::thread Boost::random Boost::locale)
 IF(WIN32)
 	SET(EncFSMP_LINK_LIBRARIES ${EncFSMP_LINK_LIBRARIES} psapi.lib Crypt32.lib Ws2_32.lib UxTheme.lib)
 ENDIF(WIN32)

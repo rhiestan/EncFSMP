@@ -1,7 +1,7 @@
-# - Find the Pismo File Mount Library (http://www.pismotechnic.com/pfm/)
+# - Find the Pismo File System Runtime (FSR) library
 # This module defines the following variables:
-#  PFM_INCLUDE_DIR - include directories for PFM
-#  PFM_FOUND - true if PFM has been found and can be used
+#  PFM_INCLUDE_DIR - include directories for the FSR kit
+#  PFM_FOUND - true if the FSR kit has been found and can be used
 
 #=============================================================================
 # Copyright 2014 Roman Hiestand
@@ -13,7 +13,7 @@
 # See the License for more information.
 #=============================================================================
 
-find_path(PFM_INCLUDE_DIR pfmapi.h
+find_path(PFM_INCLUDE_DIR fsrapi.h
 	HINTS ${PFM_ROOT} $ENV{PFM_ROOT}
 	PATH_SUFFIXES include inc)
 
