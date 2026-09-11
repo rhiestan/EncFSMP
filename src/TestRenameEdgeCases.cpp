@@ -23,6 +23,9 @@
 #include <cstdio>
 #include <cstring>
 
+#define WIN32_LEAN_AND_MEAN
+#include "windows.h"
+
 namespace
 {
 	void writeFile(const boost::filesystem::path &fn, const char *content)
@@ -132,5 +135,78 @@ bool TestRenameEdgeCases::renameCaseOnly(const boost::filesystem::path &testpath
 		retVal = false;
 
 	boost::filesystem::remove_all(dir, ec);
+	return retVal;
+}
+
+bool TestRenameEdgeCases::renameDirectory(const boost::filesystem::path &testpath)
+{
+	boost::system::error_code ec;
+	bool retVal = true;
+
+	boost::filesystem::path dir = testpath / boost::filesystem::unique_path();
+	if(!boost::filesystem::create_directories(dir, ec))
+		return false;
+
+	boost::filesystem::path subdirOld = dir / L"olddir";
+	boost::filesystem::path subdirNew = dir / L"newdir";
+	if(!boost::filesystem::create_directories(subdirOld, ec))
+	{
+		boost::filesystem::remove_all(dir, ec);
+		return false;
+	}
+
+	boost::filesystem::path fileInside = subdirOld / L"inside.txt";
+	writeFile(fileInside, "content");
+
+	// Renaming a directory forces encfs to recursively re-encrypt every
+	// contained name (chained name IV depends on the parent path) and
+	// rename each one on the backing filesystem individually. Doing that
+	// immediately after writing/closing the contained file is prone to a
+	// transient sharing violation (antivirus/indexer settling on the
+	// just-written file) - same class of flakiness checkPFMRegrTest already
+	// works around with a settle delay before its own reopen.
+	Sleep(2000);
+
+	boost::filesystem::rename(subdirOld, subdirNew, ec);
+	if(ec)
+		retVal = false;
+
+	if(boost::filesystem::exists(subdirOld, ec))
+		retVal = false;
+	if(!readFileEquals(subdirNew / L"inside.txt", "content"))
+		retVal = false;
+
+	boost::filesystem::remove_all(dir, ec);
+	return retVal;
+}
+
+bool TestRenameEdgeCases::deleteNonEmptyDirectoryFails(const boost::filesystem::path &testpath)
+{
+	boost::system::error_code ec;
+	bool retVal = true;
+
+	boost::filesystem::path dir = testpath / boost::filesystem::unique_path();
+	if(!boost::filesystem::create_directories(dir, ec))
+		return false;
+
+	boost::filesystem::path fileInside = dir / L"inside.txt";
+	writeFile(fileInside, "content");
+
+	// A non-empty directory must not be removable directly - only remove_all
+	// (which recurses) may succeed.
+	if(boost::filesystem::remove(dir, ec) || !ec)
+		retVal = false;
+
+	// The directory (and its content) must still be there after the failed
+	// attempt.
+	if(!boost::filesystem::exists(dir, ec) || !readFileEquals(fileInside, "content"))
+		retVal = false;
+
+	// Once emptied, the same directory must delete cleanly.
+	if(!boost::filesystem::remove(fileInside, ec))
+		retVal = false;
+	if(!boost::filesystem::remove(dir, ec))
+		retVal = false;
+
 	return retVal;
 }

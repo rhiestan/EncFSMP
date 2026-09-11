@@ -62,6 +62,13 @@ public:
 	// exposing stale/uninitialized bytes.
 	static bool truncateGrowTest(const boost::filesystem::path &testpath);
 
+	// Renaming a file while a handle to it is still open (opened with
+	// FILE_SHARE_DELETE, as required for a rename to succeed at all) must
+	// succeed, the still-open handle must keep working against the same
+	// underlying file, and the new name must be the only way to open it
+	// afterwards.
+	static bool renameWhileOpenTest(const boost::filesystem::path &testpath);
+
 protected:
 	static void printLastError();
 

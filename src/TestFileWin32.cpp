@@ -505,6 +505,89 @@ bool TestFileWin32::longNameCrashRepro(const boost::filesystem::path &testpath)
 	return retVal;
 }
 
+bool TestFileWin32::renameWhileOpenTest(const boost::filesystem::path &testpath)
+{
+	bool retVal = true;
+	boost::system::error_code ec;
+
+	boost::filesystem::path wintestpath = testpath / boost::filesystem::unique_path();
+	if(!boost::filesystem::create_directories(wintestpath, ec))
+		return false;
+
+	boost::filesystem::path oldName = wintestpath / L"encfsmp_test_rename_old.txt";
+	boost::filesystem::path newName = wintestpath / L"encfsmp_test_rename_new.txt";
+	std::wstring oldNameW = oldName.wstring();
+	std::wstring newNameW = newName.wstring();
+
+	const char content[] = "0123456789";
+
+	FILE *fd = TestFileHelper::fopen(oldName, "wb");
+	if(fd == NULL)
+	{
+		boost::filesystem::remove_all(wintestpath, ec);
+		return false;
+	}
+	fwrite(content, 1, sizeof(content) - 1, fd);
+	fclose(fd);
+
+	// FILE_SHARE_DELETE is required for MoveFileExW to succeed against a
+	// file that has an open handle - this mirrors deleteWhileOpenTest's
+	// use of the same share flag for the analogous delete case.
+	HANDLE fh = CreateFileW(oldNameW.c_str(), GENERIC_READ,
+		FILE_SHARE_READ | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(fh == INVALID_HANDLE_VALUE)
+	{
+		printLastError();
+		boost::filesystem::remove_all(wintestpath, ec);
+		return false;
+	}
+
+	if(!MoveFileExW(oldNameW.c_str(), newNameW.c_str(), 0))
+	{
+		printLastError();
+		retVal = false;
+	}
+
+	// The old name must be gone immediately, even with the handle still open.
+	DWORD attrsOld = GetFileAttributesW(oldNameW.c_str());
+	if(attrsOld != INVALID_FILE_ATTRIBUTES)
+		retVal = false;
+
+	// The still-open handle must keep reading the same underlying file,
+	// unaffected by the rename of its name.
+	char readBuf[16] = {};
+	DWORD bytesRead = 0;
+	BOOL readOk = ReadFile(fh, readBuf, sizeof(content) - 1, &bytesRead, NULL);
+	if(!readOk || bytesRead != sizeof(content) - 1 || memcmp(readBuf, content, sizeof(content) - 1) != 0)
+		retVal = false;
+
+	CloseHandle(fh);
+
+	// After closing, the file must be reachable only under the new name.
+	HANDLE reopenOld = CreateFileW(oldNameW.c_str(), GENERIC_READ,
+		FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(reopenOld != INVALID_HANDLE_VALUE)
+	{
+		retVal = false;
+		CloseHandle(reopenOld);
+	}
+
+	HANDLE reopenNew = CreateFileW(newNameW.c_str(), GENERIC_READ,
+		FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(reopenNew == INVALID_HANDLE_VALUE)
+	{
+		printLastError();
+		retVal = false;
+	}
+	else
+		CloseHandle(reopenNew);
+
+	if(!boost::filesystem::remove_all(wintestpath, ec))
+		retVal = false;
+
+	return retVal;
+}
+
 bool TestFileWin32::sharingViolationTest(const boost::filesystem::path &testpath)
 {
 	bool retVal = true;

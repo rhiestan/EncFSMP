@@ -168,6 +168,14 @@ TEST_SUITE("FilesTest")
    {
       CHECK(TestRenameEdgeCases::renameCaseOnly(TestParameters::testPathBoost_));
    }
+   TEST_CASE("RenameDirectory")
+   {
+      CHECK(TestRenameEdgeCases::renameDirectory(TestParameters::testPathBoost_));
+   }
+   TEST_CASE("DeleteNonEmptyDirectoryFails")
+   {
+      CHECK(TestRenameEdgeCases::deleteNonEmptyDirectoryFails(TestParameters::testPathBoost_));
+   }
    TEST_CASE("UnicodeFilename")
    {
       CHECK(TestUnicodePaths::unicodeFilenameTest(TestParameters::testPathBoost_));
@@ -204,6 +212,10 @@ TEST_SUITE("Win32Test")
    TEST_CASE("TruncateGrow")
    {
       CHECK(TestFileWin32::truncateGrowTest(TestParameters::testPathBoost_));
+   }
+   TEST_CASE("RenameWhileOpen")
+   {
+      CHECK(TestFileWin32::renameWhileOpenTest(TestParameters::testPathBoost_));
    }
    TEST_CASE("FileTimeRoundTrip")
    {

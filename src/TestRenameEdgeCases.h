@@ -38,6 +38,15 @@ public:
 	// leave exactly one file behind with the original content.
 	static bool renameCaseOnly(const boost::filesystem::path &testpath);
 
+	// Renaming a directory (with a file inside it) must move the whole
+	// subtree - the contained file must still be reachable, with its
+	// original content, under the new directory name.
+	static bool renameDirectory(const boost::filesystem::path &testpath);
+
+	// Deleting a non-empty directory must fail cleanly (ERROR_DIR_NOT_EMPTY);
+	// once emptied, the same directory must delete successfully.
+	static bool deleteNonEmptyDirectoryFails(const boost::filesystem::path &testpath);
+
 private:
 	TestRenameEdgeCases() { }
 	virtual ~TestRenameEdgeCases() { }
