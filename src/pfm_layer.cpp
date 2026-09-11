@@ -460,6 +460,7 @@ void CCALL PFMLayer::Replace(PfmMarshallerReplaceOp* op, void* formatterUse)
    PfmOpenAttribs openAttribs = zeroOpenAttribs;
 
    OpenFile *pOpenFile = getOpenFile(targetOpenId);
+
    if(pOpenFile == NULL)
       perr = pfmErrorFailed;
 
@@ -689,7 +690,14 @@ void CCALL PFMLayer::MoveReplace(PfmMarshallerMoveReplaceOp* op, void* formatter
    int64_t targetOpenId = op->TargetOpenId();
    int64_t targetParentFileId = op->TargetParentFileId();
    const PfmNamePart* targetEndName = op->TargetEndName();
-   uint8_t/*bool*/ deleteSource = op->DeleteSource();
+   // op->DeleteSource() is deliberately not called here: FSR's PFM-compatibility
+   // shim for MoveReplace has a null vtable slot for this one accessor
+   // (confirmed via a crash dump: op->DeleteSource() jumps to address 0, while
+   // the six accessor calls before it on this same op all succeed). MoveReplace
+   // only exists to service a rename that replaces an existing target (e.g.
+   // Windows' MoveFileEx with MOVEFILE_REPLACE_EXISTING), which is always a
+   // true move, never a hard-link request - so the "is this a hard link"
+   // rejection that Move() (a different op) performs isn't needed here.
    int64_t writeTime = op->WriteTime();
    int perr = 0;
 
@@ -719,14 +727,6 @@ void CCALL PFMLayer::MoveReplace(PfmMarshallerMoveReplaceOp* op, void* formatter
 
    if((perr == 0) && (pTargetOpenFile->isDeleted_))
       perr = pfmErrorDeleted;
-
-   if(perr == 0
-      && deleteSource == 0
-      && !pSourceOpenFile->isDeleted_)
-   {
-      // Request to make a hard link: We do not support links
-      perr = pfmErrorInvalid;
-   }
 
    std::string newPath = pTargetOpenFile->pathName_;
 
@@ -1171,8 +1171,8 @@ void CCALL PFMLayer::Read(PfmMarshallerReadOp* op, void* formatterUse)
       perr = pfmErrorFailed;
    if((perr == 0) && (!pOpenFile->isFile_))
       perr = pfmErrorNotAFile;
-   if((perr == 0) && (pOpenFile->isDeleted_))
-      perr = pfmErrorDeleted;
+   // Deliberately no isDeleted_ check here: per deleteOp()'s documented contract,
+   // an already-open file's data must stay readable until it is actually closed.
 
    if(perr == 0)
    {
@@ -1210,8 +1210,8 @@ void CCALL PFMLayer::Write(PfmMarshallerWriteOp* op, void* formatterUse)
       perr = pfmErrorFailed;
    if((perr == 0) && (!pOpenFile->isFile_))
       perr = pfmErrorNotAFile;
-   if((perr == 0) && (pOpenFile->isDeleted_))
-      perr = pfmErrorDeleted;
+   // Deliberately no isDeleted_ check here: per deleteOp()'s documented contract,
+   // an already-open file must stay writable until it is actually closed.
 
    if(perr == 0)
    {
@@ -1257,8 +1257,8 @@ void CCALL PFMLayer::SetSize(PfmMarshallerSetSizeOp* op, void* formatterUse)
       perr = pfmErrorFailed;
    if((perr == 0) && (!pOpenFile->isFile_))
       perr = pfmErrorNotAFile;
-   if((perr == 0) && (pOpenFile->isDeleted_))
-      perr = pfmErrorDeleted;
+   // Deliberately no isDeleted_ check here: per deleteOp()'s documented contract,
+   // an already-open file must stay writable until it is actually closed.
 
    if(perr == 0)
    {
@@ -1341,6 +1341,7 @@ void CCALL PFMLayer::Access(PfmMarshallerAccessOp* op, void* formatterUse)
    PfmOpenAttribs openAttribs = zeroOpenAttribs;
 
    OpenFile *pOpenFile = getOpenFile(openId);
+
    if(pOpenFile == NULL)
       perr = pfmErrorFailed;
    else
@@ -1395,6 +1396,7 @@ void CCALL PFMLayer::Access(PfmMarshallerAccessOp* op, void* formatterUse)
          openAttribs.attribs.changeTime = pOpenFile->changeTime_;
       }
    }
+
    op->Complete(perr, &openAttribs, 0);
 }
 
@@ -1647,7 +1649,9 @@ int PFMLayer::createOp(const std::string &path, int8_t createFileType, uint8_t c
          std::string cipherPath = rootFS_->root->cipherPath(path.c_str());
          fileStatCache_.forgetCachedStat( cipherPath.c_str() );
 
-         rootFS_->root->mkdir( path.c_str(), mode);
+         int mkdirRes = rootFS_->root->mkdir( path.c_str(), mode);
+         if(mkdirRes != 0)
+            return pfmErrorAccessDenied;
 
          OpenFile of;
          of.isFile_ = false;

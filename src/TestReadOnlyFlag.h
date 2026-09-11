@@ -20,9 +20,15 @@
 #ifndef TEST_READ_ONLY_FLAG_H
 #define TEST_READ_ONLY_FLAG_H
 
+#include "boost/filesystem.hpp"
+
 class TestReadOnlyFlag
 {
 public:
+
+	// Setting FILE_ATTRIBUTE_READONLY must be reported back by GetFileAttributesW
+	// and must block subsequent writes; clearing it again must restore write access.
+	static bool readOnlyAttributeTest(const boost::filesystem::path &testpath);
 
 private:
 	TestReadOnlyFlag() { }

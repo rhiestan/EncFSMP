@@ -704,24 +704,28 @@ std::shared_ptr<FileNode> DirNode::renameNode(const char *from, const char *to,
 std::shared_ptr<FileNode> DirNode::findOrCreate(const char *plainName) {
   std::shared_ptr<FileNode> node;
 
-  // See if we already have a FileNode for this path.
+  // See if we already have a FileNode for this path (only possible if we
+  // have a live mount context to cache against).
   if (ctx != nullptr) {
     node = ctx->lookupNode(plainName);
+  }
 
-    // If we don't, create a new one.
-    if (!node) {
-      uint64_t iv = 0;
-      string cipherName = naming->encodePath(plainName, &iv);
-      uint64_t fuseFh = ctx->nextFuseFh();
-      node.reset(new FileNode(this, fsConfig, plainName,
-                              (rootDir + cipherName).c_str(), fuseFh));
+  // If we don't, create a new one. This also covers the case where there is
+  // no ctx at all, e.g. when a DirNode is used directly (not via a mount) as
+  // EncFSUtilities::exportEncFS() does - there is simply nothing to cache
+  // against, but a FileNode can still be created and used on the fly.
+  if (!node) {
+    uint64_t iv = 0;
+    string cipherName = naming->encodePath(plainName, &iv);
+    uint64_t fuseFh = (ctx != nullptr) ? ctx->nextFuseFh() : 0;
+    node.reset(new FileNode(this, fsConfig, plainName,
+                            (rootDir + cipherName).c_str(), fuseFh));
 
-      if (fsConfig->config->externalIVChaining) {
-        node->setName(nullptr, nullptr, iv);
-      }
-
-      VLOG(1) << "created FileNode for " << node->cipherName();
+    if (fsConfig->config->externalIVChaining) {
+      node->setName(nullptr, nullptr, iv);
     }
+
+    VLOG(1) << "created FileNode for " << node->cipherName();
   }
 
   return node;

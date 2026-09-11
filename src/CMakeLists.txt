@@ -146,60 +146,53 @@ INCLUDE_DIRECTORIES(${PFM_INCLUDE_DIR})
 
 # wxWidgets
 IF(WIN32)
-	IF(CMAKE_COMPILER_IS_GNUCC)
-		SET(wxWidgets_LIB_DIR ${wxWidgets_ROOT_DIR}/lib)
+	# On Windows, wxWidgets is provided by vcpkg. vcpkg's wxwidgets port ships
+	# its own CMake package config (matching upstream wxWidgets 3.2+), which
+	# exports namespaced imported targets (wx::core, wx::base, wx::adv, ...)
+	# instead of the wxWidgets_LIBRARIES/wxWidgets_INCLUDE_DIRS variables that
+	# CMake's bundled FindwxWidgets MODULE produces. Those targets already
+	# carry their own include dirs, compile definitions and transitive
+	# third-party dependencies (zlib, libpng, libjpeg, tiff, ...), so none of
+	# the manual bookkeeping below is needed for this branch.
+	FIND_PACKAGE(wxWidgets CONFIG REQUIRED COMPONENTS adv core base)
+	SET(EncFSMP_wxWidgets_LIBRARIES wx::adv wx::core wx::base)
+ELSE(WIN32)
+	message("wxWidgets_ROOT_DIR = ${wxWidgets_ROOT_DIR}")
+	message("wxWidgets_FIND_STYLE = ${wxWidgets_FIND_STYLE}")
 
-	#	IF(${IS_64BITS} EQUAL 1)
-	#		SET(wxWidgets_LIB_DIR ${wxWidgets_ROOT_DIR}/lib/gcc_lib64)
-	#	ELSE(${IS_64BITS} EQUAL 1)
-	#		SET(wxWidgets_LIB_DIR ${wxWidgets_ROOT_DIR}/lib/gcc_lib)
-	#	ENDIF(${IS_64BITS} EQUAL 1)
-	#ELSE(CMAKE_COMPILER_IS_GNUCC)
-	#	SET(wxWidgets_LIB_DIR ${wxWidgets_ROOT_DIR}/lib)
-	ENDIF(CMAKE_COMPILER_IS_GNUCC)
-	IF(CMAKE_BUILD_TYPE="Debug")
-		SET(wxWidgets_CONFIGURATION mswud)
-	ELSE()
-		SET(wxWidgets_CONFIGURATION mswu)
-	ENDIF()
+	FIND_PACKAGE(wxWidgets REQUIRED adv core base)
+	INCLUDE(${wxWidgets_USE_FILE})
+	# Workaround for MSYS
+	IF(DEFINED ENCFSMP_ALT_wxWidgets_INCLUDE_DIRS)
+		SET(wxWidgets_INCLUDE_DIRS = "${ENCFSMP_ALT_wxWidgets_INCLUDE_DIRS}" )
+	ENDIF(DEFINED ENCFSMP_ALT_wxWidgets_INCLUDE_DIRS)
+
+	IF(ENCFSMP_REMOVE_ADDITIONAL_LIBRARIES)
+		# These are superfluous libraries added by wx-config
+		# These libraries are already linked to, but statically (depending on the platform)
+		# On OS X, these link parameters lead to a dependency on the shared libraries
+		STRING(REPLACE "-lz" "" wxWidgets_LIBRARIES "${wxWidgets_LIBRARIES}" )
+		STRING(REPLACE "-lpthread" "" wxWidgets_LIBRARIES "${wxWidgets_LIBRARIES}" )
+		STRING(REPLACE "-llzma" "" wxWidgets_LIBRARIES "${wxWidgets_LIBRARIES}" )
+		STRING(REPLACE "-ljbig" "" wxWidgets_LIBRARIES "${wxWidgets_LIBRARIES}" )
+		STRING(REPLACE "-ljpeg" "" wxWidgets_LIBRARIES "${wxWidgets_LIBRARIES}" )
+		STRING(REPLACE "-lpng" "" wxWidgets_LIBRARIES "${wxWidgets_LIBRARIES}" )
+		STRING(REPLACE "-ltiff" "" wxWidgets_LIBRARIES "${wxWidgets_LIBRARIES}" )
+		STRING(REPLACE "-liconv" "" wxWidgets_LIBRARIES "${wxWidgets_LIBRARIES}" )
+	ENDIF(ENCFSMP_REMOVE_ADDITIONAL_LIBRARIES)
+
+	IF(EFS_OLEACC_WORKAROUND)
+		LIST(REMOVE_ITEM wxWidgets_LIBRARIES oleacc)
+	ENDIF(EFS_OLEACC_WORKAROUND)
+
+	message("wxWidgets_INCLUDE_DIRS = ${wxWidgets_INCLUDE_DIRS}")
+	message("wxWidgets_LIBRARIES = ${wxWidgets_LIBRARIES}")
+	INCLUDE_DIRECTORIES(${wxWidgets_INCLUDE_DIRS})
+	SET(EncFSMP_wxWidgets_LIBRARIES ${wxWidgets_LIBRARIES})
 ENDIF(WIN32)
-message("wxWidgets_ROOT_DIR = ${wxWidgets_ROOT_DIR}")
-message("wxWidgets_LIB_DIR = ${wxWidgets_LIB_DIR}")
-message("wxWidgets_CONFIGURATION = ${wxWidgets_CONFIGURATION}")
-message("wxWidgets_LIBRARIES = ${wxWidgets_LIBRARIES}")
-message("wxWidgets_FIND_STYLE = ${wxWidgets_FIND_STYLE}")
 
-FIND_PACKAGE(wxWidgets REQUIRED adv core base)
-INCLUDE(${wxWidgets_USE_FILE})
-# Workaround for MSYS
-IF(DEFINED ENCFSMP_ALT_wxWidgets_INCLUDE_DIRS)
-	SET(wxWidgets_INCLUDE_DIRS = "${ENCFSMP_ALT_wxWidgets_INCLUDE_DIRS}" )
-ENDIF(DEFINED ENCFSMP_ALT_wxWidgets_INCLUDE_DIRS)
-
-IF(ENCFSMP_REMOVE_ADDITIONAL_LIBRARIES)
-	# These are superfluous libraries added by wx-config
-	# These libraries are already linked to, but statically (depending on the platform)
-	# On OS X, these link parameters lead to a dependency on the shared libraries
-	STRING(REPLACE "-lz" "" wxWidgets_LIBRARIES "${wxWidgets_LIBRARIES}" )
-	STRING(REPLACE "-lpthread" "" wxWidgets_LIBRARIES "${wxWidgets_LIBRARIES}" )
-	STRING(REPLACE "-llzma" "" wxWidgets_LIBRARIES "${wxWidgets_LIBRARIES}" )
-	STRING(REPLACE "-ljbig" "" wxWidgets_LIBRARIES "${wxWidgets_LIBRARIES}" )
-	STRING(REPLACE "-ljpeg" "" wxWidgets_LIBRARIES "${wxWidgets_LIBRARIES}" )
-	STRING(REPLACE "-lpng" "" wxWidgets_LIBRARIES "${wxWidgets_LIBRARIES}" )
-	STRING(REPLACE "-ltiff" "" wxWidgets_LIBRARIES "${wxWidgets_LIBRARIES}" )
-	STRING(REPLACE "-liconv" "" wxWidgets_LIBRARIES "${wxWidgets_LIBRARIES}" )
-ENDIF(ENCFSMP_REMOVE_ADDITIONAL_LIBRARIES)
-
-IF(EFS_OLEACC_WORKAROUND)
-	LIST(REMOVE_ITEM wxWidgets_LIBRARIES oleacc)
-ENDIF(EFS_OLEACC_WORKAROUND)
-
-message("wxWidgets_INCLUDE_DIRS = ${wxWidgets_INCLUDE_DIRS}")
-message("wxWidgets_LIBRARIES = ${wxWidgets_LIBRARIES}")
-INCLUDE_DIRECTORIES(${wxWidgets_INCLUDE_DIRS})
-
-# Google Test
-INCLUDE_DIRECTORIES(${GOOGLE_TEST_INCLUDE})
+# doctest (header-only; used only by the EncFSMPTest target)
+FIND_PACKAGE(doctest CONFIG REQUIRED)
 
 
 message("OPENSSL_LIBRARIES = ${OPENSSL_LIBRARIES}")
@@ -379,7 +372,7 @@ INCLUDE_DIRECTORIES("easyloggingpp")
 INCLUDE_DIRECTORIES("intl")
 INCLUDE_DIRECTORIES("tinyxml2")
 
-SET(EncFSMP_LINK_LIBRARIES ${wxWidgets_LIBRARIES} libencfs intl easyloggingpp tinyxml2_static ${OPENSSL_LIBRARIES} Boost::boost Boost::date_time Boost::serialization
+SET(EncFSMP_LINK_LIBRARIES ${EncFSMP_wxWidgets_LIBRARIES} libencfs intl easyloggingpp tinyxml2_static ${OPENSSL_LIBRARIES} Boost::boost Boost::date_time Boost::serialization
 	Boost::filesystem Boost::thread Boost::random Boost::locale)
 IF(WIN32)
 	SET(EncFSMP_LINK_LIBRARIES ${EncFSMP_LINK_LIBRARIES} psapi.lib Crypt32.lib Ws2_32.lib UxTheme.lib)
@@ -395,9 +388,11 @@ ADD_EXECUTABLE(EncFSMP WIN32 MACOSX_BUNDLE ${ALL_SRC} ${ALL_HEADERS} EncFSMPApp.
 SET(CMAKE_CTEST_COMMAND ${CMAKE_CTEST_COMMAND} -V)
 ADD_CUSTOM_TARGET(check COMMAND ${CMAKE_CTEST_COMMAND})
 SET(ALL_TEST_SRC EncFSMPTestApp.cpp TestBigFile.cpp TestOpenFileTwice.cpp
-	TestFileHelper.cpp TestReadOnlyFlag.cpp TestManyFiles.cpp)
+	TestFileHelper.cpp TestReadOnlyFlag.cpp TestManyFiles.cpp TestMount.cpp
+	TestFileStatCache.cpp TestPFMProxyErrorFormatting.cpp TestEncFSUtilities.cpp
+	TestRenameEdgeCases.cpp TestUnicodePaths.cpp)
 SET(ALL_TEST_HEADERS EncFSMPTestApp.h TestBigFile.h TestOpenFileTwice.h TestFileHelper.h
-	TestReadOnlyFlag.h TestManyFiles.h)
+	TestReadOnlyFlag.h TestManyFiles.h TestMount.h TestRenameEdgeCases.h TestUnicodePaths.h)
 IF(WIN32)
 	LIST(APPEND ALL_TEST_SRC TestFileWin32.cpp )
 	LIST(APPEND ALL_TEST_HEADERS TestFileWin32.h )
@@ -407,7 +402,7 @@ ADD_EXECUTABLE(EncFSMPTest EXCLUDE_FROM_ALL ${ALL_SRC} ${ALL_HEADERS} ${ALL_TEST
 message("EncFSMP_LINK_LIBRARIES = ${EncFSMP_LINK_LIBRARIES}")
 
 TARGET_LINK_LIBRARIES(EncFSMP ${EncFSMP_LINK_LIBRARIES})
-TARGET_LINK_LIBRARIES(EncFSMPTest ${EncFSMP_LINK_LIBRARIES} ${GOOGLE_TEST_LIBRARY})
+TARGET_LINK_LIBRARIES(EncFSMPTest ${EncFSMP_LINK_LIBRARIES} doctest::doctest)
 target_compile_features(EncFSMP PRIVATE cxx_range_for cxx_auto_type cxx_deleted_functions cxx_nullptr)
 target_compile_features(EncFSMPTest PRIVATE cxx_range_for cxx_auto_type cxx_deleted_functions cxx_nullptr)
 

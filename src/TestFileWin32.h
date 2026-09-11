@@ -30,6 +30,28 @@ public:
 	static bool replaceTest(const boost::filesystem::path &testpath);
 	static bool checkPFMRegrTest(const boost::filesystem::path &testpath);
 
+	// Deletes a file while a handle to it (opened with FILE_SHARE_DELETE) stays
+	// open. The name must disappear immediately, but the still-open handle must
+	// keep reading the original data until it is closed.
+	static bool deleteWhileOpenTest(const boost::filesystem::path &testpath);
+
+	// After deleting a file while a handle to it is still open, a new file
+	// must be creatable under the same name right away, independent of the
+	// old (deleted, but still-open) file's data.
+	static bool recreateAfterDeleteWhileOpenTest(const boost::filesystem::path &testpath);
+
+	// SetFileTime's write time must round-trip through GetFileTime, within the
+	// filesystem's time resolution.
+	static bool fileTimeRoundTripTest(const boost::filesystem::path &testpath);
+
+	// Regression guard: creating a directory whose name is long enough that
+	// encfs's Block filename encoding pushes the ciphertext past the host
+	// filesystem's 255-char per-component limit must fail cleanly with
+	// ERROR_ACCESS_DENIED. This used to instead crash the mount-serving
+	// thread - see PFMLayer::createOp()'s folder branch and
+	// EncFSMPTestApp::OnInit()'s EncFSMPLogger::setup() call.
+	static bool longNameCrashRepro(const boost::filesystem::path &testpath);
+
 protected:
 	static void printLastError();
 

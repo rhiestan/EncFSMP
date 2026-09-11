@@ -1,0 +1,18 @@
+{
+  "name": "encfsmp",
+  "version": "1.0.0",
+  "description": "EncFSMP third-party dependencies (Windows). Libraries kept in the source tree (encfs, easyloggingpp, intl, tinyxml2) and the proprietary Pismo FSR SDK are not part of this manifest.",
+  "dependencies": [
+    "wxwidgets",
+    "openssl",
+    "boost-date-time",
+    "boost-thread",
+    "boost-system",
+    "boost-chrono",
+    "boost-serialization",
+    "boost-filesystem",
+    "boost-locale",
+    "boost-random",
+    "doctest"
+  ]
+}

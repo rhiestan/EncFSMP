@@ -5,15 +5,16 @@ This is the git project for EncFSMP, the tool to mount encfs folders on Windows 
 
 ## How to compile ##
 
-This is a guide to compile EncFSMP using Visual Studio 2015 Community edition. All tools and libraries are available for free on the internet.
+This is a guide to compile EncFSMP using Visual Studio 2022 Community edition. All tools and libraries are available for free on the internet.
 In order to complete these steps, you need some experience with C++, CMake and Visual Studio. Unfortunately, I am not able to give support to build EncFSMP due to my limited spare time.
 
-- Please go to my project "Build scripts" ([link](https://github.com/rhiestan/build-scripts)) and download the latest release.
-- Follow the instructions in the README of this project to compile zlib, jpeg, png, tiff, bzip2, boost, openssl, wxwidgets, gtest (in this order). The other libraries are not required for EncFSMP.
-- Download the latest PFM developer kit from the [PismoTech homepage](http://pismotec.com/download/) and extract it.
-- Download and extract the latest source release of EncFSMP
-- Copy the file `build_msvc2015_x64_sb_templ.bat` to `build_msvc2015_x64_sb.bat` and adjust the path `SB_SCRIPT_PATH` to the path where you extracted the build scripts, and adjust the path `PFM_ROOT` to the  include folder in the path where you extracted the PFM SDK.
-- Run the batch file by double-clicking, it should create a new folder with several files. Double click on EncFSMP.sln.
+On Windows, third-party libraries (wxWidgets, OpenSSL, Boost, doctest) are fetched and built via [vcpkg](https://github.com/microsoft/vcpkg), driven by the manifest in `src/vcpkg.json` - there is no separate library superbuild step to run manually anymore. Libraries kept in the source tree (encfs, easyloggingpp, intl, tinyxml2) and the proprietary Pismo FSR SDK are unaffected and not part of that manifest.
+
+- Clone [vcpkg](https://github.com/microsoft/vcpkg) and run `bootstrap-vcpkg.bat` once.
+- Download the latest FSR developer kit from the [PismoTech homepage](http://pismotec.com/download/) and extract it.
+- Download and extract the latest source release of EncFSMP.
+- Copy `build_msvc2022_x64_sb.bat`, set `VCPKG_ROOT` to your vcpkg checkout, and set `PFM_ROOT` to the include folder of the extracted FSR SDK.
+- Run the batch file by double-clicking. CMake will invoke vcpkg to install the dependencies declared in `src/vcpkg.json` (this can take a while the first time) and create a `build_x64` folder with the Visual Studio solution. Double click on `EncFSMP.sln`.
 
 
 

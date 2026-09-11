@@ -24,8 +24,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include "windows.h"
 
-// Internal NT APIs: Requires Windows SDK
-#include "Winternl.h"
+#include <cstring>
 
 void TestFileWin32::printLastError()
 {
@@ -48,83 +47,10 @@ void TestFileWin32::printLastError()
 	LocalFree(err);
 }
 
-static void displayNtError(DWORD errCode, HMODULE hMod)
-{
-	//LPVOID lpMessageBuffer;
-	wchar_t *err;
-	if(!FormatMessage(
-		FORMAT_MESSAGE_ALLOCATE_BUFFER |
-		FORMAT_MESSAGE_FROM_SYSTEM |
-		FORMAT_MESSAGE_FROM_HMODULE,
-		hMod,
-		errCode,
-		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		(LPTSTR)&err,	//(LPTSTR) &lpMessageBuffer,  
-		0,
-		NULL))
-		return;
-
-	// Now display the string.
-	std::wcerr << L"ERROR: " << errCode << L": "
-		<< err << std::endl;
-
-	// Free the buffer allocated by the system.
-	LocalFree(err);
-}
-
-#if defined(_MSCVER)
-typedef __kernel_entry NTSTATUS(NTAPI *PNtCreateFile)(
-	OUT PHANDLE FileHandle,
-	IN ACCESS_MASK DesiredAccess,
-	IN POBJECT_ATTRIBUTES ObjectAttributes,
-	OUT PIO_STATUS_BLOCK IoStatusBlock,
-	IN PLARGE_INTEGER AllocationSize OPTIONAL,
-	IN ULONG FileAttributes,
-	IN ULONG ShareAccess,
-	IN ULONG CreateDisposition,
-	IN ULONG CreateOptions,
-	IN PVOID EaBuffer OPTIONAL,
-	IN ULONG EaLength
-	);
-typedef __kernel_entry NTSTATUS(NTAPI *PNtClose)(
-	IN HANDLE Handle
-	);
-typedef NTSTATUS(NTAPI *PNtWriteFile)(
-	_In_      HANDLE FileHandle,
-	_In_opt_  HANDLE Event,
-	_In_opt_  PIO_APC_ROUTINE ApcRoutine,
-	_In_opt_  PVOID ApcContext,
-	_Out_     PIO_STATUS_BLOCK IoStatusBlock,
-	_In_      PVOID Buffer,
-	_In_      ULONG Length,
-	_In_opt_  PLARGE_INTEGER ByteOffset,
-	_In_opt_  PULONG Key
-	);
-typedef VOID(__stdcall *PRtlInitUnicodeString)(
-	PUNICODE_STRING DestinationString,
-	PCWSTR SourceString
-	);
-#endif
-
 bool TestFileWin32::supersedeTest(const boost::filesystem::path &testpath)
 {
 	bool retVal = true;
 	boost::system::error_code ec;
-
-	HANDLE fh;
-	HMODULE hMod;
-	hMod = LoadLibrary(L"NtDll.dll");
-	if(hMod == NULL)
-	{
-		printLastError();
-		return false;
-	}
-
-#if defined(_MSCVER)
-	PNtCreateFile pNtCreateFile = (PNtCreateFile)GetProcAddress(hMod, "NtCreateFile");
-	PNtClose pNtClose = (PNtClose)GetProcAddress(hMod, "NtClose");
-	PNtWriteFile pNtWriteFile = (PNtWriteFile)GetProcAddress(hMod, "NtWriteFile");
-	PRtlInitUnicodeString pRtlInitUnicodeString = (PRtlInitUnicodeString)GetProcAddress(hMod, "RtlInitUnicodeString");
 
 	// Create test directory
 	boost::filesystem::path wintestpath = testpath / boost::filesystem::unique_path();
@@ -132,8 +58,7 @@ bool TestFileWin32::supersedeTest(const boost::filesystem::path &testpath)
 		return false;
 
 	boost::filesystem::path testfilename = wintestpath / L"encfsmp_test_supersede.txt";
-	std::wstring testfilenameW = testfilename.c_str();
-	const wchar_t *filename = testfilenameW.c_str();
+	std::wstring testfilenameW = testfilename.wstring();
 
 	// Create file
 	FILE *fd = TestFileHelper::fopen(testfilename, "wb");
@@ -145,24 +70,16 @@ bool TestFileWin32::supersedeTest(const boost::filesystem::path &testpath)
 	fwrite(buf, 1, 10, fd);
 	fclose(fd);
 
-	// Call NtCreateFile
-	OBJECT_ATTRIBUTES objectAttrs;
-	IO_STATUS_BLOCK ioStatus;
-	UNICODE_STRING filenameUS;
+	// CREATE_ALWAYS on an existing file supersedes/truncates its content - the
+	// closest equivalent to FILE_SUPERSEDE reachable through the Win32 API
+	// (there is no dwCreationDisposition value that maps to the native
+	// FILE_SUPERSEDE disposition itself; CREATE_ALWAYS maps to FILE_OVERWRITE_IF).
+	HANDLE fh = CreateFileW(testfilenameW.c_str(), GENERIC_WRITE, 0, NULL,
+		CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
-	(*pRtlInitUnicodeString)(&filenameUS, filename);
-	InitializeObjectAttributes(&objectAttrs,
-		&filenameUS,
-		0, NULL, NULL);
-
-	NTSTATUS ntStatus = (*pNtCreateFile)(&fh, FILE_GENERIC_WRITE,
-		&objectAttrs, &ioStatus, 0, FILE_ATTRIBUTE_NORMAL,
-		0, FILE_SUPERSEDE, FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0);
-
-	if(!NT_SUCCESS(ntStatus))
+	if(fh == INVALID_HANDLE_VALUE)
 	{
-		displayNtError(ntStatus, hMod);
-		displayNtError(ioStatus.Status, hMod);
+		printLastError();
 		retVal = false;
 	}
 	else
@@ -177,11 +94,8 @@ bool TestFileWin32::supersedeTest(const boost::filesystem::path &testpath)
 			retVal = false;
 		}
 
-		(*pNtClose)(fh);
+		CloseHandle(fh);
 	}
-
-	if(hMod != INVALID_HANDLE_VALUE)
-		FreeLibrary(hMod);
 
 	// Delete file
 	if(!boost::filesystem::remove(testfilename, ec))
@@ -190,7 +104,7 @@ bool TestFileWin32::supersedeTest(const boost::filesystem::path &testpath)
 	// Remove directory
 	if(!boost::filesystem::remove_all(wintestpath, ec))
 		retVal = false;
-#endif
+
 	return retVal;
 }
 
@@ -288,3 +202,306 @@ bool TestFileWin32::checkPFMRegrTest(const boost::filesystem::path &testpath)
 
 	return retVal;
 }
+
+bool TestFileWin32::deleteWhileOpenTest(const boost::filesystem::path &testpath)
+{
+	bool retVal = true;
+	boost::system::error_code ec;
+
+	boost::filesystem::path wintestpath = testpath / boost::filesystem::unique_path();
+	if(!boost::filesystem::create_directories(wintestpath, ec))
+		return false;
+
+	boost::filesystem::path testfilename = wintestpath / L"encfsmp_test_delete_open.txt";
+	std::wstring testfilenameW = testfilename.wstring();
+
+	const char content[] = "0123456789";
+
+	// Create the file with known content
+	FILE *fd = TestFileHelper::fopen(testfilename, "wb");
+	if(fd == NULL)
+	{
+		boost::filesystem::remove_all(wintestpath, ec);
+		return false;
+	}
+	fwrite(content, 1, sizeof(content) - 1, fd);
+	fclose(fd);
+
+	// Open a handle for reading, sharing delete access so DeleteFileW can
+	// succeed while this handle stays open. This emulates the POSIX
+	// unlink-while-open guarantee (deleteOp()'s doc comment: "file data must
+	// remain accessible until the file is closed") on top of Windows, which
+	// normally requires FILE_SHARE_DELETE to be requested explicitly.
+	HANDLE readerHandle = CreateFileW(testfilenameW.c_str(), GENERIC_READ,
+		FILE_SHARE_READ | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(readerHandle == INVALID_HANDLE_VALUE)
+	{
+		printLastError();
+		boost::filesystem::remove_all(wintestpath, ec);
+		return false;
+	}
+
+	// Delete the file while the reader handle is still open
+	if(!DeleteFileW(testfilenameW.c_str()))
+	{
+		printLastError();
+		retVal = false;
+	}
+
+	// The name must be gone immediately, even though the data is still
+	// accessible through the still-open handle.
+	DWORD attrsAfterDelete = GetFileAttributesW(testfilenameW.c_str());
+	if(attrsAfterDelete != INVALID_FILE_ATTRIBUTES)
+		retVal = false;
+
+	// The still-open reader handle must still be able to read the original content
+	char readBuf[16] = {};
+	DWORD bytesRead = 0;
+	BOOL readOk = ReadFile(readerHandle, readBuf, sizeof(content) - 1, &bytesRead, NULL);
+	if(!readOk || bytesRead != sizeof(content) - 1 || memcmp(readBuf, content, sizeof(content) - 1) != 0)
+		retVal = false;
+
+	CloseHandle(readerHandle);
+
+	// Now that the last handle is closed, the file must really be gone
+	HANDLE reopenHandle = CreateFileW(testfilenameW.c_str(), GENERIC_READ,
+		FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(reopenHandle != INVALID_HANDLE_VALUE)
+	{
+		retVal = false;
+		CloseHandle(reopenHandle);
+	}
+	else if(GetLastError() != ERROR_FILE_NOT_FOUND)
+		retVal = false;
+
+	if(!boost::filesystem::remove_all(wintestpath, ec))
+		retVal = false;
+
+	return retVal;
+}
+
+bool TestFileWin32::recreateAfterDeleteWhileOpenTest(const boost::filesystem::path &testpath)
+{
+	bool retVal = true;
+	boost::system::error_code ec;
+
+	boost::filesystem::path wintestpath = testpath / boost::filesystem::unique_path();
+	if(!boost::filesystem::create_directories(wintestpath, ec))
+		return false;
+
+	boost::filesystem::path testfilename = wintestpath / L"encfsmp_test_recreate.txt";
+	std::wstring testfilenameW = testfilename.wstring();
+
+	// Create the original file
+	FILE *fd = TestFileHelper::fopen(testfilename, "wb");
+	if(fd == NULL)
+	{
+		boost::filesystem::remove_all(wintestpath, ec);
+		return false;
+	}
+	fputs("old", fd);
+	fclose(fd);
+
+	// Open a handle, share-delete, then delete it while the handle stays open
+	HANDLE oldHandle = CreateFileW(testfilenameW.c_str(), GENERIC_READ,
+		FILE_SHARE_READ | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(oldHandle == INVALID_HANDLE_VALUE)
+	{
+		printLastError();
+		boost::filesystem::remove_all(wintestpath, ec);
+		return false;
+	}
+	if(!DeleteFileW(testfilenameW.c_str()))
+	{
+		printLastError();
+		retVal = false;
+	}
+
+	// A brand new file must be creatable under the same name right away - the
+	// deleted (but still-open) old entry must not "block" the name.
+	FILE *newFd = TestFileHelper::fopen(testfilename, "wb");
+	if(newFd == NULL)
+		retVal = false;
+	else
+	{
+		fputs("new", newFd);
+		fclose(newFd);
+	}
+
+	// Reading via the old handle must still see "old", never "new"
+	char oldReadBuf[16] = {};
+	DWORD bytesRead = 0;
+	BOOL readOk = ReadFile(oldHandle, oldReadBuf, 3, &bytesRead, NULL);
+	if(!readOk || bytesRead != 3 || memcmp(oldReadBuf, "old", 3) != 0)
+		retVal = false;
+
+	CloseHandle(oldHandle);
+
+	// And a fresh open must see the new content
+	FILE *checkFd = TestFileHelper::fopen(testfilename, "rb");
+	if(checkFd == NULL)
+		retVal = false;
+	else
+	{
+		char checkBuf[16] = {};
+		size_t n = fread(checkBuf, 1, 3, checkFd);
+		if(n != 3 || memcmp(checkBuf, "new", 3) != 0)
+			retVal = false;
+		fclose(checkFd);
+	}
+
+	if(!boost::filesystem::remove(testfilename, ec))
+		retVal = false;
+	if(!boost::filesystem::remove_all(wintestpath, ec))
+		retVal = false;
+
+	return retVal;
+}
+
+namespace
+{
+	// Builds a FILETIME aligned to a whole second (so it survives the
+	// filesystem's 1-second time resolution unchanged), offset from "now" by
+	// the given number of seconds (may be negative).
+	FILETIME makeTestFileTime(int64_t secondsFromNow)
+	{
+		SYSTEMTIME st;
+		GetSystemTime(&st);
+		FILETIME ft;
+		SystemTimeToFileTime(&st, &ft);
+
+		ULARGE_INTEGER uli;
+		uli.LowPart = ft.dwLowDateTime;
+		uli.HighPart = ft.dwHighDateTime;
+		uli.QuadPart -= uli.QuadPart % 10000000ULL;	// round down to whole second
+		uli.QuadPart += static_cast<uint64_t>(secondsFromNow * 10000000LL);
+
+		FILETIME result;
+		result.dwLowDateTime = uli.LowPart;
+		result.dwHighDateTime = uli.HighPart;
+		return result;
+	}
+
+	bool sameSecond(const FILETIME &a, const FILETIME &b)
+	{
+		ULARGE_INTEGER ua, ub;
+		ua.LowPart = a.dwLowDateTime;
+		ua.HighPart = a.dwHighDateTime;
+		ub.LowPart = b.dwLowDateTime;
+		ub.HighPart = b.dwHighDateTime;
+
+		int64_t diff = static_cast<int64_t>(ua.QuadPart) - static_cast<int64_t>(ub.QuadPart);
+		if(diff < 0)
+			diff = -diff;
+		return diff < 10000000LL;	// within 1 second
+	}
+}
+
+bool TestFileWin32::fileTimeRoundTripTest(const boost::filesystem::path &testpath)
+{
+	bool retVal = true;
+	boost::system::error_code ec;
+
+	boost::filesystem::path wintestpath = testpath / boost::filesystem::unique_path();
+	if(!boost::filesystem::create_directories(wintestpath, ec))
+		return false;
+
+	boost::filesystem::path testfilename = wintestpath / L"encfsmp_test_filetime.txt";
+	std::wstring testfilenameW = testfilename.wstring();
+
+	HANDLE fh = CreateFileW(testfilenameW.c_str(), GENERIC_WRITE | GENERIC_READ, 0, NULL,
+		CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(fh == INVALID_HANDLE_VALUE)
+	{
+		printLastError();
+		boost::filesystem::remove_all(wintestpath, ec);
+		return false;
+	}
+
+	// Only the write time is checked for round-trip fidelity here: fs_layer
+	// (utimes/futimes) only ever plumbs a single timestamp through to the
+	// backing file on both Windows and POSIX, so PFMLayer::FlushFile applies
+	// WriteTime() to createTime_/accessTime_/changeTime_/writeTime_ alike.
+	// Distinct creation/access-time fidelity would need a real fs_layer
+	// extension (and, for creation time, a platform-specific setter, since
+	// POSIX has none) - out of scope here, so not asserted.
+	FILETIME writeTime = makeTestFileTime(-100);
+
+	if(!SetFileTime(fh, NULL, NULL, &writeTime))
+	{
+		std::wcerr << L"[FILETIME-DEBUG] SetFileTime failed" << std::endl;
+		printLastError();
+		retVal = false;
+	}
+	CloseHandle(fh);
+
+	// Reopen and read the time back
+	HANDLE fh2 = CreateFileW(testfilenameW.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(fh2 == INVALID_HANDLE_VALUE)
+	{
+		printLastError();
+		boost::filesystem::remove_all(wintestpath, ec);
+		return false;
+	}
+
+	FILETIME writeTimeOut = {};
+	BOOL isOK = GetFileTime(fh2, NULL, NULL, &writeTimeOut);
+	CloseHandle(fh2);
+
+	if(!isOK)
+	{
+		std::wcerr << L"[FILETIME-DEBUG] GetFileTime failed" << std::endl;
+		printLastError();
+		retVal = false;
+	}
+	else if(!sameSecond(writeTime, writeTimeOut))
+	{
+		auto toU64 = [](const FILETIME &ft) -> uint64_t
+		{
+			ULARGE_INTEGER u;
+			u.LowPart = ft.dwLowDateTime;
+			u.HighPart = ft.dwHighDateTime;
+			return u.QuadPart;
+		};
+		std::wcerr << L"[FILETIME-DEBUG] writeTime mismatch: expected=" << toU64(writeTime)
+			<< L" actual=" << toU64(writeTimeOut) << std::endl;
+		retVal = false;
+	}
+
+	if(!boost::filesystem::remove_all(wintestpath, ec))
+		retVal = false;
+
+	return retVal;
+}
+
+bool TestFileWin32::longNameCrashRepro(const boost::filesystem::path &testpath)
+{
+	bool retVal = true;
+	boost::system::error_code ec;
+
+	boost::filesystem::path wintestpath = testpath / boost::filesystem::unique_path();
+	if(!boost::filesystem::create_directories(wintestpath, ec))
+		return false;
+
+	// 200 chars is long enough that encfs's Block name encoding (padding to
+	// the cipher block size, a 2-byte checksum, then base64) expands this
+	// past the host filesystem's 255-char per-component limit, so the
+	// underlying mkdir() fails. This must be reported back as a clean
+	// CreateDirectoryW failure (ERROR_ACCESS_DENIED) - it must not crash the
+	// mount-serving thread, which it used to: PFMLayer::createOp()'s folder
+	// branch ignored mkdir()'s return value and happily registered a phantom
+	// open-file entry for a directory that was never actually created, and
+	// separately, logging a warning about the failure by itself crashed
+	// whenever fired from a non-main thread with easylogging++ unconfigured.
+	std::wstring longName(200, L'b');
+	boost::filesystem::path dir = wintestpath / longName;
+	if(CreateDirectoryW(dir.wstring().c_str(), NULL) || GetLastError() != ERROR_ACCESS_DENIED)
+		retVal = false;
+
+	if(!boost::filesystem::remove_all(wintestpath, ec))
+		retVal = false;
+
+	return retVal;
+}
+
