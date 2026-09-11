@@ -197,6 +197,14 @@ TEST_SUITE("Win32Test")
    {
       CHECK(TestFileWin32::longNameCrashRepro(TestParameters::testPathBoost_));
    }
+   TEST_CASE("SharingViolation")
+   {
+      CHECK(TestFileWin32::sharingViolationTest(TestParameters::testPathBoost_));
+   }
+   TEST_CASE("TruncateGrow")
+   {
+      CHECK(TestFileWin32::truncateGrowTest(TestParameters::testPathBoost_));
+   }
    TEST_CASE("FileTimeRoundTrip")
    {
       CHECK(TestFileWin32::fileTimeRoundTripTest(TestParameters::testPathBoost_));

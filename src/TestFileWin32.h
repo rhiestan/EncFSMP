@@ -52,6 +52,16 @@ public:
 	// EncFSMPTestApp::OnInit()'s EncFSMPLogger::setup() call.
 	static bool longNameCrashRepro(const boost::filesystem::path &testpath);
 
+	// A non-shared handle (share mode 0) must make a concurrent open attempt
+	// fail with ERROR_SHARING_VIOLATION, and once that first handle is closed
+	// the name must become openable again.
+	static bool sharingViolationTest(const boost::filesystem::path &testpath);
+
+	// SetEndOfFile-based truncate must discard data beyond the new size, and
+	// growing a file that way must zero-fill the new region rather than
+	// exposing stale/uninitialized bytes.
+	static bool truncateGrowTest(const boost::filesystem::path &testpath);
+
 protected:
 	static void printLastError();
 

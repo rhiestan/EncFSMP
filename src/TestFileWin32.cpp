@@ -505,3 +505,155 @@ bool TestFileWin32::longNameCrashRepro(const boost::filesystem::path &testpath)
 	return retVal;
 }
 
+bool TestFileWin32::sharingViolationTest(const boost::filesystem::path &testpath)
+{
+	bool retVal = true;
+	boost::system::error_code ec;
+
+	boost::filesystem::path wintestpath = testpath / boost::filesystem::unique_path();
+	if(!boost::filesystem::create_directories(wintestpath, ec))
+		return false;
+
+	boost::filesystem::path testfilename = wintestpath / L"encfsmp_test_sharing.txt";
+	std::wstring testfilenameW = testfilename.wstring();
+
+	// Create the file, then reopen it exclusively (share mode 0) - no other
+	// handle, reader or writer, may be opened concurrently.
+	HANDLE fh = CreateFileW(testfilenameW.c_str(), GENERIC_WRITE, 0, NULL,
+		CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(fh == INVALID_HANDLE_VALUE)
+	{
+		printLastError();
+		boost::filesystem::remove_all(wintestpath, ec);
+		return false;
+	}
+
+	// A second open with no sharing granted by the first handle must fail
+	// with ERROR_SHARING_VIOLATION, not succeed and not fail with some other
+	// error.
+	HANDLE fh2 = CreateFileW(testfilenameW.c_str(), GENERIC_READ,
+		FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(fh2 != INVALID_HANDLE_VALUE)
+	{
+		retVal = false;
+		CloseHandle(fh2);
+	}
+	else if(GetLastError() != ERROR_SHARING_VIOLATION)
+	{
+		printLastError();
+		retVal = false;
+	}
+
+	CloseHandle(fh);
+
+	// Once the exclusive handle is closed, the name must be openable again.
+	HANDLE fh3 = CreateFileW(testfilenameW.c_str(), GENERIC_READ,
+		FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(fh3 == INVALID_HANDLE_VALUE)
+	{
+		printLastError();
+		retVal = false;
+	}
+	else
+		CloseHandle(fh3);
+
+	if(!boost::filesystem::remove_all(wintestpath, ec))
+		retVal = false;
+
+	return retVal;
+}
+
+bool TestFileWin32::truncateGrowTest(const boost::filesystem::path &testpath)
+{
+	bool retVal = true;
+	boost::system::error_code ec;
+
+	boost::filesystem::path wintestpath = testpath / boost::filesystem::unique_path();
+	if(!boost::filesystem::create_directories(wintestpath, ec))
+		return false;
+
+	boost::filesystem::path testfilename = wintestpath / L"encfsmp_test_truncate.txt";
+	std::wstring testfilenameW = testfilename.wstring();
+
+	const char content[] = "0123456789ABCDEF";	// 16 bytes
+
+	HANDLE fh = CreateFileW(testfilenameW.c_str(), GENERIC_WRITE | GENERIC_READ, 0, NULL,
+		CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(fh == INVALID_HANDLE_VALUE)
+	{
+		printLastError();
+		boost::filesystem::remove_all(wintestpath, ec);
+		return false;
+	}
+
+	DWORD bytesWritten = 0;
+	if(!WriteFile(fh, content, sizeof(content) - 1, &bytesWritten, NULL) || bytesWritten != sizeof(content) - 1)
+	{
+		printLastError();
+		retVal = false;
+	}
+
+	// Truncate down to 4 bytes via SetEndOfFile
+	LARGE_INTEGER newPos;
+	newPos.QuadPart = 4;
+	if(!SetFilePointerEx(fh, newPos, NULL, FILE_BEGIN) || !SetEndOfFile(fh))
+	{
+		printLastError();
+		retVal = false;
+	}
+
+	// Grow back to 20 bytes - the new region (bytes 4..19) must read back as
+	// zero-fill, never leftover/stale data from before the truncate.
+	newPos.QuadPart = 20;
+	if(!SetFilePointerEx(fh, newPos, NULL, FILE_BEGIN) || !SetEndOfFile(fh))
+	{
+		printLastError();
+		retVal = false;
+	}
+
+	CloseHandle(fh);
+
+	// Verify size and content by reopening
+	HANDLE fh2 = CreateFileW(testfilenameW.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(fh2 == INVALID_HANDLE_VALUE)
+	{
+		printLastError();
+		boost::filesystem::remove_all(wintestpath, ec);
+		return false;
+	}
+
+	LARGE_INTEGER fileSize = {};
+	if(!GetFileSizeEx(fh2, &fileSize) || fileSize.QuadPart != 20)
+	{
+		printLastError();
+		retVal = false;
+	}
+
+	unsigned char readBuf[20] = {};
+	DWORD bytesRead = 0;
+	BOOL readOk = ReadFile(fh2, readBuf, sizeof(readBuf), &bytesRead, NULL);
+	CloseHandle(fh2);
+
+	if(!readOk || bytesRead != sizeof(readBuf))
+		retVal = false;
+	else
+	{
+		if(memcmp(readBuf, content, 4) != 0)
+			retVal = false;
+		for(int i = 4; i < 20; i++)
+		{
+			if(readBuf[i] != 0)
+			{
+				retVal = false;
+				break;
+			}
+		}
+	}
+
+	if(!boost::filesystem::remove_all(wintestpath, ec))
+		retVal = false;
+
+	return retVal;
+}
+
